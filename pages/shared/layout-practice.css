@@ -1,0 +1,187 @@
+/* layout-practice-v1：把尚未对齐的页面收到页面布局实施规范。不改 Foundation Token。 */
+
+body[data-platform-page="e01"] main.platform-main,
+body[data-platform-page="e02"] main.platform-main,
+body[data-platform-page="e03"] main.platform-main,
+body[data-platform-page="o01"] main.platform-main,
+body[data-platform-page="s01"] main.platform-main {
+  box-sizing: border-box;
+  padding: 64px 0 24px !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+body[data-platform-page="e01"] main.platform-main > .searchrow,
+body[data-platform-page="e01"] main.platform-main > .suggest,
+body[data-platform-page="e01"] main.platform-main > .work,
+body[data-platform-page="e02"] main.platform-main > .paperHead,
+body[data-platform-page="e02"] main.platform-main > .workspace,
+body[data-platform-page="e03"] main.platform-main > :not(.qiyan-page-context),
+body[data-platform-page="o01"] main.platform-main > .stats,
+body[data-platform-page="o01"] main.platform-main > .workspace {
+  margin-left: 24px;
+  margin-right: 24px;
+}
+
+body[data-platform-page="e01"] .work,
+body[data-platform-page="e02"] .workspace,
+body[data-platform-page="o01"] .workspace,
+body[data-platform-page="s01"] .dashboard-grid {
+  gap: 16px;
+}
+
+body[data-platform-page="e01"] .work {
+  height: auto;
+  min-height: 0;
+  padding-right: 0;
+  padding-left: 0;
+  grid-template-columns: minmax(200px, 220px) minmax(0, 1fr) minmax(320px, 400px);
+  align-items: start;
+}
+
+body[data-platform-page="e01"] .detail,
+body[data-platform-page="e01"] .dcontent {
+  height: auto;
+  min-width: 0;
+  overflow: visible;
+}
+
+body[data-platform-page="e01"] .dcontent h2,
+body[data-platform-page="e01"] .summary,
+body[data-platform-page="e01"] .journal {
+  overflow-wrap: break-word;
+}
+
+body[data-platform-page="e01"] .buttons {
+  flex-wrap: wrap;
+}
+
+body[data-platform-page="e01"] .searchrow button,
+body[data-platform-page="e01"] .suggest span,
+body[data-platform-page="e03"] .filters,
+body[data-platform-page="o01"] .filters button {
+  white-space: nowrap;
+}
+
+body[data-platform-page="e03"] .filters,
+body[data-platform-page="o01"] .filters {
+  height: auto;
+  min-height: 48px;
+}
+
+body[data-platform-page="e01"] .paper.selected,
+body[data-platform-page="e03"] .paper.sel,
+body[data-platform-page="o01"] .oppRow.selected {
+  background: #f0edff;
+  box-shadow: inset 3px 0 0 #5746f5;
+}
+
+body[data-platform-page="s01"] .dashboard-grid {
+  height: auto;
+  margin-top: 0;
+  padding: 0 24px 24px;
+}
+
+body[data-platform-page="s01"] .left-dashboard {
+  grid-template-rows: auto;
+  gap: 16px;
+}
+
+body[data-platform-page="s01"] .left-dashboard > :nth-child(2) {
+  min-height: 195px;
+}
+
+body[data-platform-page="s01"] .left-dashboard > :nth-child(3) {
+  min-height: 240px;
+}
+
+body[data-platform-page="s01"] .metric-card {
+  height: auto;
+  overflow: visible;
+}
+
+body[data-platform-page="e01"] .resulttop b,
+body[data-platform-page="e01"] .resulttop button,
+body[data-platform-page="s01"] .center-list th {
+  white-space: nowrap;
+}
+
+html[data-page="g02"] .g02-risk-list article {
+  grid-template-columns: 16px minmax(0, 1fr) 32px 88px;
+}
+
+html[data-page="g02"] .g02-risk-list time {
+  white-space: nowrap;
+}
+
+body[data-platform-header="true"] .platform-main > .content {
+  gap: 16px !important;
+  padding: 16px 24px 24px !important;
+}
+
+html[data-page]:not([data-page="a01"]) .toolbar {
+  height: auto;
+  min-height: 48px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+html[data-page]:not([data-page="a01"]) .toolbar button,
+html[data-page]:not([data-page="a01"]) .toolbar .searchbox {
+  min-width: 0;
+  height: auto;
+  min-height: 34px;
+  white-space: nowrap;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+html[data-page]:not([data-page="a01"]) .table-row.selected,
+html[data-page]:not([data-page="a01"]) .table-row.selected:hover {
+  background: #f0edff;
+  box-shadow: inset 3px 0 0 #5746f5;
+}
+
+html[data-page="g02"],
+html[data-page="g02"] body,
+html[data-page="g02"] #root {
+  height: 100vh !important;
+  overflow: hidden !important;
+}
+
+html[data-page="g02"] .g02-content {
+  grid-template-rows: none;
+  height: auto;
+  min-height: 0;
+  gap: 16px;
+  overflow: visible;
+}
+
+html[data-page="g02"] .g02-chart-row,
+html[data-page="g02"] .g02-middle-row,
+html[data-page="g02"] .g02-bottom-row {
+  gap: 16px;
+}
+
+html[data-page="g02"] .g02-page .ui-card {
+  height: auto;
+  min-height: 0;
+}
+
+html[data-page="g02"] .g02-stat {
+  height: auto;
+  min-height: 80px;
+}
+
+html[data-page="g02"] .g02-chart-box {
+  height: 160px;
+  min-height: 160px;
+}
+
+html[data-page="g02"] .g02-stat em.green {
+  color: #0ba981;
+}

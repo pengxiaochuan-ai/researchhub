@@ -1,0 +1,200 @@
+name: Deploy Research Hub
+
+# 岐研前端独立发布：GitHub 构建镜像并上传 OSS，云助手通知 ECS 从内网拉取。
+# 不使用 SSH，不推送 GHCR，也不会操作官网或科研平台目录、容器。
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [staging, production]
+        default: production
+
+permissions:
+  contents: read
+
+concurrency:
+  group: researchhub-ecs-release
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAMESPACE: ${{ github.repository_owner }}
+  IMAGE_NAME: pengxc-researchhub
+  OSS_RELEASE_PREFIX: releases/researchhub
+  ALIYUN_REGION_ID: cn-hangzhou
+  RESEARCHHUB_PORT: '8083'
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: ${{ inputs.environment || 'production' }}
+    outputs:
+      release_tag: ${{ steps.meta.outputs.release_tag }}
+      image_ref: ${{ steps.meta.outputs.image_ref }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate shared release secrets
+        shell: bash
+        env:
+          OSS_ACCESS_KEY: ${{ secrets.OSS_ACCESS_KEY }}
+          OSS_SECRET_KEY: ${{ secrets.OSS_SECRET_KEY }}
+          OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
+          OSS_ENDPOINT: ${{ secrets.OSS_ENDPOINT }}
+          ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
+          ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
+          ALIYUN_ECS_INSTANCE_ID: ${{ secrets.ALIYUN_ECS_INSTANCE_ID }}
+        run: |
+          set -Eeuo pipefail
+          missing_secrets=()
+          [[ -n "${OSS_ACCESS_KEY:-}" ]] || missing_secrets+=(OSS_ACCESS_KEY)
+          [[ -n "${OSS_SECRET_KEY:-}" ]] || missing_secrets+=(OSS_SECRET_KEY)
+          [[ -n "${OSS_BUCKET:-}" ]] || missing_secrets+=(OSS_BUCKET)
+          [[ -n "${OSS_ENDPOINT:-}" ]] || missing_secrets+=(OSS_ENDPOINT)
+          [[ -n "${ALIBABA_CLOUD_ACCESS_KEY_ID:-}" ]] || missing_secrets+=(ALIBABA_CLOUD_ACCESS_KEY_ID)
+          [[ -n "${ALIBABA_CLOUD_ACCESS_KEY_SECRET:-}" ]] || missing_secrets+=(ALIBABA_CLOUD_ACCESS_KEY_SECRET)
+          [[ -n "${ALIYUN_ECS_INSTANCE_ID:-}" ]] || missing_secrets+=(ALIYUN_ECS_INSTANCE_ID)
+          if (( ${#missing_secrets[@]} > 0 )); then
+            printf '::error::Missing required GitHub secret: %s\n' "${missing_secrets[@]}"
+            echo 'Configure organization secrets for the researchhub repository before retrying.'
+            exit 1
+          fi
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        run: pnpm build
+
+      - name: Validate release scripts
+        run: |
+          bash -n scripts/run-cloud-assistant.sh
+          bash -n scripts/cloud-assistant-bootstrap.sh
+          bash -n scripts/ecs-release.sh
+          python3 -c "compile(open('scripts/oss-release-transfer.py', encoding='utf-8').read(), 'oss-release-transfer.py', 'exec')"
+
+      - name: Set release metadata
+        id: meta
+        shell: bash
+        run: |
+          release_tag="${GITHUB_SHA::8}-$(date +%Y%m%d-%H%M%S)"
+          image_ref="${REGISTRY}/${IMAGE_NAMESPACE}/${IMAGE_NAME}:${release_tag}"
+          echo "release_tag=${release_tag}" >> "${GITHUB_OUTPUT}"
+          echo "image_ref=${image_ref}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build researchhub image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          load: true
+          push: false
+          tags: ${{ steps.meta.outputs.image_ref }}
+          cache-from: type=gha,scope=researchhub
+          cache-to: type=gha,mode=max,scope=researchhub
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install OSS client
+        run: pip install 'oss2>=2.18.0,<3'
+
+      - name: Package and upload release to OSS
+        env:
+          OSS_ACCESS_KEY: ${{ secrets.OSS_ACCESS_KEY }}
+          OSS_SECRET_KEY: ${{ secrets.OSS_SECRET_KEY }}
+          OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
+          OSS_ENDPOINT: ${{ secrets.OSS_ENDPOINT }}
+          RELEASE_TAG: ${{ steps.meta.outputs.release_tag }}
+          IMAGE_REF: ${{ steps.meta.outputs.image_ref }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          prefix="${OSS_RELEASE_PREFIX}/${RELEASE_TAG}"
+          release_dir="${RUNNER_TEMP}/researchhub-release"
+          control_dir="${release_dir}/control"
+          mkdir -p "${control_dir}"
+
+          docker save "${IMAGE_REF}" | gzip -1 > "${release_dir}/researchhub.tar.gz"
+          cp docker-compose.ecs.yml "${release_dir}/docker-compose.ecs.yml"
+          (
+            cd "${release_dir}"
+            sha256sum researchhub.tar.gz docker-compose.ecs.yml > ARTIFACTS.sha256
+          )
+
+          cp scripts/cloud-assistant-bootstrap.sh "${control_dir}/"
+          cp scripts/ecs-release.sh "${control_dir}/"
+          cp scripts/oss-release-transfer.py "${control_dir}/"
+          (
+            cd "${control_dir}"
+            sha256sum cloud-assistant-bootstrap.sh ecs-release.sh oss-release-transfer.py > SHA256SUMS
+          )
+
+          for asset in researchhub.tar.gz docker-compose.ecs.yml ARTIFACTS.sha256; do
+            python scripts/oss-release-transfer.py upload \
+              --file "${release_dir}/${asset}" \
+              --key "${prefix}/${asset}"
+          done
+          for asset in cloud-assistant-bootstrap.sh ecs-release.sh oss-release-transfer.py SHA256SUMS; do
+            python scripts/oss-release-transfer.py upload \
+              --file "${control_dir}/${asset}" \
+              --key "${prefix}/${asset}"
+          done
+          printf '%s\n' "${RELEASE_TAG}" > "${release_dir}/TAG.txt"
+          python scripts/oss-release-transfer.py upload \
+            --file "${release_dir}/TAG.txt" \
+            --key "${prefix}/TAG.txt"
+          echo "Uploaded researchhub release: ${prefix}"
+
+  deploy:
+    needs: build-and-upload
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment:
+      name: ${{ inputs.environment || 'production' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy researchhub through Alibaba Cloud Assistant
+        env:
+          ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
+          ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
+          ALIYUN_ECS_INSTANCE_ID: ${{ secrets.ALIYUN_ECS_INSTANCE_ID }}
+          RESEARCHHUB_RELEASE_MODE: deploy
+          RESEARCHHUB_RELEASE_TAG: ${{ needs.build-and-upload.outputs.release_tag }}
+          RESEARCHHUB_IMAGE: ${{ needs.build-and-upload.outputs.image_ref }}
+          RESEARCHHUB_OSS_RELEASE_PREFIX: ${{ env.OSS_RELEASE_PREFIX }}
+          RESEARCHHUB_PORT: ${{ env.RESEARCHHUB_PORT }}
+        run: bash scripts/run-cloud-assistant.sh
+
+  notify-failure:
+    needs: [build-and-upload, deploy]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print failure context
+        run: |
+          echo "Research Hub deployment failed for ${{ github.sha }}"
+          echo "Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

@@ -1,0 +1,332 @@
+html[data-page] body {
+  overflow: hidden;
+}
+
+html[data-page="s02"] .content > .main-grid {
+  height: 550px;
+  overflow: hidden;
+}
+
+html[data-page="g01"] .content > .ui-card:first-child {
+  height: 136px;
+}
+
+html[data-page="g01"] .content > .ui-card:first-child > div {
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+
+html[data-page="g01"] .review-grid {
+  height: 476px;
+  grid-template-rows: 476px;
+}
+
+html[data-page="g01"] .review-grid > .ui-card,
+html[data-page="g01"] .review-grid > .stack {
+  max-height: 476px;
+  overflow: hidden;
+}
+
+html[data-page="g01"] .content > .ui-card:last-child {
+  height: 136px;
+}
+
+html[data-page="g01"] .content > .ui-card:last-child .textarea {
+  height: 46px !important;
+}
+
+html[data-page="g02"] .content > .three-col:nth-child(3) {
+  height: 190px;
+}
+
+html[data-page="g02"] .content > .three-col:nth-child(4) {
+  height: 290px;
+}
+
+html[data-page="g02"] .content > .three-col:nth-child(5) {
+  height: 165px;
+}
+
+html[data-page="g02"] .content > .three-col > .ui-card,
+html[data-page="g02"] .content > .three-col > .stack {
+  height: 100%;
+  overflow: hidden;
+}
+
+html[data-page="o01"] .content > .two-col {
+  height: 716px;
+  overflow: hidden;
+}
+
+html[data-page="o02"] .content > .main-grid {
+  height: 540px;
+  overflow: hidden;
+}
+
+html[data-page="s05"] .content > .three-col {
+  height: 220px;
+  overflow: hidden;
+}
+
+html[data-page="s05"] .content > .main-grid {
+  height: 405px;
+  overflow: hidden;
+}
+
+html[data-page="a02"] .content > .ui-card:first-child {
+  height: auto;
+  overflow: visible;
+}
+
+html[data-page="a02"] .hero-detail-card {
+  padding-top: 16px;
+  padding-bottom: 16px;
+  grid-template-columns: 140px minmax(0, 1fr) minmax(180px, 240px) minmax(200px, 280px);
+  align-items: start;
+}
+
+html[data-page="a02"] .hero-detail-card .detail-list b,
+html[data-page="a02"] .asset-preview .detail-list b {
+  min-width: 0;
+  line-height: 22px;
+  white-space: normal;
+}
+
+html[data-page="a02"] .hero-detail-card .tag-row {
+  flex-wrap: wrap;
+}
+
+html[data-page="a02"] .content > .two-col {
+  height: auto;
+  overflow: visible;
+  align-items: start;
+}
+
+html[data-page="a02"] .asset-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 280px);
+  gap: 16px;
+  height: auto;
+  align-items: start;
+  padding: 0 16px 16px;
+}
+
+html[data-page="a02"] .asset-preview .detail-list p {
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: start;
+}
+
+html[data-page="a02"] .right-list p {
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+html[data-page="a02"] .right-list span {
+  min-width: 0;
+  line-height: 22px;
+}
+
+/* A01：筛选条单行、选中态用品牌色，主指标和资产名称先被看见 */
+html[data-page="a01"] .content.stack,
+html[data-page="a01"] .content .stack,
+html[data-page="a01"] .two-col {
+  gap: 16px;
+}
+
+html[data-page="a01"] .stats-row {
+  gap: 12px;
+  margin-bottom: 0;
+}
+
+html[data-page="a01"] .stat-card {
+  height: 88px;
+  border-color: var(--border);
+  border-radius: var(--radius-card);
+  padding: 0 16px;
+  gap: 12px;
+}
+
+html[data-page="a01"] .stat-card:first-child {
+  background: var(--brand-soft);
+  border-color: transparent;
+}
+
+html[data-page="a01"] .stat-card small {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+html[data-page="a01"] .stat-card strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: 24px;
+  line-height: 32px;
+  letter-spacing: -0.02em;
+}
+
+html[data-page="a01"] .stat-card:first-child strong {
+  color: var(--brand-primary);
+}
+
+html[data-page="a01"] .stat-card p {
+  display: block;
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+html[data-page="a01"] .stat-card p.good {
+  color: var(--success);
+}
+
+html[data-page="a01"] .two-col > .stack:first-child > .ui-card:first-child > .ui-tabs {
+  height: 48px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  padding: 0 8px;
+}
+
+html[data-page="a01"] .toolbar.toolbar-split {
+  height: auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+}
+
+html[data-page="a01"] .toolbar.toolbar-split .searchbox,
+html[data-page="a01"] .toolbar.toolbar-split button {
+  height: 36px;
+  min-width: 0;
+  border-color: var(--border);
+  border-radius: var(--radius-input);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+html[data-page="a01"] .toolbar.toolbar-split .searchbox {
+  order: 1;
+  flex: 1 1 calc(100% - 128px);
+  width: auto;
+  justify-content: flex-start;
+  gap: 8px;
+  color: var(--text-tertiary);
+}
+
+html[data-page="a01"] .toolbar.toolbar-split .searchbox span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html[data-page="a01"] .toolbar.toolbar-split .filter {
+  order: 2;
+  flex: 0 0 auto;
+  min-width: max-content;
+  margin-left: 0;
+  gap: 8px;
+  padding: 0 12px;
+  border-radius: var(--radius-button);
+  color: var(--brand-primary);
+  font-weight: 500;
+}
+
+html[data-page="a01"] .toolbar.toolbar-split .split-filter {
+  order: 3;
+  flex: 1 1 calc(20% - 8px);
+  min-width: max-content;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0 12px;
+  color: var(--text-secondary);
+}
+
+html[data-page="a01"] .split-filter span {
+  color: var(--text-tertiary);
+  overflow: visible;
+  text-overflow: clip;
+}
+
+html[data-page="a01"] .split-filter b {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+html[data-page="a01"] .split-filter svg {
+  margin-left: auto;
+  color: var(--text-tertiary);
+}
+
+html[data-page="a01"] .data-table {
+  padding: 0;
+}
+
+html[data-page="a01"] .table-row {
+  min-height: 48px;
+  padding: 0 16px;
+  border-bottom-color: var(--border);
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+html[data-page="a01"] .table-row.table-head {
+  height: 36px;
+  min-height: 36px;
+  background: var(--canvas);
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+html[data-page="a01"] .table-row:not(.table-head):hover {
+  background: var(--canvas);
+}
+
+html[data-page="a01"] .table-row.selected,
+html[data-page="a01"] .table-row.selected:hover {
+  background: var(--brand-soft);
+  box-shadow: inset 3px 0 0 var(--brand-primary);
+}
+
+html[data-page="a01"] .table-row:not(.table-head) span:first-child {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+html[data-page="a01"] .table-row .good,
+html[data-page="a01"] .ui-card .good {
+  color: var(--success);
+  font-weight: 600;
+}
+
+html[data-page="a01"] .two-col > .stack:last-child .ui-tabs {
+  height: 40px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: 0 4px;
+}
+
+html[data-page="a01"] .two-col > .stack:last-child .ui-tabs button {
+  flex: 1;
+  padding: 0 8px;
+  font-size: 13px;
+}
+
+html[data-page="a01"] .key-cards article {
+  border-color: var(--border);
+  border-radius: var(--radius-card);
+  transition: border-color .15s ease, background-color .15s ease;
+}
+
+html[data-page="a01"] .key-cards article:hover {
+  border-color: var(--brand-primary);
+  background: var(--brand-soft);
+}

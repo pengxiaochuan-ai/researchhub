@@ -1,0 +1,261 @@
+header.global-platform-header {
+  box-sizing: border-box !important;
+  position: fixed !important;
+  inset: 0 0 auto 0 !important;
+  z-index: 100 !important;
+  width: 100% !important;
+  height: 64px !important;
+  min-height: 64px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0 !important;
+  color: var(--text-primary) !important;
+  background: var(--surface) !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  font-family: var(--font-zh) !important;
+}
+
+.global-platform-header button {
+  box-sizing: border-box;
+  border: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: inherit !important;
+  background: transparent !important;
+  font: inherit !important;
+  cursor: pointer;
+}
+
+header.global-platform-header .qiyan-header-brand {
+  width: 420px !important;
+  height: 64px !important;
+  padding-left: 24px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  text-align: left !important;
+  flex: none;
+}
+
+.qiyan-header-logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex: none;
+}
+
+.qiyan-header-word {
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.qiyan-header-word b {
+  color: #07143d;
+  font-size: 24px;
+  letter-spacing: -1px;
+}
+
+.qiyan-brand-separator {
+  width: 1px;
+  height: 24px;
+  flex: none;
+  background: #d9deea;
+}
+
+.qiyan-header-subtitle {
+  margin-left: 0;
+  color: #405087;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+header.global-platform-header .qiyan-header-search {
+  position: absolute;
+  left: 55%;
+  transform: translateX(-50%);
+  width: 386px !important;
+  height: 40px !important;
+  padding: 0 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+  border: 1px solid #d3dced !important;
+  border-radius: 8px !important;
+  color: #7885a4 !important;
+  background: #fff !important;
+  box-shadow: 0 1px 4px rgba(34, 55, 95, 0.06) !important;
+  text-align: left;
+}
+
+header.global-platform-header .qiyan-header-search:hover {
+  border-color: #bdc9e1 !important;
+}
+
+header.global-platform-header .qiyan-header-search:focus-visible {
+  border-color: var(--brand-primary) !important;
+  outline: 2px solid rgba(87, 70, 245, 0.16);
+  outline-offset: 1px;
+}
+
+.qiyan-header-search svg,
+.qiyan-header-notification svg,
+.qiyan-user-trigger svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.qiyan-header-search svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.qiyan-header-search span {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qiyan-header-notification {
+  position: absolute;
+  right: 228px;
+  width: 34px !important;
+  height: 40px !important;
+  display: grid !important;
+  place-items: center !important;
+  color: #344674 !important;
+}
+
+.qiyan-header-notification svg {
+  width: 20px;
+  height: 20px;
+}
+
+.qiyan-header-notification i {
+  position: absolute;
+  top: 5px;
+  right: 3px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #e93449;
+}
+
+.qiyan-header-separator {
+  position: absolute;
+  right: 213px;
+  width: 1px;
+  height: 30px;
+  background: #e3e7f1;
+}
+
+.qiyan-user-trigger {
+  position: absolute;
+  right: 26px;
+  height: 56px !important;
+  display: grid !important;
+  grid-template-columns: 40px 92px 18px;
+  align-items: center !important;
+  gap: 10px !important;
+  text-align: left !important;
+}
+
+.qiyan-user-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #4f46e5;
+  background: #eeecff;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.qiyan-user-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.qiyan-user-copy b {
+  color: #101a3a;
+  font-size: 15px;
+}
+
+.qiyan-user-copy small {
+  color: #596894;
+  font-size: 12px;
+}
+
+.qiyan-user-trigger svg {
+  width: 16px;
+  height: 16px;
+  color: #344674;
+}
+
+body[data-platform-header="true"] .platform-side {
+  top: 64px !important;
+}
+
+body[data-platform-header="true"] .platform-main {
+  padding-top: 64px !important;
+}
+
+/* Keep the shared chrome fixed while every page scrolls its right-hand workspace. */
+html body[data-platform-header="true"],
+body[data-platform-header="true"] #root {
+  height: 100vh !important;
+  overflow: hidden !important;
+}
+
+body[data-platform-header="true"] #root > main,
+body[data-platform-header="true"] #root > .platform-app > main,
+body[data-platform-header="true"] .platform-main {
+  box-sizing: border-box !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+}
+
+body[data-platform-page="e01"] .side,
+body[data-platform-page="e02"] .side,
+body[data-platform-page="o01"] .side {
+  top: 64px !important;
+  bottom: 0 !important;
+  height: auto !important;
+  padding-top: 0 !important;
+}
+
+body[data-platform-page="e01"] main,
+body[data-platform-page="e02"] main {
+  padding-top: 64px !important;
+}
+
+body[data-platform-page="e03"] #root > aside {
+  top: 64px !important;
+}
+
+body[data-platform-page="e03"] #root > main {
+  margin-top: 64px !important;
+  height: calc(100vh - 64px) !important;
+  max-height: calc(100vh - 64px) !important;
+}
+
+@media (max-width: 1400px) {
+  .qiyan-header-search { width: 340px !important; }
+}

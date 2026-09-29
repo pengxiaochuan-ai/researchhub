@@ -1,0 +1,78 @@
+.trial-board { display: flex; flex-direction: column; gap: 12px; padding: 0 24px 24px; background: var(--canvas); color: var(--text-primary); }
+.trial-jump { display: flex; align-items: center; gap: 16px; color: var(--text-tertiary); font-size: 13px; line-height: 20px; }
+.trial-jump button { display: inline-flex; align-items: center; gap: 2px; padding: 0; border: 0; background: transparent; color: var(--brand-primary); font-size: 13px; }
+.trial-jump svg { width: 14px; height: 14px; }
+.trial-head, .trial-card, .trial-ai-panel { border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+.trial-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; align-items: start; padding: 16px; }
+.trial-head h2, .trial-head > p { grid-column: 1 / -1; }
+.trial-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.trial-tags em { padding: 0 8px; border-radius: 4px; background: var(--brand-soft); color: var(--brand-primary); font-size: 12px; font-style: normal; font-weight: 500; line-height: 20px; }
+.trial-tags em.live, .trial-facts b.live { background: #e7f8f2; color: var(--success); }
+.trial-head h2 { margin: 8px 0 0; font-size: 20px; line-height: 28px; }
+.trial-head p, .trial-card p, .trial-ai-body p, .trial-ai-body li { margin: 6px 0 0; color: var(--text-secondary); font-size: 13px; line-height: 20px; }
+.trial-ids { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.trial-ids b { color: var(--brand-primary); }
+.trial-actions { display: flex; flex-wrap: nowrap; align-content: flex-start; justify-content: flex-end; gap: 8px; }
+.trial-actions button, .trial-conclusion header button, .trial-ai-panel > footer button { display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 12px; border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--text-secondary); font-size: 14px; line-height: 22px; }
+.trial-actions .trial-ai, .trial-conclusion header button { border-color: var(--brand-primary); background: var(--brand-primary); color: #fff; }
+.trial-actions svg, .trial-card h3 svg, .trial-ai-panel header svg, .trial-facts span svg, .trial-more svg { width: 14px; height: 14px; flex: none; }
+.trial-tabs { position: sticky; top: -8px; z-index: 4; display: flex; align-items: flex-end; gap: 20px; height: 52px; padding: 8px 16px 0; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+.trial-tabs button, .trial-ai-tabs button { padding: 0 0 8px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--text-secondary); font-size: 14px; font-weight: 500; line-height: 22px; white-space: nowrap; }
+.trial-tabs button.on, .trial-ai-tabs button.on { border-bottom-color: var(--brand-primary); color: var(--brand-primary); }
+.trial-split { display: grid; grid-template-columns: minmax(0, 1fr) 248px 336px; gap: 12px; align-items: start; }
+.trial-main, .trial-facts { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.trial-card { padding: 16px; }
+.trial-card h3, .trial-ai-body h3 { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--text-primary); font-size: 16px; line-height: 24px; }
+.trial-card h3 svg { color: var(--brand-primary); }
+.trial-design, .trial-people { width: 100%; margin-top: 12px; border-collapse: collapse; }
+.trial-design th, .trial-design td, .trial-people th, .trial-people td { padding: 8px 10px; border: 1px solid var(--border); text-align: left; vertical-align: top; font-size: 13px; line-height: 20px; }
+.trial-design th, .trial-people th { background: #f7f8fb; color: var(--text-tertiary); font-weight: 500; }
+.trial-design th { width: 112px; white-space: nowrap; }
+.trial-people th { width: auto; font-size: 12px; line-height: 18px; }
+.trial-people td { border-left: 0; border-right: 0; }
+.trial-people tr:last-child td { border-bottom: 0; }
+.trial-line { position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 16px 0 0; padding: 0; list-style: none; }
+.trial-line::before { content: ""; position: absolute; top: 5px; right: 10%; left: 10%; height: 2px; background: var(--border); }
+.trial-line li { position: relative; text-align: center; }
+.trial-line i { display: block; width: 12px; height: 12px; margin: 0 auto 8px; border: 2px solid var(--brand-primary); border-radius: 50%; background: #fff; }
+.trial-line b, .trial-line small { display: block; }
+.trial-line b { color: var(--text-primary); font-size: 13px; line-height: 20px; }
+.trial-line small, .trial-more { color: var(--text-tertiary); font-size: 12px; line-height: 18px; }
+.trial-line small { white-space: nowrap; }
+.trial-line li.on i { background: var(--brand-primary); }
+.trial-line li.on b { display: inline-block; padding: 0 8px; border-radius: 10px; background: var(--brand-soft); color: var(--brand-primary); }
+.trial-more { display: inline-flex; align-items: center; gap: 2px; margin-top: 12px; padding: 0; border: 0; background: transparent; color: var(--brand-primary); font-size: 13px; }
+.trial-note { display: block; }
+.trial-facts p { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin: 0; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.trial-facts p:last-child, .trial-facts button:last-child { border-bottom: 0; }
+.trial-facts small { color: var(--text-tertiary); font-size: 12px; line-height: 18px; }
+.trial-facts b { color: var(--text-primary); font-size: 13px; font-weight: 500; line-height: 20px; text-align: right; }
+.trial-facts b.live { padding: 0 6px; border-radius: 4px; font-weight: 500; }
+.trial-facts span { display: inline-flex; align-items: center; gap: 4px; color: var(--success); font-size: 13px; line-height: 20px; }
+.trial-facts button { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 8px 0; border: 0; border-bottom: 1px solid var(--border); background: transparent; color: var(--text-primary); font-size: 13px; line-height: 20px; text-align: left; }
+.trial-facts button svg { color: var(--text-tertiary); }
+.trial-related { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.trial-related li { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); color: var(--text-primary); font-size: 13px; }
+.trial-ai-panel { position: sticky; top: -8px; display: flex; flex-direction: column; max-height: calc(100vh - 72px); overflow: hidden; }
+.trial-ai-panel > header { padding: 16px 16px 8px; }
+.trial-ai-panel > header b { display: flex; align-items: center; gap: 6px; font-size: 16px; line-height: 24px; }
+.trial-ai-panel > header small { display: block; margin-top: 4px; color: var(--text-tertiary); font-size: 12px; line-height: 18px; }
+.trial-ai-panel > header svg { color: var(--brand-primary); }
+.trial-ai-tabs { display: flex; flex-wrap: wrap; gap: 0 12px; padding: 0 16px; border-bottom: 1px solid var(--border); }
+.trial-ai-body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 16px; padding: 16px; }
+.trial-conclusion { padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: #f8f7ff; }
+.trial-conclusion header, .trial-ai-body section > h3 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.trial-conclusion header b { color: var(--text-primary); font-size: 14px; line-height: 22px; }
+.trial-ai-body ol, .trial-ai-body ul { margin: 8px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; }
+.trial-ai-body ol li { display: flex; gap: 8px; margin: 0; }
+.trial-ai-body ol i { flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--brand-soft); color: var(--brand-primary); font-style: normal; font-size: 12px; line-height: 20px; text-align: center; }
+.trial-ai-body ol b { display: block; color: var(--text-primary); font-size: 13px; line-height: 20px; }
+.trial-ai-body ul li { position: relative; margin: 0; padding-left: 14px; }
+.trial-ai-body ul li::before { content: ""; position: absolute; top: 8px; left: 0; width: 6px; height: 6px; border-radius: 50%; background: var(--brand-primary); }
+.trial-ai-panel > footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); }
+.trial-ai-panel > footer span { color: var(--text-tertiary); font-size: 12px; line-height: 18px; }
+.trial-ai-panel > footer button { flex: none; white-space: nowrap; }
+body[data-platform-page="c03"] .trial-tabs button,
+body[data-platform-page="c03"] .trial-actions button,
+body[data-platform-page="c03"] .trial-ai-tabs button,
+body[data-platform-page="c03"] .trial-conclusion header button { font-size: 14px; font-weight: 500; line-height: 22px; }

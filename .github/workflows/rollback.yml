@@ -1,0 +1,48 @@
+name: Rollback Research Hub
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'OSS release tag to restore (for example abcdef12-20260929-120000)'
+        required: true
+      confirm:
+        description: 'Type ROLLBACK to confirm'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: researchhub-ecs-release
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAMESPACE: ${{ github.repository_owner }}
+  IMAGE_NAME: pengxc-researchhub
+  OSS_RELEASE_PREFIX: releases/researchhub
+  ALIYUN_REGION_ID: cn-hangzhou
+  RESEARCHHUB_PORT: '8083'
+
+jobs:
+  rollback:
+    if: github.event.inputs.confirm == 'ROLLBACK'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Roll back researchhub through Alibaba Cloud Assistant
+        env:
+          ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
+          ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
+          ALIYUN_ECS_INSTANCE_ID: ${{ secrets.ALIYUN_ECS_INSTANCE_ID }}
+          RESEARCHHUB_RELEASE_MODE: rollback
+          RESEARCHHUB_RELEASE_TAG: ${{ github.event.inputs.image_tag }}
+          RESEARCHHUB_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.image_tag }}
+          RESEARCHHUB_OSS_RELEASE_PREFIX: ${{ env.OSS_RELEASE_PREFIX }}
+          RESEARCHHUB_PORT: ${{ env.RESEARCHHUB_PORT }}
+        run: bash scripts/run-cloud-assistant.sh

@@ -1,0 +1,46 @@
+name: Research Hub CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: researchhub-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        run: pnpm build
+
+      - name: Validate release scripts
+        run: |
+          bash -n scripts/run-cloud-assistant.sh
+          bash -n scripts/cloud-assistant-bootstrap.sh
+          bash -n scripts/ecs-release.sh
+          python3 -c "compile(open('scripts/oss-release-transfer.py', encoding='utf-8').read(), 'oss-release-transfer.py', 'exec')"
+
+      - name: Build container image
+        run: docker build --tag researchhub:ci .

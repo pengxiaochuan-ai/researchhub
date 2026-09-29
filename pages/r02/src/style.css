@@ -1,0 +1,61 @@
+.profile-board { display: flex; flex-direction: column; gap: 12px; padding: 0 24px 24px; background: var(--canvas); color: var(--text-primary); }
+.profile-hero, .profile-main > section, .profile-intro section, .profile-side section, .profile-dirs article { border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+.profile-hero { display: grid; grid-template-columns: 88px minmax(0, 1fr) auto; gap: 16px; align-items: start; padding: 16px; }
+.profile-hero img { width: 88px; height: 88px; object-fit: cover; object-position: center top; border-radius: 8px; }
+.profile-hero header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.profile-hero h2 { margin: 0; font-size: 20px; line-height: 28px; }
+.profile-hero header em, .profile-focus em, .profile-dirs em, .profile-papers em, .profile-lines em { padding: 0 8px; border-radius: 4px; background: var(--brand-soft); color: var(--brand-primary); font-style: normal; font-size: 12px; font-weight: 500; line-height: 20px; }
+.profile-hero header div { display: flex; gap: 8px; margin-left: auto; }
+.profile-hero header button, .profile-main header button { display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 12px; border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--brand-primary); }
+.profile-meta, .profile-hero p, .profile-main p, .profile-papers span, .profile-lines span { margin: 6px 0 0; color: var(--text-secondary); font-size: 13px; line-height: 20px; }
+.profile-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
+.profile-meta svg, .profile-stats svg, .profile-org svg, .profile-team svg { width: 14px; height: 14px; flex: none; color: var(--brand-primary); }
+.profile-post { color: var(--text-primary); }
+.profile-focus { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.profile-ids { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.profile-stats { display: grid; grid-template-columns: repeat(4, max-content); gap: 16px; align-self: center; }
+.profile-stats p { display: flex; flex-direction: column; align-items: center; min-width: 72px; margin: 0; }
+.profile-stats b { color: var(--text-primary); font-size: 20px; line-height: 28px; }
+.profile-stats small, .profile-side small, .profile-career-note { color: var(--text-tertiary); font-size: 12px; line-height: 18px; }
+.profile-tabs { position: sticky; top: -8px; z-index: 4; display: flex; align-items: flex-end; gap: 20px; height: 52px; padding: 8px 16px 0; overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+.profile-tabs button, .profile-result-tabs button { padding: 0 0 8px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--text-secondary); white-space: nowrap; }
+.profile-tabs button.on, .profile-result-tabs button.on { border-bottom-color: var(--brand-primary); color: var(--brand-primary); }
+.profile-split { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; align-items: start; }
+.profile-main, .profile-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.profile-main > section, .profile-intro section, .profile-side section { padding: 16px; }
+.profile-intro { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(220px, .8fr); gap: 12px; }
+.profile-main h3, .profile-side h3 { margin: 0; font-size: 16px; line-height: 24px; }
+.profile-main header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.profile-main header button { height: auto; padding: 0; border: 0; }
+.profile-fit { background: #f8f7ff; }
+.profile-match-count { color: var(--text-primary); font-weight: 500; }
+.profile-dims, .profile-reasons, .profile-papers, .profile-lines { margin: 8px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.profile-dims li, .profile-reasons li, .profile-lines li { color: var(--text-secondary); font-size: 13px; line-height: 20px; }
+.profile-dims li.match { color: var(--text-primary); }
+.profile-dims li.partial { color: var(--warning); }
+.profile-fit button, .profile-more { display: inline-flex; align-items: center; gap: 2px; margin-top: 12px; padding: 0; border: 0; background: transparent; color: var(--brand-primary); }
+.profile-kicker { margin: 12px 0 0; color: var(--text-tertiary); font-size: 12px; line-height: 18px; }
+.profile-projects { margin-top: 16px; }
+.profile-projects h3 { margin-bottom: 0; }
+.profile-dirs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.profile-dirs article { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; padding: 12px; }
+.profile-dirs b, .profile-papers b, .profile-lines b, .profile-team b { color: var(--text-primary); font-size: 14px; line-height: 22px; }
+.profile-papers b, .profile-lines b { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.profile-dirs span { color: var(--text-secondary); font-size: 12px; line-height: 18px; }
+.profile-result-tabs { display: flex; gap: 16px; margin-top: 12px; }
+.profile-side { position: sticky; top: -8px; }
+.profile-org, .profile-team { display: flex; gap: 8px; align-items: flex-start; width: 100%; margin-top: 12px; padding: 0; border: 0; background: transparent; text-align: left; }
+.profile-team { flex-direction: column; gap: 4px; }
+.profile-team span { white-space: nowrap; }
+.profile-org b, .profile-org small, .profile-team b, .profile-team span { display: block; }
+.profile-side ol { margin: 12px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.profile-side li b { display: block; font-size: 13px; line-height: 20px; }
+.profile-side li span { color: var(--text-secondary); font-size: 13px; line-height: 20px; }
+.profile-team span { display: inline-flex; align-items: center; gap: 2px; margin-top: 4px; color: var(--brand-primary); font-size: 12px; }
+.profile-empty { margin: 12px 0 0; color: var(--text-secondary); font-size: 13px; }
+body[data-platform-page="r02"] .profile-tabs button,
+body[data-platform-page="r02"] .profile-hero header button,
+body[data-platform-page="r02"] .profile-result-tabs button,
+body[data-platform-page="r02"] .profile-main header button,
+body[data-platform-page="r02"] .profile-fit button,
+body[data-platform-page="r02"] .profile-more { font-size: 14px; font-weight: 500; line-height: 22px; }

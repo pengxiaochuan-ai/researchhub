@@ -1,0 +1,284 @@
+{
+  "defaultPage": "p01",
+  "pages": [
+    {
+      "id": "p00",
+      "title": "开放性首页",
+      "route": "/pages/p00/",
+      "entry": "pages/p00/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "manual-p00"
+    },
+    {
+      "id": "p001",
+      "title": "开放性首页固化稿",
+      "route": "/pages/p001/",
+      "entry": "pages/p001/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "manual-p001"
+    },
+    {
+      "id": "p01",
+      "title": "我的科研",
+      "route": "/pages/p01/",
+      "entry": "pages/p01/index.html",
+      "screen": "../screens/platform/P01-my-research.png",
+      "sourceArchive": "P01-direct-rebuild-v3.zip",
+      "sourceSha256": "0BC4E91B15AF92835DD985C0CF669C8AEB44FDC112D654D45E4F5DC89DB47E11"
+    },
+    {
+      "id": "c01",
+      "title": "临床注册",
+      "route": "/pages/c01/",
+      "entry": "pages/c01/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "manual-c01"
+    },
+    {
+      "id": "c03",
+      "title": "试验详情",
+      "route": "/pages/c03/",
+      "entry": "pages/c03/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "manual-c03"
+    },
+    {
+      "id": "t01",
+      "title": "研究团队",
+      "route": "/pages/t01/",
+      "entry": "pages/t01/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "manual-t01"
+    },
+    {
+      "id": "t02",
+      "title": "团队详情",
+      "route": "/pages/t02/",
+      "entry": "pages/t02/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "manual-t02"
+    },
+    {
+      "id": "r01",
+      "title": "研究者",
+      "route": "/pages/r01/",
+      "entry": "pages/r01/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "manual-r01"
+    },
+    {
+      "id": "r02",
+      "title": "研究者详情",
+      "route": "/pages/r02/",
+      "entry": "pages/r02/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "manual-r02"
+    },
+    {
+      "id": "h01",
+      "title": "针灸治疗情志病",
+      "route": "/pages/h01/",
+      "entry": "pages/h01/index.html",
+      "screen": "../screens/hub/H01-research-hub.png",
+      "sourceArchive": "H01-direct-rebuild-v2.zip",
+      "sourceSha256": "94F16D3493060B9435580CC466BD6F965023D0CA2C7EFCA3E3AEB48913A4166A"
+    },
+    {
+      "id": "ai01",
+      "title": "岐研 AI",
+      "route": "/pages/ai01/",
+      "entry": "pages/ai01/index.html",
+      "screen": "../screens/ai/AI01-qiyan-ai.png",
+      "sourceArchive": "AI01-direct-rebuild-v3.zip",
+      "sourceSha256": "CF989E24C73504ADD91D001CC3E5EF84E67D8C90F53ECAB4663151EC564EEB32"
+    },
+    {
+      "id": "e01",
+      "title": "研究证据",
+      "route": "/pages/e01/",
+      "entry": "pages/e01/index.html",
+      "screen": "../screens/evidence/E01-evidence-search.png",
+      "sourceArchive": "E01-direct-rebuild-v4.zip",
+      "sourceSha256": "85253033C4132F034A579A0F2B127CA9F8CC4ECD251058DA908C386E9027B02C"
+    },
+    {
+      "id": "e02",
+      "title": "证据详情",
+      "route": "/pages/e02/",
+      "entry": "pages/e02/index.html",
+      "screen": "../screens/evidence/E02-evidence-detail.png",
+      "sourceArchive": "E02-direct-rebuild-v3.zip",
+      "sourceSha256": "32F6D6FE7260FAE64FE6217787203E8BFECEC6B956A91EA606E6F68D66E5E95F"
+    },
+    {
+      "id": "e03",
+      "title": "AI 证据抽屉",
+      "route": "/pages/e03/",
+      "entry": "pages/e03/index.html",
+      "screen": "../screens/evidence/E03-ai-evidence-drawer.png",
+      "sourceArchive": "E03_Round3_Final_Polish_React_Vite.zip",
+      "sourceSha256": "D7C4DCE29F8044AEED01A186662FA07CDE7E623BEC81A1F80FF4A968A5494F24"
+    },
+    {
+      "id": "s01",
+      "title": "课题概览",
+      "route": "/pages/s01/",
+      "entry": "pages/s01/index.html",
+      "screen": "../screens/study/S01-study-overview.png",
+      "sourceArchive": null,
+      "sourceSha256": "4DA2B22A90169BD4C02476E68F44DB004C4DB6ED451F140BDC52C30030E5D59E"
+    },
+    {
+      "id": "s02",
+      "title": "研究设计详情",
+      "route": "/pages/s02/",
+      "entry": "pages/s02/index.html",
+      "screen": "../screens/study/S02-study-design.png",
+      "sourceArchive": null,
+      "sourceSha256": "205F369586282F4255F32D19060F44EBE8366228FE103A9B3EBC76AE4D2E3CE4"
+    },
+    {
+      "id": "s03",
+      "title": "受试者管理",
+      "route": "/pages/s03/",
+      "entry": "pages/s03/index.html",
+      "screen": "../screens/study/S03-subject-managemen.png",
+      "sourceArchive": null,
+      "sourceSha256": "8AE8C7E3B991B40E451161ABAE54620BE9E1EFCF7B8BF058B8EFC28D1F56C84B"
+    },
+    {
+      "id": "s04",
+      "title": "受试者详情",
+      "route": "/pages/s04/",
+      "entry": "pages/s04/index.html",
+      "screen": "../screens/study/S04-subject-detail.png",
+      "sourceArchive": null,
+      "sourceSha256": "C6FB1D8C5C361FAB9536AAF6F812B8A48E23A8C77EBB942298B765D11A504106"
+    },
+    {
+      "id": "s05",
+      "title": "数据质量详情",
+      "route": "/pages/s05/",
+      "entry": "pages/s05/index.html",
+      "screen": "../screens/study/S05-data-quality.png",
+      "sourceArchive": null,
+      "sourceSha256": "12C2FBBCCF9432C54CD0751CCD8F57007278F85AB5D66D5801B2BCA6A792C4B3"
+    },
+    {
+      "id": "s06",
+      "title": "研究分析结果",
+      "route": "/pages/s06/",
+      "entry": "pages/s06/index.html",
+      "screen": "../screens/study/S06-analysis-result.png",
+      "sourceArchive": null,
+      "sourceSha256": "93097C2ECACCFCBEA1FC9669DAB3D272A88C1F7D8325C8091DD50008BFF9E971"
+    },
+    {
+      "id": "q01",
+      "title": "研究课题",
+      "route": "/pages/q01/",
+      "entry": "pages/q01/index.html",
+      "screen": "../screens/question/Q01-research-question.png",
+      "sourceArchive": null,
+      "sourceSha256": "817FB4189E1DC445C6E99EE34DE13CE6BB478F7EF0BD720374A80CEF37EC4411"
+    },
+    {
+      "id": "g01",
+      "title": "人工审查与审批",
+      "route": "/pages/g01/",
+      "entry": "pages/g01/index.html",
+      "screen": "../screens/governance/G01-human-review.png",
+      "sourceArchive": null,
+      "sourceSha256": "1B7EA8D4EC6677B7FB05F86B54ED377CA666B58E25CEF560DE072C6BF88EC24A"
+    },
+    {
+      "id": "g02",
+      "title": "管理与治理",
+      "route": "/pages/g02/",
+      "entry": "pages/g02/index.html",
+      "screen": "../screens/governance/G02-management-governance.png",
+      "sourceArchive": null,
+      "sourceSha256": "E059B8C00A338580ADE86BCCFE54A0C8A8B7A7DE5D99E54E395728E483AAA213"
+    },
+    {
+      "id": "o01",
+      "title": "研究机会",
+      "route": "/pages/o01/",
+      "entry": "pages/o01/index.html",
+      "screen": "../screens/opportunity/O01-opportunities.png",
+      "sourceArchive": "岐研_O01_V2.2_前端细节修正版.zip",
+      "sourceSha256": "D836B9C9E0ACA7353DA3A1C44EAFDA385DEAE7F7C1C89343B3748A080018DE47"
+    },
+    {
+      "id": "o02",
+      "title": "研究机会详情",
+      "route": "/pages/o02/",
+      "entry": "pages/o02/index.html",
+      "screen": "../screens/opportunity/O02-research-opportunitiy--detail.png",
+      "sourceArchive": null,
+      "sourceSha256": "CE5BDF116D2647338DF9A21A68B4C3CDCEBB4D0FC589D0B58B9D52C6E203202A"
+    },
+    {
+      "id": "a01",
+      "title": "科研资产",
+      "route": "/pages/a01/",
+      "entry": "pages/a01/index.html",
+      "screen": "../screens/asset/A01-research-assets.png",
+      "sourceArchive": null,
+      "sourceSha256": "822697A70BC0F582F2F747E4ABA9F1B4EDE146339ED8728DA0D31098E56AF2CF"
+    },
+    {
+      "id": "a02",
+      "title": "资产详情与复用",
+      "route": "/pages/a02/",
+      "entry": "pages/a02/index.html",
+      "screen": "../screens/asset/A02-asset-detail-reuse.png",
+      "sourceArchive": null,
+      "sourceSha256": "07AF09B998B3040BE42DC99437E2761B6F38C5D63DE07ADFEAABFFD2F7CA3C75"
+    },
+    {
+      "id": "h02",
+      "title": "创建 Research Hub · 基本信息",
+      "route": "/pages/h02/",
+      "entry": "pages/h02/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "manual-h02"
+    },
+    {
+      "id": "h03",
+      "title": "创建 Research Hub · 研究范围",
+      "route": "/pages/h03/",
+      "entry": "pages/h03/index.html",
+      "screen": "",
+      "sourceSha256": "manual-h03",
+      "sourceArchive": null
+    },
+    {
+      "id": "h04",
+      "title": "创建 Research Hub · AI 检查与确认",
+      "route": "/pages/h04/",
+      "entry": "pages/h04/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "manual-h04"
+    },
+    {
+      "id": "h05",
+      "title": "领域研究",
+      "route": "/pages/h05/",
+      "entry": "pages/h05/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "manual-h05"
+    }
+  ]
+}

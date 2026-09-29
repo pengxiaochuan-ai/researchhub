@@ -1,0 +1,96 @@
+:root {
+  --brand-primary: #5746f5;
+  --brand-hover: #4938e8;
+  --brand-soft: #f0edff;
+
+  --text-primary: #0f2347;
+  --text-secondary: #5f6f89;
+  --text-tertiary: #8b98ac;
+
+  --border: #e3e8f1;
+  --surface: #fff;
+  --canvas: #f6f8fc;
+
+  --success: #0ba981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+
+  --font-zh: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-latin: Inter, system-ui, sans-serif;
+
+  --text-display-size: 28px;
+  --text-display-line: 40px;
+  --text-h1-size: 24px;
+  --text-h1-line: 34px;
+  --text-h2-size: 20px;
+  --text-h2-line: 28px;
+  --text-h3-size: 16px;
+  --text-h3-line: 24px;
+  --text-body-size: 14px;
+  --text-body-line: 22px;
+  --text-secondary-size: 13px;
+  --text-secondary-line: 20px;
+  --text-caption-size: 12px;
+  --text-caption-line: 18px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  --radius-tag: 4px;
+  --radius-button: 6px;
+  --radius-input: 8px;
+  --radius-card: 8px;
+  --radius-major: 12px;
+
+  --shadow-sm: 0 1px 2px rgba(17, 24, 39, .04);
+  --shadow-floating: 0 4px 12px rgba(17, 24, 39, .06);
+  --shadow-overlay: 0 8px 24px rgba(17, 24, 39, .10);
+
+  --layout-topbar: 64px;
+  --layout-sidebar: 220px;
+  --layout-page-padding: 24px;
+  --layout-breadcrumb: 40px;
+  --layout-page-header: 88px;
+  --layout-context-nav: 48px;
+  --layout-content-gap: 16px;
+}
+
+html,
+body,
+button,
+input,
+textarea,
+select {
+  font-family: var(--font-zh);
+}
+
+body[data-platform-header="true"] {
+  color: var(--text-primary);
+  background: var(--canvas);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+}
+
+body[data-platform-header="true"] button {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 22px;
+}
+
+body[data-platform-header="true"] .ui-card {
+  border-color: var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: none;
+}
+
+body[data-platform-header="true"] .platform-main > .content {
+  gap: var(--layout-content-gap);
+  padding: var(--layout-content-gap) var(--layout-page-padding) var(--layout-page-padding);
+}
+

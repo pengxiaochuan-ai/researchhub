@@ -1,0 +1,47 @@
+.scholar-board { display: flex; flex-direction: column; gap: 12px; padding: 0 24px 24px; background: var(--canvas); color: var(--text-primary); }
+.scholar-filters, .scholar-card, .scholar-page { border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+.scholar-filters, .scholar-meta, .scholar-chips, .scholar-page { display: flex; align-items: center; gap: 8px; }
+.scholar-filters { padding: 12px; }
+.scholar-search { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 180px; height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; }
+.scholar-search input { width: 100%; min-width: 0; border: 0; outline: none; background: transparent; color: var(--text-primary); font-size: 14px; }
+.scholar-search svg, .scholar-card svg, .scholar-chips svg { width: 14px; height: 14px; flex: none; }
+.scholar-filters select, .scholar-go, .scholar-page button { height: 36px; border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--text-secondary); }
+.scholar-filters select { width: 108px; padding: 0 8px; }
+.scholar-filters select:last-of-type { width: 148px; }
+.scholar-go { padding: 0 16px; border-color: var(--brand-primary); background: var(--brand-primary); color: #fff; }
+.scholar-meta { justify-content: space-between; }
+.scholar-chips { flex-wrap: wrap; color: var(--text-secondary); font-size: 13px; line-height: 20px; }
+.scholar-chips button { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border: 0; border-radius: 4px; background: var(--brand-soft); color: var(--brand-primary); }
+.scholar-clear { background: transparent; }
+.scholar-meta > b { color: var(--text-secondary); font-size: 13px; font-weight: 500; }
+.scholar-list { display: flex; flex-direction: column; gap: 12px; }
+.scholar-card { display: grid; grid-template-columns: 56px minmax(0, 1fr) 240px; gap: 16px; align-items: start; padding: 16px; }
+.scholar-card img { width: 56px; height: 56px; object-fit: cover; border-radius: 50%; }
+.scholar-card header { display: flex; align-items: center; gap: 8px; }
+.scholar-card h2 { margin: 0; font-size: 16px; line-height: 24px; }
+.scholar-card header em { padding: 0 8px; border-radius: 4px; background: #e7f8f2; color: var(--success); font-style: normal; font-size: 12px; font-weight: 500; line-height: 20px; }
+.scholar-card header em.hot { background: #fff4e5; color: #d97706; }
+.scholar-card p { margin: 6px 0 0; color: var(--text-secondary); font-size: 13px; line-height: 20px; }
+.scholar-org { color: var(--text-tertiary); }
+.scholar-team { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; }
+.scholar-team button { padding: 0; border: 0; background: transparent; color: var(--brand-primary); font-size: 13px; line-height: 20px; text-align: left; }
+.scholar-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.scholar-tags span { padding: 0 8px; border-radius: 4px; background: #f3f5f9; color: var(--text-secondary); font-size: 12px; line-height: 20px; }
+.scholar-nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; text-align: center; }
+.scholar-nums b, .scholar-nums small { display: block; }
+.scholar-nums b { font-size: 20px; line-height: 28px; }
+.scholar-nums small { color: var(--text-tertiary); font-size: 12px; line-height: 18px; }
+.scholar-card aside { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+.scholar-card aside > button { display: inline-flex; align-items: center; gap: 2px; padding: 0; border: 0; background: transparent; color: var(--brand-primary); }
+.scholar-empty { margin: 0; padding: 24px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text-secondary); font-size: 13px; }
+.scholar-page { justify-content: flex-end; padding: 8px 12px; color: var(--text-secondary); font-size: 13px; }
+.scholar-page button { min-width: 32px; padding: 0 8px; }
+.scholar-page button.on { border-color: var(--brand-primary); background: var(--brand-primary); color: #fff; }
+.scholar-page em { color: var(--text-tertiary); font-style: normal; }
+.scholar-page input { width: 48px; height: 32px; margin-left: 6px; border: 1px solid var(--border); border-radius: 6px; text-align: center; }
+body[data-platform-page="r01"] .scholar-filters select,
+body[data-platform-page="r01"] .scholar-go,
+body[data-platform-page="r01"] .scholar-page button,
+body[data-platform-page="r01"] .scholar-card aside > button { font-size: 14px; font-weight: 500; line-height: 22px; }
+body[data-platform-page="r01"] .scholar-team button { font-size: 13px; font-weight: 500; line-height: 20px; }
+body[data-platform-page="r01"] .scholar-chips button { font-size: 12px; font-weight: 500; line-height: 18px; }
