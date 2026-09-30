@@ -25,4 +25,4 @@
 
 ## 后果
 
-官网端口 `8082` 和科研平台发布不会被这次发布重启。DNS 需要把 `hub.pengxc.com` 指到现有 ALB。安全组只允许 ALB 访问 TCP `8083`。
+发布不进入 `/srv/official-site` 和 `/srv/aisci`，不重启这两个 Compose 项目，也不执行全机 `docker image prune`。只删除仓库名包含 `pengxc-researchhub` 的旧镜像，并保留当前版本和上一版本。主机端口固定避开科研平台的 `80`、`8080` 和官网的 `8082`。DNS 需要把 `hub.pengxc.com` 指到现有 ALB。安全组只允许 ALB 访问 TCP `8083`。

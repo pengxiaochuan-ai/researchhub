@@ -33,6 +33,14 @@ validate_inputs() {
   [[ "${OSS_RELEASE_PREFIX}" != *".."* ]]
   [[ "${PUBLIC_PORT}" =~ ^[0-9]+$ ]]
   (( PUBLIC_PORT >= 1024 && PUBLIC_PORT <= 65535 ))
+  if [[ "${PUBLIC_PORT}" == "8080" || "${PUBLIC_PORT}" == "8082" ]]; then
+    echo "ERROR: port ${PUBLIC_PORT} is reserved for aisciencesys or official-site"
+    return 1
+  fi
+  if [[ "${OSS_RELEASE_PREFIX}" != "releases/researchhub" ]]; then
+    echo "ERROR: OSS prefix must stay releases/researchhub"
+    return 1
+  fi
 }
 
 validate_inputs || {
@@ -162,8 +170,21 @@ activate_release() {
 
   compose_with_env "${CURRENT_ENV}" ps
   rm -rf -- "${WORK_DIR}"
-  docker image prune -af --filter "until=168h" || true
-  echo "=== Official-site ${MODE} complete: ${RELEASE_TAG} ==="
+  remove_old_researchhub_images
+  echo "=== researchhub ${MODE} complete: ${RELEASE_TAG} ==="
+}
+
+remove_old_researchhub_images() {
+  local previous_ref="" ref
+  if [[ -f "${PREVIOUS_ENV}" ]]; then
+    previous_ref="$(sed -n 's/^RESEARCHHUB_IMAGE=//p' "${PREVIOUS_ENV}")"
+  fi
+  while IFS= read -r ref; do
+    [[ -n "${ref}" ]] || continue
+    [[ "${ref}" == "${IMAGE_REF}" || "${ref}" == "${previous_ref}" ]] && continue
+    echo "Removing old researchhub image ${ref}"
+    docker image rm "${ref}" || true
+  done < <(docker image ls --filter "reference=*pengxc-researchhub*" --format '{{.Repository}}:{{.Tag}}')
 }
 
 activate_release

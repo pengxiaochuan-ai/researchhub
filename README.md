@@ -95,7 +95,7 @@ main
   → ALB 主机名 hub.pengxc.com，健康检查 /health
 ```
 
-官网使用 `8082` 和 `/srv/official-site/ops`。本服务使用 `8083` 和 `/srv/researchhub/ops`，两边不会互相重启。
+官网使用 `8082` 和 `/srv/official-site/ops`。科研平台 `aisciencesys` 使用 `/srv/aisci`，Web 端口是 `80`（本地编排为 `8080`）。本服务使用 `8083` 和 `/srv/researchhub/ops`。发布只操作 Compose 项目 `researchhub`，不清理全机镜像，也不使用 `80`、`8080`、`8082`。
 
 ### 阿里云解析
 
