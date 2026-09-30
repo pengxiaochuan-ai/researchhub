@@ -89,6 +89,7 @@ const LIST = [
 
 function fromList(row) {
   const [id, name, org, city, lead, level, photo, members, papers, trials, partners, summary, tags, works] = row;
+  const leadId = { sjtu: 'li', xiangya: 'zhang', huaxi: 'liu', tongji: 'chen' }[id];
   return {
     id, name, en: '', org, city, lead, level, photo, members, papers, trials, partners, summary,
     intro: summary,
@@ -99,7 +100,6 @@ function fromList(row) {
     papersList: works.map((work) => [work, lead, org, '2023', '']),
     trialPubs: [],
     guides: [],
-    const leadId = { sjtu: 'li', xiangya: 'zhang', huaxi: 'liu', tongji: 'chen' }[id];
     people: [[lead, '团队负责人', org, tags.slice(0, 2).join('、'), true, leadId]],
     orgs: [['北京中医药大学 针灸推拿学院抑郁障碍研究团队', '领域内可公开的合作线索']],
   };
