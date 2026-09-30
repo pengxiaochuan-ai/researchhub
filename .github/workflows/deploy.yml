@@ -132,6 +132,12 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
+          if [[ "${OSS_ENDPOINT}" == *-internal.* ]]; then
+            public_endpoint="${OSS_ENDPOINT/-internal./.}"
+            echo "GitHub runner cannot reach ${OSS_ENDPOINT}; uploading via ${public_endpoint}"
+            OSS_ENDPOINT="${public_endpoint}"
+            export OSS_ENDPOINT
+          fi
           prefix="${OSS_RELEASE_PREFIX}/${RELEASE_TAG}"
           release_dir="${RUNNER_TEMP}/researchhub-release"
           control_dir="${release_dir}/control"

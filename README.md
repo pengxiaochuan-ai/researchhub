@@ -117,7 +117,7 @@ ALB 增加一条 HTTPS 规则：主机名 `hub.pengxc.com` 转发到服务组 `r
 - `OSS_ACCESS_KEY`
 - `OSS_SECRET_KEY`
 - `OSS_BUCKET`
-- `OSS_ENDPOINT`
+- `OSS_ENDPOINT`：GitHub 上传使用公网地址 `oss-cn-hangzhou.aliyuncs.com`。ECS 上的 `.env.release` 继续使用内网地址 `oss-cn-hangzhou-internal.aliyuncs.com`。
 
 ECS 上执行一次初始化。真实密钥不要写入 Git：
 
