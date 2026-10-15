@@ -5,6 +5,7 @@ import {
   Network, PenLine, ScrollText, Search, ShieldCheck, Stethoscope, Users, X,
 } from 'lucide-react';
 import './home.css';
+import '../../../src/lingshu-brand.css';
 
 const NAV = [
   ['产品能力', 'workflow'],
@@ -185,11 +186,7 @@ function App() {
   return (
     <div className="home">
       <header className={`top${section === 'join' ? ' night' : ''}`}>
-        <a className="brand" href="#hero" onClick={(event) => { event.preventDefault(); scrollToId('hero'); }}>
-          <img src="/logo/logo.png" alt="" />
-          <b>岐研</b>
-          <span>中医临床研究智能平台</span>
-        </a>
+        <a className="brand" href="/pages/p002/#home"><span className="lingshu-brand-icon"><img src="/pages/p002/assets/reference-1.png" alt="灵枢心域标识"/></span><span className="lingshu-brand-copy"><b>灵枢心域</b><small>针灸防治情志病学术科研平台</small></span></a>
         <nav>
           {NAV.map(([label, id]) => (
             <button key={id} type="button" className={section === id ? 'on' : ''} onClick={() => openNav(id)}>{label}</button>
@@ -215,8 +212,8 @@ function App() {
           )}
         </div>
         <div className="top-actions">
-          <button type="button" onClick={() => go('p01')}>登录</button>
-          <button type="button" className="solid" onClick={() => { setNotice(''); setModal('register'); }}>免费注册</button>
+          <button type="button" onClick={() => go('p003')}>登录</button>
+          <button type="button" className="solid" onClick={() => { go('p004'); }}>免费注册</button>
         </div>
       </header>
 
@@ -230,7 +227,7 @@ function App() {
             <h1>AI 原生的<br />临床科研全生命周期平台</h1>
             <p>从临床问题出发，连接<mark>证据</mark>、<mark>研究课题</mark>、<mark>研究方案</mark>与<mark>科研资产沉淀</mark>，帮助个人、团队和机构形成<mark>持续增长的科研能力</mark>。</p>
             <div className="hero-actions">
-              <button type="button" className="solid" onClick={() => { setNotice(''); setModal('register'); }}>免费注册，开启科研之旅</button>
+              <button type="button" className="solid" onClick={() => { go('p004'); }}>免费注册，开启科研之旅</button>
               <button type="button" className="ghost" onClick={() => { setStory(0); setModal('story'); }}>观看 2 分钟产品介绍</button>
             </div>
             <div className="trust">
@@ -456,7 +453,7 @@ function App() {
             <h2>加入岐研，开启更有价值的研究</h2>
             <p>与 10,000+ 研究者一起，让中医智慧惠及更多患者</p>
             <div className="hero-actions">
-              <button type="button" className="solid light" onClick={() => { setNotice(''); setModal('register'); }}>免费注册</button>
+              <button type="button" className="solid light" onClick={() => { go('p004'); }}>免费注册</button>
               <button type="button" className="ghost light" onClick={() => { setNotice(''); setModal('demo'); }}>预约演示</button>
             </div>
           </div>
@@ -475,7 +472,7 @@ function App() {
           <span>中医临床研究智能平台</span>
         </div>
         <p>开放性首页介绍产品。登录后进入我的科研。</p>
-        <button type="button" onClick={() => go('p01')}>进入平台</button>
+        <button type="button" onClick={() => go('p003')}>进入平台</button>
       </footer>
 
       <aside className={`rail${section === 'audiences' || section === 'join' || section === 'about' ? ' quiet' : ''}`} aria-label="页面层次">
@@ -513,7 +510,7 @@ function App() {
                   <button type="button" disabled={story === 0} onClick={() => setStory((current) => current - 1)}>上一层</button>
                   {story < STORY.length - 1
                     ? <button type="button" className="solid" onClick={() => setStory((current) => current + 1)}>下一层</button>
-                    : <button type="button" className="solid" onClick={() => go('p01')}>进入平台</button>}
+                    : <button type="button" className="solid" onClick={() => go('p003')}>进入平台</button>}
                 </div>
               </div>
             )}
@@ -541,13 +538,13 @@ function LeadForm({ kind, notice, onDone }) {
     const saved = JSON.parse(sessionStorage.getItem('qiyan-open-home') || '[]');
     saved.push({ kind, ...form, at: new Date().toISOString() });
     sessionStorage.setItem('qiyan-open-home', JSON.stringify(saved));
-    onDone(kind === 'register' ? '登记已保存在本机。可以先进入平台体验。' : '演示预约已记录。我们按你留下的时间安排讲解。');
+    onDone(kind === 'register' ? '登记已保存在本机。可以先进入平台体验。' : '本机演示预约已保存，未提交平台，不会发送或安排讲解。');
   };
   if (notice.startsWith('登记') || notice.startsWith('演示')) {
     return (
       <div className="story">
         <p>{notice}</p>
-        <button type="button" className="solid" onClick={() => go('p01')}>进入平台</button>
+        <button type="button" className="solid" onClick={() => go('p003')}>进入平台</button>
       </div>
     );
   }

@@ -1,3 +1,4 @@
+import {mountFrontendLinks} from './platform-frontend.js';
 import { goToNav, goToPage } from './platform-navigation.js';
 import { mountPlatformHeader } from './platform-header.js';
 import { mountPlatformShell } from './platform-shell.js';
@@ -23,6 +24,8 @@ const legacyTopLevelLabels = [
 ];
 
 const activeNavByPage = {
+  q02: '我的科研', s07: '我的科研', s08: '我的科研', s09: '我的科研', s10: '我的科研', s11: '我的科研',
+  h06: '领域研究', h07: '领域研究', g03: '管理与治理', g04: '管理与治理', g05: '管理与治理',
   p01: '我的科研',
   h05: '领域研究',
   h01: '领域研究',
@@ -70,6 +73,8 @@ function normalizePlatformNavigation() {
 
 const pageRules = {
   p01: [
+    { selector: '.railTitle a', text: '查看全部（5）', page: 'q02' },
+    { selector: '.actions button', text: '分配任务', page: 's08' },
     { selector: '.hubNews button', page: 'h01' },
     { selector: '.aiAnalysis a', page: 'e01' },
     { selector: '.briefTitle a', page: 'e01' },
@@ -149,8 +154,6 @@ const pageRules = {
     { selector: '.breadcrumb', page: 's01' },
   ],
   q01: [
-    { selector: '.hero-actions button', text: '下一步', page: 's02' },
-    { selector: '.content > div:last-child button', text: '下一步', page: 's02' },
     {
       selector: '.right-list p',
       resolvePage: (element) => {
@@ -257,6 +260,7 @@ function decorateLinkedElements() {
   mountPlatformHeader(currentPage);
   mountPlatformShell(currentPage);
   normalizePlatformNavigation();
+  mountFrontendLinks();
 
   document.querySelectorAll(navSelector).forEach((element) => {
     if (findNavLabel(element)) markAsLinked(element);

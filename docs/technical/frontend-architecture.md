@@ -29,3 +29,11 @@
 
 历史压缩包可能在 React 首次渲染时覆盖公共 Shell。`page-linking.js` 使用受控 MutationObserver 在首次渲染完成后重新挂载；不要删除该时序保护。
 
+## 灵枢心域与工程基准
+
+本仓库采用React18/Vite多页面工程，是唯一开发基准。P002开放门户无需工作区Shell，独立CSS不注入其他页面。P002的动态素材路径由既有Vite构建插件复制到dist/pages/p002/assets，源素材仅在pages/p002/assets维护。其他业务页面仍使用公共Shell。六份外部附件的原文归档在docs/reference/lingshu-v1；Vue建议不触发技术栈迁移。
+
+
+## 本机演示适配层
+
+`src/route-context.js`控制允许的跨页标识与站内返回；`src/demo-research-store.js`统一本机读写、版本和复用来源；`src/platform-frontend.js`消费公共搜索/通知/菜单事件。PublicPages独立门户布局，WorkflowPages复用公共Shell。既有详情在有自定义研究上下文时展示对应本机对象，没有对象上下文时保留历史示例。真实服务需要独立认证、授权与数据接口，不能把localStorage视为后端或安全边界。

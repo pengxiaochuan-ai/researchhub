@@ -40,3 +40,7 @@ When recreating a UI from a screenshot, PNG, Figma frame, or mockup:
 - Fix visual differences and repeat the comparison.
 - Build success is not visual verification.
 - Do not report completion until visual comparison has passed.
+
+## 唯一开发目录
+
+后续开发以本 integrated-platform Git 仓库为唯一代码基准。灵枢心域门户在 pages/p002；外层 frontend/portal-prototype 和 Codex outputs/site 为历史快照。沿用现有 React/Vite 多页面工程，不因附件的历史Vue建议而另起工程。门户功能方案见 docs/product/lingshu-portal-design-v1.1.md，原始附件见 docs/reference/lingshu-v1。

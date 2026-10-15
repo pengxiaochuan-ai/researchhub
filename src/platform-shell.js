@@ -1,3 +1,5 @@
+import {readContext} from './route-context.js';
+import {browserDemoStore} from './demo-research-store.js';
 import { goToPage } from './platform-navigation.js';
 import './design-tokens.css';
 import './platform-shell.css';
@@ -22,27 +24,27 @@ const HUB_NAV = [
   ['总览', 'h01'],
   ['临床注册', 'c01'],
   ['研究论文', 'e01'],
-  ['指南与教材'],
+  ['指南与教材', 'h06'],
   ['研究团队', 't01'],
   ['研究者', 'r01'],
   ['研究机会', 'o01'],
   ['科研资产', 'a01'],
-  ['相关研究'],
+  ['相关研究', 'h07'],
 ];
 
 const STUDY_NAV = [
   ['概览', 's01'], ['研究设计', 's02'], ['研究执行', 's03'], ['数据与质量', 's05'],
-  ['研究分析', 's06'], ['科研产出'], ['科研资产', 'a01'], ['团队与设置'],
+  ['研究分析', 's06'], ['科研产出', 's10'], ['科研资产', 'a01'], ['团队与设置', 's11'],
 ];
 
 const GOVERNANCE_NAV = [
-  ['总览', 'g02'], ['伦理合规', 'g01'], ['数据治理'], ['研究质量'],
-  ['用户与权限'], ['多中心管理'], ['审计日志'], ['系统配置'],
+  ['总览', 'g02'], ['伦理合规', 'g01'], ['数据治理', 'g05'], ['研究质量', 's05'],
+  ['用户与权限', 'g03'], ['多中心管理', 's11'], ['审计日志', 'g04'], ['系统配置', 'g05'],
 ];
 
 const AI_NAV = [
   ['对话'], ['研究设计'], ['文献检索', 'e01'], ['数据分析', 's06'],
-  ['方案评审', 'g01'], ['写作助手'],
+  ['方案评审', 'g01'], ['写作助手', 's10'],
 ];
 
 const pageContexts = {
@@ -145,7 +147,7 @@ const pageContexts = {
     title: '研究课题', concept: 'Research Project',
     description: '从临床问题与研究机会出发，形成明确、可验证、可执行的研究课题。',
     meta: '来源：OP-2026-017', nav: HUB_NAV, active: '研究机会',
-    actions: [['保存草稿'], ['生成研究方案', 's02', true]], hide: ['.platform-hero'],
+    actions: [['保存草稿'], ['生成研究方案', null, true]], hide: ['.platform-hero'],
   },
   ai01: {
     workspace: '岐研 AI', crumbs: [['岐研 AI']], title: '岐研 AI',
@@ -188,6 +190,17 @@ const pageContexts = {
     nav: GOVERNANCE_NAV, active: '总览', actions: [['下载治理报告'], ['2024-01-01 ～ 2024-12-31']],
     hide: ['.platform-hero', '.g02-content > .ui-tabs'],
   },
+  q02: {workspace:'我的科研',crumbs:[['我的科研','p01'],['我的课题']],title:'我的课题与草稿',description:'查看当前浏览器保存的演示课题，继续方案与科研流程。'},
+  s07: studyContext('研究设计','研究方案编辑',[['我的科研','p01'],['研究课题','q02'],['研究设计']]),
+  s08: studyContext('研究执行','执行任务',[['我的科研','p01'],['研究课题','q02'],['执行任务']]),
+  s09: studyContext('研究执行','演示访视录入',[['我的科研','p01'],['研究课题','q02'],['访视录入']]),
+  s10: studyContext('科研产出','科研产出',[['我的科研','p01'],['研究课题','q02'],['科研产出']]),
+  s11: studyContext('团队与设置','团队与设置',[['我的科研','p01'],['研究课题','q02'],['团队与设置']]),
+  h06: {workspace:'领域研究',crumbs:[['领域研究','h05'],['指南与教材']],title:'指南与教材',description:'领域内容源待接入，保留真实空状态。',nav:HUB_NAV,active:'指南与教材'},
+  h07: {workspace:'领域研究',crumbs:[['领域研究','h05'],['相关研究']],title:'相关研究',description:'查看领域上下文中保存的本机课题。',nav:HUB_NAV,active:'相关研究'},
+  g03: {workspace:'管理与治理',crumbs:[['管理与治理','g02'],['用户与权限']],title:'用户与权限说明',nav:GOVERNANCE_NAV,active:'用户与权限'},
+  g04: {workspace:'管理与治理',crumbs:[['管理与治理','g02'],['操作记录']],title:'本机操作记录',nav:GOVERNANCE_NAV,active:'审计日志'},
+  g05: {workspace:'管理与治理',crumbs:[['管理与治理','g02'],['服务接入状态']],title:'服务接入状态',nav:GOVERNANCE_NAV,active:'系统配置'},
   h02: hubCreateContext(),
   h03: hubCreateContext(),
   h04: hubCreateContext(),
@@ -360,7 +373,14 @@ function hideLegacyContext(main, selectors) {
 
 function mountContextHeader(pageId) {
   if (pageId === 'p01') return null;
-  const config = pageContexts[pageId];
+  let config = pageContexts[pageId];
+  const routeContext=readContext(window.location.search);
+  const escape=value=>String(value||'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  if(config&&routeContext.projectId){
+    try{const project=browserDemoStore().get('projects',routeContext.projectId);config={...config,title:escape(project.name),description:escape(project.question),meta:escape(project.id+' · 本机演示草稿'),crumbs:config.crumbs.map(([label,target])=>[label==='针刺抑郁多中心研究'||label==='研究课题'?project.name:label,target])};}
+    catch{config={...config,title:'研究对象不可打开',description:'对象不存在或本机数据不可读取，请返回课题列表。',meta:''};}
+  }
+  if(config&&pageId==='a02'&&routeContext.assetId){try{const asset=browserDemoStore().get('assets',routeContext.assetId);config={...config,title:escape(asset.title),description:'本机演示资产，保留科研产出与来源版本。',meta:escape(asset.id+' · v'+asset.version),crumbs:[['科研资产','a01'],[asset.id]]};}catch{config={...config,title:'本机资产不可打开',description:'资产不存在或数据不可读取。',meta:''};}}
   const main = document.querySelector('#root > main, #root > .platform-app > main, main');
   if (!config || !main) return null;
   const mounted = main.querySelector(':scope > .qiyan-page-context');

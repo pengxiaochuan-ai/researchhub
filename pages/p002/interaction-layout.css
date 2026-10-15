@@ -1,0 +1,105 @@
+/* Diagram controls use the image's coordinate plane, not the detail panel. */
+.hero-wheel { width:90%; margin-inline:auto; }
+.network-canvas { position:relative; animation:node-float 8s ease-in-out infinite; }
+.network-canvas .community-diagram { animation:none; }
+.section:not(.in-view) .network-canvas { animation-play-state:paused; }
+.diagram-hotspot { cursor:pointer; border:0; outline:0; border-radius:24px; }
+.diagram-hotspot:hover,.diagram-hotspot.selected {
+  background:#0956ff08; box-shadow:none; outline:0;
+}
+.diagram-hotspot:focus-visible {
+  background:#0956ff0d; outline:0; box-shadow:inset 0 -3px #0956ff;
+}
+.diagram-hotspot.selected:after {
+  content:'✓'; position:absolute; right:6px; top:5px;
+  display:grid; place-items:center; width:20px; height:20px;
+  background:#0956ff; color:white; border-radius:50%;
+  font-size:12px; font-weight:700; box-shadow:0 2px 7px #0956ff30;
+}
+.diagram-detail {
+  position:relative; margin:12px 0 0; min-height:82px;
+  padding:13px 18px; border:1px solid #dae7fb; border-left:3px solid #4d6eff;
+  border-radius:14px; background:#ffffffed; box-shadow:0 4px 16px #4469a80a;
+  color:var(--ink); text-align:left;
+}
+.diagram-detail strong { display:block; font-size:16px; font-weight:600; margin-bottom:5px; }
+.diagram-detail p { margin:0; font-size:15px; line-height:1.6; color:var(--muted); }
+
+/* Keep numbering and headings in normal flow above a bounded illustration. */
+.asset-heading { display:flex; gap:16px; align-items:center; min-height:64px; margin-bottom:14px; }
+.asset-heading .step-num { position:static; flex-shrink:0; }
+.asset-card .asset-heading h3 { margin:0; text-align:left; white-space:normal; }
+.asset-art,.asset-card:first-child .asset-art {
+  --asset-art-height:310px;
+  height:var(--asset-art-height); margin:0; overflow:hidden;
+}
+.asset-art>.source-crop { width:min(100%,calc(var(--asset-art-height) * var(--crop-ratio))); }
+.asset-card .tags,.asset-card:first-child .tags {
+  display:flex; min-height:46px; margin-top:10px; align-items:center; justify-content:center;
+}
+.asset-card>p { margin:18px 0 0; }
+
+/* One art frame and one description row give all three engines a shared baseline. */
+.engine-art-frame { aspect-ratio:480/290; overflow:hidden; }
+.engine-art-frame>.source-crop { width:100%; }
+.engine-body { margin-top:0; }
+.engine-heading { height:145px; min-height:0; }
+.engine-heading h3 { margin-top:0; }
+.engine-heading .step-num { margin-top:0; }
+.entered .engine,.entered .asset-card { animation:card-reveal .5s both; animation-delay:0s; }
+@keyframes card-reveal { from { opacity:.5; } to { opacity:1; } }
+
+@media (min-width:1501px) {
+  .hero { padding-bottom:64px; }
+}
+@media (min-width:1201px) and (max-width:1500px) {
+  .hero { padding-top:184px; padding-bottom:52px; }
+  .asset-art,.asset-card:first-child .asset-art { --asset-art-height:240px; }
+  .asset-card { min-height:540px; }
+  .engine-heading { height:125px; }
+}
+@media (min-width:901px) and (max-width:1200px) {
+  .asset-heading { gap:12px; min-height:70px; }
+  .asset-art,.asset-card:first-child .asset-art { --asset-art-height:220px; }
+  .engine-heading { height:130px; }
+}
+@media (max-width:900px) {
+  .hero-wheel { width:100%; }
+  .asset-heading { gap:14px; min-height:64px; }
+  .asset-heading .step-num { width:44px; height:44px; font-size:20px; }
+  .asset-card .asset-heading h3 { font-size:24px; line-height:1.35; }
+  .asset-art,.asset-card:first-child .asset-art { --asset-art-height:270px; }
+  .asset-card:first-child .tags { display:none; }
+  .engine-heading { height:auto; min-height:0; }
+  .diagram-detail { padding:12px 14px; margin-top:12px; }
+  .diagram-detail p { font-size:14px; }
+}
+@media (max-width:500px) {
+  .asset-art,.asset-card:first-child .asset-art { --asset-art-height:220px; }
+  .asset-card .asset-heading h3 { font-size:22px; }
+  .diagram-hotspot.selected:after { width:16px; height:16px; font-size:10px; right:1px; top:1px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .network-canvas,.entered .engine,.entered .asset-card { animation:none; }
+}
+.diagram-detail:after {
+  content:'移入或点击节点查看说明'; position:absolute; right:18px; top:15px;
+  font-size:12px; line-height:20px; color:var(--muted); pointer-events:none;
+}
+@media (min-width:1201px) and (max-width:1500px) {
+  .hero { padding-bottom:47px; }
+}
+@media (max-width:500px) {
+  .diagram-detail:after { right:14px; top:12px; font-size:11px; }
+}
+/* A default selected role needs a visible cue without breaking the photo row. */
+.audience-card.selected { transform:none; border-color:#648dff; box-shadow:0 5px 18px #245aff20; }
+@media (min-width:901px) {
+  .community-layout { grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr); gap:24px; }
+  .community-copy,.community-values article,.community-values article>div { min-width:0; }
+  .community-visual { margin:0; transform:none; }
+}
+@media (min-width:1201px) {
+  .community-values { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .community-values h3 { min-height:2.6em; font-size:clamp(17px,1.18vw,21px); line-height:1.3; white-space:normal; text-wrap:balance; }
+}

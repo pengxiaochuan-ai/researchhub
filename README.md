@@ -39,6 +39,7 @@ node ./scripts/serve-dist.mjs
 | 页面编号 | 页面 | 路由 |
 | --- | --- | --- |
 | P00 | 开放性首页 | `/pages/p00/` |
+| P002 | 灵枢心域开放首页（整页，不是站点入口） | `/pages/p002/` |
 | P01 | 我的科研 | `/pages/p01/` |
 | H05 | 领域研究 | `/pages/h05/` |
 | H01 | 针灸治疗情志病 | `/pages/h01/` |
@@ -147,3 +148,16 @@ docker run --rm -p 8083:3000 researchhub
 - 同一产品线允许复用 `pages/shared/` 的平台组件，但页面内容、母版映射和路由保持独立。
 - 高保真图是唯一视觉母版；后续反馈只修视觉偏差，不重组页面结构或改写页面内容。
 - 原始 ZIP、screens 和 Product Baseline 保留在工程外层，作为受控来源，不参与构建。
+
+## 唯一开发基准与灵枢心域门户
+
+后续所有前端开发以本 `integrated-platform` Git 仓库为基准，不再修改外层 `frontend/portal-prototype` 或 Codex 工作区快照。最新七屏首页位于 `pages/p002`，路由 `/pages/p002/`；科研工作区与该门户共用现有Vite构建。根地址仍进入P00。
+
+开发执行 `pnpm dev`，构建执行 `pnpm run build`。整合说明见 [开发基准](docs/technical/integration-baseline.md)，注册、登录、学术发起、帮助中心方案见 [门户功能设计V1.1](docs/product/lingshu-portal-design-v1.1.md)。附件与首页母版见 `docs/reference/lingshu-v1`。当前工程为React/Vite，不另建Vue工程；未来技术迁移需单独形成架构决策。
+
+
+## 前端演示闭环 2026-10-14
+
+新增P003–P009门户、Q02课题列表、S07–S11方案/任务/访视/产出/成员、H06–H07领域内容、G03–G05服务与权限说明。页面共50个，仍复用现有Vite与公共Shell。无后端条件下科研数据仅保存当前浏览器；注册不会创建真实账号、通知不会发送、AI和统计不运行。正式接口尚待接入。
+
+演示顺序：P002→P003→进入前端演示→Q02→Q01保存课题→S07方案→S08任务/S09访视→S10产出→A02本机资产→复用到下一课题。测试执行 `node --test tests/demo-flow.test.mjs`。数据接口位于 `src/demo-research-store.js`，导航上下文位于 `src/route-context.js`。

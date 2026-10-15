@@ -1,0 +1,54 @@
+/* Page hierarchy: the hero leads; section headings introduce the content. */
+@media (min-width:1201px) {
+  :root {
+    --title:clamp(38px,2.778vw,48px);
+    --community-title:clamp(42px,3.056vw,52px);
+    --join-title:clamp(46px,3.334vw,56px);
+    --card-title:clamp(22px,1.667vw,26px);
+  }
+  h2,.community-copy h2,.join-copy h2 {
+    font-weight:600;
+    line-height:1.28;
+    letter-spacing:-.6px;
+  }
+  .community-copy h2 { font-size:var(--community-title); }
+  .join-copy h2 { font-size:var(--join-title); margin-bottom:26px; }
+  .process-card h3,.asset-card h3,.engine h3,.audience-copy h3 {
+    font-size:var(--card-title);
+    font-weight:600;
+    line-height:1.35;
+  }
+  .asset-card h3 { font-size:26px; }
+  .audience-card:nth-child(4) h3 { font-size:var(--card-title); }
+  .audience-card:last-child h3 {
+    font-size:clamp(17px,1.181vw,22px);
+    white-space:nowrap;
+  }
+  .section-heading:before { margin-bottom:22px; }
+  .section-heading h2 { margin-bottom:16px; }
+  .community-copy .section-heading h2 { margin-bottom:20px; }
+}
+@media (min-width:1201px) and (max-width:1500px) {
+  /* Supporting descriptions keep their reading size when headings shrink. */
+  .community-values p { font-size:16px; }
+  .process-heading .section-heading:before { margin-bottom:20px; }
+}
+@media (min-width:901px) and (max-width:1200px) {
+  :root { --title:36px; }
+  h2,.community-copy h2,.join-copy h2 {
+    font-weight:600;
+    line-height:1.28;
+  }
+  .community-copy h2 { font-size:40px; }
+  .join-copy h2 { font-size:44px; }
+}
+@media (min-width:1501px) {
+  /* Large-screen descriptions stay comfortably below card-title size. */
+  .section-heading>p { font-size:24px; }
+  .process-heading .section-heading>p { font-size:21px; }
+  .process-card p { font-size:18px; }
+  .asset-card>p,.engine p,.audience-copy p { font-size:20px; }
+  .asset-card .tags span { font-size:18px; }
+  .community-copy .section-heading p { font-size:22px; }
+  .community-values p { font-size:18px; }
+}

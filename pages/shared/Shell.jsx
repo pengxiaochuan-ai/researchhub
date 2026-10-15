@@ -1,3 +1,4 @@
+import {goToPage} from '../../src/platform-navigation.js';
 import React from 'react';
 import {
   BookOpen, Bot, Box, ChevronDown, ChevronLeft,
@@ -20,9 +21,7 @@ const activeSection = {
   项目管理: '我的科研', 统计分析: '我的科研', 人工审查: '管理与治理',
 };
 
-export function go(page) {
-  window.location.href = `/pages/${page}/`;
-}
+export function go(page,context={}) { goToPage(page,context); }
 
 export function Header() {
   return <div data-platform-header-slot/>;

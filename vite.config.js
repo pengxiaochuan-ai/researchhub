@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { cpSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
@@ -26,6 +26,16 @@ export default defineConfig({
           { tag: 'link', attrs: { rel: 'icon', type: 'image/x-icon', href: '/logo/qiyan-icon.ico' }, injectTo: 'head' },
           { tag: 'link', attrs: { rel: 'apple-touch-icon', href: '/logo/logo.png' }, injectTo: 'head' },
         ];
+      },
+    },
+    {
+      name: 'qiyan-p002-runtime-assets',
+      closeBundle() {
+        cpSync(
+          resolve(projectRoot, 'pages/p002/assets'),
+          resolve(projectRoot, 'dist/pages/p002/assets'),
+          { recursive: true },
+        );
       },
     },
   ],

@@ -1,5 +1,6 @@
 import { getPlatformUser } from './platform-user.js';
 import './platform-header.css';
+import './lingshu-brand.css';
 
 const searchIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.4-3.4"/></svg>';
 const bellIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>';
@@ -17,11 +18,8 @@ function createPlatformHeader() {
   header.className = 'global-platform-header';
   header.dataset.platformHeader = 'true';
   header.innerHTML = `
-    <button class="qiyan-header-brand" type="button" aria-label="返回我的科研">
-      <img class="qiyan-header-logo" src="/logo/logo.png" alt="岐研 Logo"/>
-      <span class="qiyan-header-word"><b>岐研</b></span>
-      <span class="qiyan-brand-separator" aria-hidden="true"></span>
-      <span class="qiyan-header-subtitle">中医临床研究智能平台</span>
+    <button class="qiyan-header-brand" type="button" aria-label="返回灵枢心域首页">
+      <span class="lingshu-brand-icon"><img src="/pages/p002/assets/reference-1.png" alt="灵枢心域标识"/></span><span class="lingshu-brand-copy"><b>灵枢心域</b><small>针灸防治情志病学术科研平台</small></span>
     </button>
     <button class="qiyan-header-search" type="button" aria-label="打开全局搜索">
       ${searchIcon}<span>搜索课题、文献、研究问题或数据...</span>
@@ -38,7 +36,7 @@ function createPlatformHeader() {
   `;
 
   header.querySelector('.qiyan-header-brand').addEventListener('click', () => {
-    if (window.location.pathname !== '/pages/p01/') window.location.assign('/pages/p01/');
+    window.location.assign('/pages/p002/#home');
   });
   header.querySelector('.qiyan-header-search').addEventListener('click', () => {
     window.dispatchEvent(new CustomEvent('qiyan:search-open'));

@@ -1,0 +1,11 @@
+/* Homepage identity; the compact shell keeps its existing 64px height. */
+.lingshu-brand-icon{display:block!important;position:relative!important;width:40px!important;height:auto!important;aspect-ratio:66/67;overflow:hidden;flex:none;isolation:isolate}
+.lingshu-brand-icon img{position:absolute!important;display:block!important;width:2403.030303%!important;height:auto!important;max-width:none!important;left:-113.636364%!important;top:-147.761194%!important;object-fit:initial!important}
+.lingshu-brand-copy{display:block!important;line-height:1.3!important;white-space:nowrap;color:#071342!important;letter-spacing:0!important}
+.lingshu-brand-copy b{display:block;font-size:24px!important;font-weight:650!important;line-height:1.3!important;letter-spacing:-.6px!important;color:#071342!important}
+.lingshu-brand-copy small{display:block;font-size:13px!important;font-weight:400!important;line-height:1.5!important;letter-spacing:0!important;color:#52638f!important;margin-top:2px}
+.ls-public-brand{color:#071342!important}
+.ls-public-brand .lingshu-brand-icon{width:48px!important}
+header.top .brand{gap:10px}
+header.top.night .lingshu-brand-copy b{color:#f4f8ff!important}
+header.top.night .lingshu-brand-copy small{color:#d6e6ff!important}

@@ -20,6 +20,15 @@
       "sourceSha256": "manual-p001"
     },
     {
+      "id": "p002",
+      "title": "灵枢心域开放首页",
+      "route": "/pages/p002/",
+      "entry": "pages/p002/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "manual-p002"
+    },
+    {
       "id": "p01",
       "title": "我的科研",
       "route": "/pages/p01/",
@@ -279,6 +288,168 @@
       "screen": "",
       "sourceArchive": null,
       "sourceSha256": "manual-h05"
+    },
+    {
+      "id": "p003",
+      "title": "登录",
+      "route": "/pages/p003/",
+      "entry": "pages/p003/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "frontend-demo-2026-10-14"
+    },
+    {
+      "id": "p004",
+      "title": "注册",
+      "route": "/pages/p004/",
+      "entry": "pages/p004/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "frontend-demo-2026-10-14"
+    },
+    {
+      "id": "p005",
+      "title": "找回密码",
+      "route": "/pages/p005/",
+      "entry": "pages/p005/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "frontend-demo-2026-10-14"
+    },
+    {
+      "id": "p006",
+      "title": "学术身份资料",
+      "route": "/pages/p006/",
+      "entry": "pages/p006/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "frontend-demo-2026-10-14"
+    },
+    {
+      "id": "p007",
+      "title": "学术发起",
+      "route": "/pages/p007/",
+      "entry": "pages/p007/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "frontend-demo-2026-10-14"
+    },
+    {
+      "id": "p008",
+      "title": "帮助中心",
+      "route": "/pages/p008/",
+      "entry": "pages/p008/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "frontend-demo-2026-10-14"
+    },
+    {
+      "id": "p009",
+      "title": "帮助文章",
+      "route": "/pages/p009/",
+      "entry": "pages/p009/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "frontend-demo-2026-10-14"
+    },
+    {
+      "id": "q02",
+      "title": "我的课题与草稿",
+      "route": "/pages/q02/",
+      "entry": "pages/q02/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "frontend-demo-2026-10-14"
+    },
+    {
+      "id": "s07",
+      "title": "研究方案编辑",
+      "route": "/pages/s07/",
+      "entry": "pages/s07/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "frontend-demo-2026-10-14"
+    },
+    {
+      "id": "s08",
+      "title": "执行任务",
+      "route": "/pages/s08/",
+      "entry": "pages/s08/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "frontend-demo-2026-10-14"
+    },
+    {
+      "id": "s09",
+      "title": "演示访视录入",
+      "route": "/pages/s09/",
+      "entry": "pages/s09/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "frontend-demo-2026-10-14"
+    },
+    {
+      "id": "s10",
+      "title": "科研产出",
+      "route": "/pages/s10/",
+      "entry": "pages/s10/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "frontend-demo-2026-10-14"
+    },
+    {
+      "id": "s11",
+      "title": "团队与设置",
+      "route": "/pages/s11/",
+      "entry": "pages/s11/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "frontend-demo-2026-10-14"
+    },
+    {
+      "id": "h06",
+      "title": "指南与教材",
+      "route": "/pages/h06/",
+      "entry": "pages/h06/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "frontend-demo-2026-10-14"
+    },
+    {
+      "id": "h07",
+      "title": "相关研究",
+      "route": "/pages/h07/",
+      "entry": "pages/h07/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "frontend-demo-2026-10-14"
+    },
+    {
+      "id": "g03",
+      "title": "用户与权限说明",
+      "route": "/pages/g03/",
+      "entry": "pages/g03/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "frontend-demo-2026-10-14"
+    },
+    {
+      "id": "g04",
+      "title": "本机操作记录",
+      "route": "/pages/g04/",
+      "entry": "pages/g04/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "frontend-demo-2026-10-14"
+    },
+    {
+      "id": "g05",
+      "title": "服务接入状态",
+      "route": "/pages/g05/",
+      "entry": "pages/g05/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "frontend-demo-2026-10-14"
     }
   ]
 }

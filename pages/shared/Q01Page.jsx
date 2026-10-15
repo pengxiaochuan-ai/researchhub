@@ -1,3 +1,5 @@
+import {browserDemoStore} from '../../src/demo-research-store.js';
+import {readContext,buildPageRoute} from '../../src/route-context.js';
 import React, { useEffect, useState } from 'react';
 import { Save } from 'lucide-react';
 import { Shell, go } from './Shell.jsx';
@@ -8,9 +10,14 @@ const PROJECT_NAME = '针灸维持治疗对抑郁症患者长期疗效及复发�
 const CORE_QUESTION = '针灸维持治疗是否能够降低抑郁症患者 12 个月复发率？';
 
 export function Q01() {
-  const [name, setName] = useState(PROJECT_NAME);
-  const [question, setQuestion] = useState(CORE_QUESTION);
-  const [pico, setPico] = useState({
+  const [initial]=useState(()=>{const ctx=readContext(location.search);try{return {context:ctx,draft:ctx.projectId?browserDemoStore().get('projects',ctx.projectId):null};}catch(err){return {context:ctx,error:err.message};}});
+  const [projectId,setProjectId]=useState(initial.draft?.id||null);
+  const [projectVersion,setProjectVersion]=useState(initial.draft?.version||0);
+  const [feedback,setFeedback]=useState('');
+  const [error,setError]=useState(initial.error||'');
+  const [name, setName] = useState(initial.draft?.name??PROJECT_NAME);
+  const [question, setQuestion] = useState(initial.draft?.question??CORE_QUESTION);
+  const [pico, setPico] = useState(initial.draft?.pico??{
     p: '抑郁症缓解期患者',
     i: '针灸维持治疗',
     c: '常规随访/标准治疗',
@@ -28,19 +35,25 @@ export function Q01() {
   ];
   const ready = checks.every(([, ok]) => ok);
 
-  useEffect(() => {
-    const onAction = (event) => {
-      if (event.detail?.label === '保存草稿') setSaved(true);
-    };
-    window.addEventListener('qiyan:page-action', onAction);
-    return () => window.removeEventListener('qiyan:page-action', onAction);
-  }, []);
+  function saveCurrent(next=false){
+    setError('');setFeedback('');
+    try{
+      const store=browserDemoStore();
+      if(next&&!ready)throw Error('请先完成核心研究问题与PICO');
+      const project=store.saveProject({id:projectId,version:projectId?projectVersion:undefined,name,question,pico,hubId:initial.draft?.hubId??initial.context.hubId??'HUB-MOOD',opportunityId:initial.draft?.opportunityId??initial.context.opportunityId??'OP-2026-017'});
+      setProjectId(project.id);setProjectVersion(project.version);setSaved(true);setFeedback('已保存本机演示草稿，可刷新或从我的课题继续。');
+      history.replaceState(null,'',buildPageRoute({q01:'/pages/q01/'},'q01',{...initial.context,projectId:project.id}));
+      if(next){const protocol=store.ensureProtocol(project.id);go('s07',{projectId:project.id,protocolId:protocol.id});}
+    }catch(err){setSaved(false);setError(err.message);}
+  }
+  useEffect(()=>{const onAction=event=>{if(event.detail?.pageId==='q01'){if(event.detail.label==='保存草稿')saveCurrent(false);if(event.detail.label==='生成研究方案')saveCurrent(true);}};window.addEventListener('qiyan:page-action',onAction);return()=>window.removeEventListener('qiyan:page-action',onAction);},[name,question,pico,projectId,projectVersion]);
 
   const setField = (key) => (event) => {
     setSaved(false);
     setPico((current) => ({ ...current, [key]: event.target.value }));
   };
 
+  if(initial.error)return <Shell active="领域研究" hero={{title:'研究对象不可打开'}}><div className="content"><p role="alert">{initial.error}</p><Button onClick={()=>go('q02',{projectId:null})}>返回课题列表</Button></div></Shell>;
   return <Shell active="领域研究" hero={{
     breadcrumb: '研究机会 › 研究课题',
     title: '研究课题',
@@ -49,7 +62,7 @@ export function Q01() {
     actions: [{ label: '保存草稿', icon: <Save /> }, { label: '生成研究方案', primary: true }],
   }}>
     <div className="content stack q01-project">
-      <Stepper steps={['形成研究课题', '明确核心研究问题', 'AI 检查', '生成研究方案']} active={1} />
+      <p className="notice">本机演示课题，未提交真实平台，不输入受试者个人信息。</p>{error&&<p role="alert" className="notice">{error}</p>}<Stepper steps={['形成研究课题', '明确核心研究问题', 'AI 检查', '生成研究方案']} active={1} />
       <div className="main-grid">
         <div className="stack">
           <Card className="form-block">
@@ -63,7 +76,7 @@ export function Q01() {
               <p><span>所属领域</span><b>针灸治疗情志病</b></p>
               <p><span>研究类型</span><b>多中心随机对照研究</b></p>
             </div>
-            {saved && <div className="notice">草稿已保存。课题名称和核心研究问题会一起进入研究方案。</div>}
+            {saved && <div className="notice">{feedback}</div>}
           </Card>
           <Card className="form-block" id="q01-question">
             <div className="q01-kicker"><h2>核心研究问题</h2><em>Research Question</em></div>
@@ -102,8 +115,8 @@ export function Q01() {
       <div className="q01-actions">
         <Button onClick={() => go('o02')}>取消</Button>
         <div>
-          <Button onClick={() => setSaved(true)}>保存草稿</Button>
-          <Button primary onClick={() => go('s02')}>下一步：生成研究方案 →</Button>
+          <Button onClick={() => saveCurrent(false)}>保存草稿</Button>
+          <Button primary onClick={() => saveCurrent(true)}>下一步：生成研究方案 →</Button>
         </div>
       </div>
     </div>
