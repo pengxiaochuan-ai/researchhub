@@ -1,0 +1,8 @@
+.wp02-access{font-size:16px;line-height:24px;overflow-wrap:anywhere;min-width:0}
+.ls-public .wp02-access input,.ls-public .wp02-access button{font-size:16px;line-height:24px}
+.wp02-access p{margin:16px 0}.wp02-access .wp02-help{font-size:14px;line-height:22px}
+.wp02-access .wp02-feedback{margin:16px 0;padding:16px;border:1px solid #bdcde5;border-radius:12px;background:#f7faff}
+.wp02-access .wp02-error,.wp02-access .wp02-field-error{color:#a32232;font-size:16px;line-height:24px}
+.wp02-access .wp02-field-error{margin-top:8px}.wp02-access [aria-invalid=true]{border-color:#a32232}
+.wp02-access button:disabled{opacity:.65;cursor:not-allowed}.wp02-access .ls-auth-links{align-items:center}
+.wp02-access :focus-visible{outline:3px solid #7b61ff;outline-offset:3px}

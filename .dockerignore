@@ -6,3 +6,15 @@ _qa
 *.md
 .env
 .env.*
+env.prod
+env.*.local
+.tmp
+.planning
+**/evidence
+__pycache__
+**/*.pyc
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+docs

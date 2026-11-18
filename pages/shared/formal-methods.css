@@ -1,0 +1,19 @@
+.rh-formal-methods .fm-summary{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap}
+.rh-formal-methods .fm-summary h2{font-size:20px;line-height:28px;margin:0 0 8px}
+.rh-formal-methods .fm-summary p,.rh-formal-methods p,.rh-formal-methods li{font-size:14px;line-height:22px;overflow-wrap:anywhere}
+.rh-formal-methods .fm-analysis-grid{min-width:0}
+.rh-formal-methods .fm-analysis-grid>.card,.rh-formal-methods .fm-analysis-grid>.stack{min-width:0}
+.rh-formal-methods .fm-table-scroll{max-width:100%;overflow-x:auto}
+.rh-formal-methods table{border-collapse:collapse;font-size:14px;line-height:22px;min-width:100%}
+.rh-formal-methods td,.rh-formal-methods th{padding:10px 12px;border:1px solid var(--border,#dfe3ef);text-align:left;vertical-align:top;min-width:100px;overflow-wrap:anywhere}
+.rh-formal-methods .fm-review{margin-top:20px;padding-top:16px;border-top:1px solid var(--border,#dfe3ef)}
+.rh-formal-methods .fm-review h3{font-size:16px;line-height:24px}
+.rh-formal-methods .fm-runs{list-style:none;padding:0}
+.rh-formal-methods .fm-runs li{padding:12px 0;border-bottom:1px solid var(--border,#dfe3ef)}
+.rh-formal-methods .fm-preserve{white-space:pre-wrap;overflow-wrap:anywhere}
+.rh-formal-methods .ui-tabs{overflow-x:auto;max-width:100%;display:flex;flex-wrap:nowrap}
+.rh-formal-methods .ui-tabs>a{display:inline-flex;align-items:center;padding:8px 12px;font-size:14px;line-height:22px;white-space:nowrap}
+@media(max-width:900px){.rh-formal-methods .fm-analysis-grid{grid-template-columns:minmax(0,1fr)}.rh-formal-methods .fm-summary .ep-actions{width:100%}}
+@media(max-width:900px){html:has(.rh-formal-methods),body:has(.rh-formal-methods),body:has(.rh-formal-methods) #root{min-width:0!important;width:100%!important}body:has(.rh-formal-methods) .platform-main{min-width:0!important;max-width:100%;width:100%;margin-left:0!important}}
+@media(min-width:701px) and (max-width:900px){body:has(.rh-formal-methods) .platform-main{margin-left:var(--layout-sidebar)!important;width:calc(100% - var(--layout-sidebar))!important}}
+.rh-formal-methods .fm-table-scroll td{white-space:nowrap;word-break:normal;overflow-wrap:normal}

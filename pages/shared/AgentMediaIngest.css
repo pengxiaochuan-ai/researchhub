@@ -1,0 +1,10 @@
+.agent-media-ingest {margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:var(--text-body-size,14px);line-height:var(--text-body-line,22px);overflow-wrap:anywhere;}
+.media-ingest-fields {display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;}
+.media-ingest-fields label {display:flex;gap:6px;align-items:center;}
+.media-ingest-fields select,.media-ingest-fields input {font:inherit;max-width:100%;min-height:32px;border:1px solid var(--border);border-radius:6px;background:var(--surface,#fff);padding:4px 8px;}
+.media-ingest-fields details {flex-basis:100%;}
+.media-ingest-receipt p,.registered-media-list p {margin:4px 0;overflow-wrap:anywhere;}
+.registered-media-list {font-size:var(--text-body-size,14px);line-height:var(--text-body-line,22px);}
+.registered-media-list ul {list-style:none;margin:0;padding:0;}
+.registered-media-list li {padding:8px 0;border-bottom:1px solid var(--border);}
+.registered-media-list video {display:block;width:100%;max-height:240px;object-fit:contain;background:#000;}

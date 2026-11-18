@@ -1,0 +1,15 @@
+// Only the two exact NEW WP09 free harness rows; retains all messages/history, never dispatches.
+import assert from 'node:assert/strict';import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';import {randomUUID} from 'node:crypto';
+import {assetApplicabilityRuntime} from '../tests/fixtures/asset-applicability-runtime.mjs';import {createAssetApplicability} from './local-asset-applicability.mjs';
+assert.deepEqual(process.argv.slice(2),['--mode','local-synthetic']);const ids=['cmvoxijfe000mluayv3icfi69','cmvoxjld8000mluhcbsz06als'];
+const rt=await assetApplicabilityRuntime(),u=rt.users.owner,scope=rt.dir+'wp09-scope.json',api=createAssetApplicability({...rt,assets:rt.assets,storage:{},scope}),ledger=readFileSync(rt.dir+'ai-budget-20261022.json'),out=rt.root+'docs/test/evidence/2026-10-26-researchhub-wp09-asset-applicability/resolve-free-probes-'+randomUUID().slice(0,8)+'/';mkdirSync(out,{recursive:true,mode:0o700});
+await rt.plans.withScope(u,'artifact.edit',async tx=>{
+ await api.authorized(tx,u,'U03');assert.equal(JSON.parse(readFileSync(scope)).paidAiApproved,false);
+ for(const id of ids){const j=await tx.knowledgeChatJob.findUnique({where:{id}});assert(j&&j.tenantId===u.tenantId&&j.accountId===u.accountId&&j.studyGroupId===u.studyGroupId&&j.researchProjectId===u.researchProjectId&&j.status==='queued'&&j.executionToken===null&&j.workerOwner===null&&j.leaseExpiresAt===null&&j.assistantMessageId===null&&j.payload.researchAssetApplicability.requestKey.startsWith('wp09-free-queue-'));
+  const record=await api.ownPurposeInTx(tx,u,j.sessionId),a=record.record.a;assert(a.idempotencyKey.startsWith('rh-asset-applicability-20261026:'+u.accountId+':wp09-queue-fixture-'));assert.equal(record.record.b.pending.jobId,j.id);assert(a.createdAt.getTime()>=Date.parse(JSON.parse(readFileSync(scope)).approvedAt));
+  assert.equal(await tx.message.count({where:{sessionId:j.sessionId,role:'assistant'}}),0);
+  const changed=await tx.knowledgeChatJob.updateMany({where:{id,tenantId:u.tenantId,accountId:u.accountId,status:'queued',executionToken:null,workerOwner:null,leaseExpiresAt:null,assistantMessageId:null},data:{status:'failed',completedAt:new Date(),errorCode:'WP09_FREE_PROBE_NOT_DISPATCHED',errorMessage:'本轮隔离队列故障探针未派发Worker或模型；仅终止这条新测试任务，保留全部消息与版本，不自动重试。'}});assert.equal(changed.count,1);
+  await tx.auditLog.create({data:{tenantId:u.tenantId,studyGroupId:u.studyGroupId,researchProjectId:u.researchProjectId,accountId:u.accountId,action:'local_asset_applicability_free_probe_ended',target:id,meta:{recordId:a.id,retainedMessages:true,providerCalled:false,workerDispatched:false,reason:'correcting this round test-wrapper fault only'}}});
+ }
+});assert.deepEqual(readFileSync(rt.dir+'ai-budget-20261022.json'),ledger);
+writeFileSync(out+'result.json',JSON.stringify({passed:true,exactNewJobIds:ids,status:'failed',errorCode:'WP09_FREE_PROBE_NOT_DISPATCHED',rowsDeleted:0,messagesAndVersionsRetained:true,modelCalls:0,ledgerUnchanged:true},null,2));console.log(JSON.stringify({passed:true,exactNewJobsEnded:2,evidence:out,rowsDeleted:0,modelCalls:0}));

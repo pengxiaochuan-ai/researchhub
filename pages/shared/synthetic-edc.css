@@ -1,0 +1,5 @@
+.synthetic-edc dl{display:grid;grid-template-columns:minmax(8rem,1fr) minmax(0,2fr);gap:12px;overflow-wrap:anywhere}.synthetic-edc dd{margin:0}.synthetic-edc [id^=edc-field-]{scroll-margin-top:140px}.synthetic-edc .edc-answer{display:grid;gap:8px}.synthetic-edc .edc-diff{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}.synthetic-edc .edc-record-fields{display:grid;gap:16px}@media(max-width:700px){.synthetic-edc dl{grid-template-columns:minmax(0,1fr)}}
+/* The legacy demo entry sets a 1280px root floor. Match the existing real asset
+   island escape, only while an explicitly routed synthetic EDC island exists. */
+html:has(.synthetic-edc),body:has(.synthetic-edc),body:has(.synthetic-edc) #root,body:has(.synthetic-edc) .platform-main{min-width:0}
+.synthetic-edc .ep-reading .ep-meta{font-size:var(--text-caption-size);line-height:var(--text-caption-line)}

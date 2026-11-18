@@ -2,6 +2,15 @@
   "defaultPage": "p01",
   "pages": [
     {
+      "id": "k01",
+      "title": "知识资料",
+      "route": "/pages/k01/",
+      "entry": "pages/k01/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "controlled-knowledge-reuse-20261022"
+    },
+    {
       "id": "p00",
       "title": "开放性首页",
       "route": "/pages/p00/",
@@ -30,7 +39,7 @@
     },
     {
       "id": "p01",
-      "title": "我的科研",
+      "title": "我的工作台",
       "route": "/pages/p01/",
       "entry": "pages/p01/index.html",
       "screen": "../screens/platform/P01-my-research.png",
@@ -351,6 +360,15 @@
       "screen": "",
       "sourceArchive": null,
       "sourceSha256": "frontend-demo-2026-10-14"
+    },
+    {
+      "id": "p010",
+      "title": "确认Study邀请",
+      "route": "/pages/p010/",
+      "entry": "pages/p010/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "wp02-approved-2026-10-23"
     },
     {
       "id": "q02",

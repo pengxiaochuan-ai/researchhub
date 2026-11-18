@@ -1,0 +1,19 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {runtime,env,direct} from '../wp02/test-support.mjs';import {withFixtureTransaction} from '../../../app/server/scripts/wp01/fixture-guard.mjs';
+const t=runtime.ids.tenant,h='lingshu-xinyu';
+async function refs(){return direct(async tx=>{
+ const [external]=await tx.$queryRaw`SELECT document_id AS source,id AS version,content_sha256 AS sha FROM rh_source.external_document_version WHERE tenant_id=${t} AND hub_key=${h} ORDER BY version_number DESC,id LIMIT 1`;
+ const [pmc]=await tx.$queryRaw`SELECT candidate_id AS source,id AS version,raw_sha256 AS sha FROM rh_source.pmc_candidate_version WHERE tenant_id=${t} AND hub_key=${h} ORDER BY staged_at DESC,id DESC LIMIT 1`;
+ const [row]=await tx.$queryRaw`SELECT source_registry_id AS source,id AS row,row_sha256 AS sha FROM rh_source.source_record WHERE tenant_id=${t} AND hub_key=${h} ORDER BY id LIMIT 1`;
+ return[{kind:'external_document_version',...external},{kind:'pmc_candidate_version',...pmc},{kind:'source_record',...row}];
+});}
+async function app(fn,overrides={}){const a=await direct(tx=>tx.account.findFirst({where:{id:runtime.ids.admin,tenantId:t},select:{authVersion:true}}));return withFixtureTransaction(env,'app',async tx=>{for(const[k,v]of Object.entries({'app.tenant_id':t,'app.hub_key':h,'app.account_id':runtime.ids.admin,'app.auth_version':String(a.authVersion),...overrides}))await tx.$executeRaw`SELECT set_config(${k},${v},true)`;return fn(tx);});}
+const call=(tx,r)=>tx.$queryRaw`SELECT rh_directory.hold_source_for_commit(${r.kind},${r.source},${r.version??null},${r.row??null},${r.sha}) AS held`;
+test('real app can only pin exact current source parents via bounded EXECUTE, not directly update sources',async()=>{
+ for(const ref of await refs()){assert(ref.source);await app(async tx=>assert.equal((await call(tx,ref))[0].held,true));}
+ await assert.rejects(()=>app(tx=>tx.$queryRaw`SELECT id FROM rh_source.external_document_version LIMIT 1 FOR SHARE`),e=>e.meta?.code==='42501');
+ await assert.rejects(()=>app(tx=>tx.$executeRaw`UPDATE rh_source.source_registry SET source_name=source_name WHERE false`),e=>e.meta?.code==='42501');
+ const [acl]=await direct(tx=>tx.$queryRaw`SELECT EXISTS(SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl,acldefault('f',p.proowner))) x WHERE n.nspname='rh_directory' AND p.proname='hold_source_for_commit' AND x.grantee=0 AND x.privilege_type='EXECUTE') AS public`);assert.equal(acl.public,false);
+});
+test('real source lock rejects wrong parent/hash/scope/current actor without disclosing source data',async()=>{const ref=(await refs())[0];for(const bad of [{...ref,sha:'0'.repeat(64)},{...ref,source:'not-the-parent'},{...ref,kind:'account'},{...ref,version:null}])await assert.rejects(()=>app(tx=>call(tx,bad)),e=>['23514','42501'].includes(e.meta?.code));for(const scope of [{'app.tenant_id':'wrong-tenant'},{'app.hub_key':'other-hub'},{'app.auth_version':'999999'},{'app.account_id':runtime.ids.owner}])await assert.rejects(()=>app(tx=>call(tx,ref),scope),e=>e.meta?.code==='42501');});
+test('real two-transaction source change/review locks cannot pass a pending directory commit and release afterwards',async()=>{const ref=(await refs())[0];await app(async tx=>{await call(tx,ref);await assert.rejects(()=>direct(db=>db.$queryRaw`SELECT id FROM rh_source.external_document WHERE id=${ref.source} FOR UPDATE NOWAIT`),e=>e.meta?.code==='55P03');const [other]=await direct(db=>db.$queryRaw`SELECT pg_try_advisory_xact_lock(hashtextextended(${t+':'+h+':'+ref.source},0)) AS acquired`);assert.equal(other.acquired,false);});assert.equal((await direct(db=>db.$queryRaw`SELECT id FROM rh_source.external_document WHERE id=${ref.source} FOR UPDATE NOWAIT`)).length,1);});

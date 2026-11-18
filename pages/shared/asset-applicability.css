@@ -1,0 +1,24 @@
+.applicability-workspace { min-width:0; }
+body:has(.applicability-workspace) .qiyan-demo-capability { font-size:var(--text-body-size);line-height:var(--text-body-line); }
+.applicability-workspace :is(h2,h3,p,li,label,legend) { overflow-wrap:anywhere; }
+.applicability-workspace .applicability-pair { display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--space-4); }
+.applicability-workspace .applicability-pair>* { min-width:0; }
+.applicability-workspace select { display:block;width:100%;margin-block:var(--space-2); }
+.applicability-workspace fieldset { border:1px solid var(--border);border-radius:var(--radius-input);padding:var(--space-4);margin-block:var(--space-4);min-width:0; }
+.applicability-workspace legend { font-size:var(--text-h3-size);line-height:var(--text-h3-line);font-weight:600; }
+.applicability-workspace .applicability-confirm { display:flex;gap:var(--space-2);align-items:flex-start;margin-block:var(--space-4); }
+.applicability-workspace input[type=checkbox] { flex:none;width:var(--space-4);height:var(--space-4);margin-top:var(--space-1); }
+.applicability-workspace .applicability-group { border-top:1px solid var(--border);padding-block:var(--space-4); }
+.applicability-workspace .applicability-group ul { padding-left:var(--space-4); }
+.applicability-workspace .applicability-group li { border-bottom:1px solid var(--border);padding-block:var(--space-2); }
+.applicability-workspace .applicability-path { color:var(--text-secondary); }
+.applicability-workspace .applicability-ai-reading :is(p,li) { font-size:var(--text-reading-size);line-height:var(--text-reading-line); }
+.applicability-workspace .ui-button { max-width:100%;white-space:normal; }
+.applicability-workspace summary { padding-block:var(--space-2); }
+@media(max-width:1100px) { .applicability-workspace .applicability-pair { grid-template-columns:minmax(0,1fr); } }
+@media(max-width:700px) {
+ body:has(.applicability-workspace) .qiyan-header-brand { width:80px!important; }
+ body:has(.applicability-workspace) .qiyan-header-brand .lingshu-brand-copy,
+ body:has(.applicability-workspace) .qiyan-header-notification,
+ body:has(.applicability-workspace) .qiyan-header-separator { display:none!important; }
+}

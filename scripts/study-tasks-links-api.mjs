@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import {writeFileSync,mkdirSync} from 'node:fs';
+import {createHash,randomUUID} from 'node:crypto';
+import {withFixtureTransaction} from '../../app/server/scripts/wp01/fixture-guard.mjs';
+export async function runLinksApi({root,env,plan,owner,admin,write,call}){
+ const checks=[],key=plan.runId+'-links-'+randomUUID().slice(0,8);
+ const own=await call('/link-options?kind=synthetic_crf_record',owner,plan.scope.researchProjectId);
+ assert.equal(own.availability,'available');assert(own.items.length>=2,'S08_CURRENT_SYNTHETIC_SOURCES_UNAVAILABLE');
+ const other=await call('/link-options?kind=synthetic_crf_record',admin,plan.scope.researchProjectId);
+ assert(!other.items.some(item=>own.items.some(source=>source.parentId===item.parentId)));
+ const formal=await call('/link-options?kind=formal_visit',owner,plan.scope.researchProjectId);assert.equal(formal.availability,'local_synthetic_only');assert.equal(formal.items.length,0);
+ checks.push('existing_own_sources_only_and_no_formal_data_scan');
+ const [created]=await withFixtureTransaction(env,'direct',db=>db.$queryRaw`SELECT receipt FROM rh_study_tasks.operation WHERE tenant_id=${plan.scope.tenantId} AND request_key=${plan.runId+'-api-create-edit'}`,{readOnly:true});assert(created);
+ const taskId=created.receipt.taskId,before=(await call('/'+taskId,owner,plan.scope.researchProjectId)).item;
+ const ids=[...new Set(own.items.slice(0,2).flatMap(i=>[i.parentId,i.rootId]))].sort();
+ const snapshot=()=>withFixtureTransaction(env,'direct',async db=>({artifacts:await db.researchArtifact.findMany({where:{...plan.scope,id:{in:ids}},orderBy:{id:'asc'}}),versions:await db.researchArtifactVersion.findMany({where:{...plan.scope,artifactId:{in:ids}},orderBy:[{artifactId:'asc'},{versionNo:'asc'}]})}),{readOnly:true});
+ const sha=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex'),sourceBefore=sha(await snapshot());
+ const body={requestKey:key+'-bind',expectedVersion:before.version,context:own.items[0].context};
+ const linked=await write('/'+taskId+'/context',owner,body,'PUT');assert.deepEqual(await write('/'+taskId+'/context',owner,body,'PUT'),linked);
+ let read=(await call('/'+taskId,owner,plan.scope.researchProjectId)).item;assert.equal(read.context.status,'current');assert.equal(read.context.sourceHash,body.context.sourceHash);
+ const hidden=(await call('/'+taskId,admin,plan.scope.researchProjectId)).item;assert.equal(hidden.context.status,'restricted');assert.equal(hidden.context.label,undefined);assert.equal(hidden.context.sourceHash,undefined);
+ await write('/'+taskId+'/context',owner,{requestKey:key+'-tamper',expectedVersion:linked.version,context:{...body.context,sourceHash:'0'.repeat(64)}},'PUT',409);
+ await write('/'+taskId+'/context',owner,{requestKey:key+'-foreign',expectedVersion:linked.version,context:{...body.context,parentId:'no-such-packet'}},'PUT',403);
+ const swapped=await write('/'+taskId+'/context',owner,{requestKey:key+'-swap',expectedVersion:linked.version,context:own.items[1].context},'PUT');
+ await write('/'+taskId+'/context',owner,{requestKey:key+'-stale',expectedVersion:linked.version,context:{kind:'none'}},'PUT',409);
+ const unlinked=await write('/'+taskId+'/context',owner,{requestKey:key+'-unlink',expectedVersion:swapped.version,context:{kind:'none'}},'PUT');
+ read=(await call('/'+taskId,owner,plan.scope.researchProjectId)).item;assert.equal(read.context.status,'unlinked');assert.equal(read.version,unlinked.version);
+ const stored=await withFixtureTransaction(env,'direct',db=>db.studyTask.findFirst({where:{id:taskId,...plan.scope},select:{subjectVisitId:true,enrollmentId:true,subjectId:true}}),{readOnly:true});assert.deepEqual(stored,{subjectVisitId:null,enrollmentId:null,subjectId:null});
+ assert.equal(sha(await snapshot()),sourceBefore);checks.push('real_bind_swap_unlink_cas_and_idempotent_receipt','other_owner_source_is_hidden','tampered_hash_and_false_parent_rejected','formal_foreign_keys_and_all_source_versions_unchanged');
+ const out=root+'researchhub/docs/testing/evidence/study-tasks-s08-2026-11-02/'+plan.runId+'/';mkdirSync(out,{recursive:true});const evidence=out+'links-api-'+randomUUID()+'.json';
+ writeFileSync(evidence,JSON.stringify({passed:true,at:new Date().toISOString(),syntheticOnly:true,checks,key,taskId,newTasks:0,modelCalls:0,sourceHashUnchanged:true,fixedVersionNavigation:'unavailable_target_current_only_summary_in_S08'},null,2)+'\n',{mode:0o600,flag:'wx'});console.log(JSON.stringify({passed:true,checks,newTasks:0,modelCalls:0,evidence}));
+}

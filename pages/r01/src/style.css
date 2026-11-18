@@ -17,6 +17,17 @@
 .scholar-list { display: flex; flex-direction: column; gap: 12px; }
 .scholar-card { display: grid; grid-template-columns: 56px minmax(0, 1fr) 240px; gap: 16px; align-items: start; padding: 16px; }
 .scholar-card img { width: 56px; height: 56px; object-fit: cover; border-radius: 50%; }
+.scholar-photo-unavailable { width:56px; height:56px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:var(--canvas); color:var(--text-secondary); font-size:12px; line-height:18px; text-align:center; }
+body[data-hub-source-real="true"] .scholar-card h2,body[data-hub-source-real="true"] .scholar-card p { overflow-wrap:anywhere; }
+@media(max-width:900px){
+ body[data-hub-source-real="true"] .scholar-board { padding-inline:16px;min-width:0; }
+ body[data-hub-source-real="true"] .scholar-filters { flex-wrap:wrap; }
+ body[data-hub-source-real="true"] .scholar-search { flex-basis:calc(100% - 86px);min-width:140px; }
+ body[data-hub-source-real="true"] .scholar-filters select { width:calc(50% - 4px);flex:1 1 calc(50% - 4px);min-width:0; }
+ body[data-hub-source-real="true"] .scholar-card { grid-template-columns:56px minmax(0,1fr); }
+ body[data-hub-source-real="true"] .scholar-card aside { grid-column:1/-1;min-width:0; }
+ body[data-hub-source-real="true"] .scholar-card header,body[data-hub-source-real="true"] .scholar-meta,body[data-hub-source-real="true"] .scholar-page { flex-wrap:wrap; }
+}
 .scholar-card header { display: flex; align-items: center; gap: 8px; }
 .scholar-card h2 { margin: 0; font-size: 16px; line-height: 24px; }
 .scholar-card header em { padding: 0 8px; border-radius: 4px; background: #e7f8f2; color: var(--success); font-style: normal; font-size: 12px; font-weight: 500; line-height: 20px; }

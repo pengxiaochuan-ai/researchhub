@@ -1,0 +1,15 @@
+{
+  "purpose": "人工编写的定性验收参考，不是模型回答，不写回历史，也不是疗法推荐",
+  "owner": {
+    "researchType": {"text":"这是慢性产后失眠伴情绪障碍的病例报告，采用针刺联合经皮耳迷走神经刺激；没有对照，不能据此确认疗效或分离干预贡献。","fragmentIds":["fragment-1","fragment-4"]},
+    "observations": {"text":"作者报告睡眠与焦虑改善，但治疗结束时失眠感知和抑郁症状仍部分残留；随访继续改善，未记录不良事件。这是作者观察，不是独立疗效验证。","fragmentIds":["fragment-1","fragment-3"]},
+    "limitations": {"text":"结局依赖主观问卷和睡眠日记，缺少客观睡眠结构验证；无对照、随访较短，无法排除自然缓解、安慰剂及生活方式影响，也无法分离联合干预各自贡献。","fragmentIds":["fragment-4"]},
+    "relevance": {"text":"可为后续研究选择结局与随访设计提供线索，但不能由病例形成指南推荐等级；健康素养及依从性限制外推。","fragmentIds":["fragment-4"]}
+  },
+  "admin": {
+    "researchType": {"text":"本文为叙述性综述，整合癌症相关焦虑抑郁与整合疗法的指南及新兴证据；新兴疗法部分是选择性汇总，没有进行全面或系统检索。","fragmentIds":["fragment-1","fragment-2"]},
+    "observations": {"text":"综述转述SIO-ASCO对针灸用于治疗后焦虑的弱推荐，尤其针对乳腺癌女性；尽管文中称治疗期间与治疗后可能获益，证据仍有限，不能据此确定普遍疗效或抑郁适应证。","fragmentIds":["fragment-4"]},
+    "limitations": {"text":"常见研究问题包括样本较小、干预与培训描述不充分、标准化与样本多样性不足，以及随机对照和盲法的限制。综述的新兴疗法选择具有选择性，不能当系统证据汇总。","fragmentIds":["fragment-2","fragment-3"]},
+    "relevance": {"text":"可作为后续研究问题和干预标准化的资料线索；针灸的弱推荐受治疗后焦虑及特定人群范围限制。本次未独立核验所引指南，也不能把新兴疗法视为同等已推荐。","fragmentIds":["fragment-4","fragment-5"]}
+  }
+}

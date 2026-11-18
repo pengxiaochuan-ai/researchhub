@@ -1,0 +1,4 @@
+Synthetic research material for upload validation.
+Missing observations remain missing; no values are imputed.
+The synthetic dataset includes zero and false as observed values, not blanks.
+This document contains no participant records or personal identifiers.

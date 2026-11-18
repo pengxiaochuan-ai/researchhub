@@ -1,0 +1,12 @@
+{
+  "version": "RH-CITY-REFERENCE-2026-11-10",
+  "divisionVersion": "MCA-2024-12-31",
+  "license": "CC0-1.0",
+  "coordinateSystem": "WGS84",
+  "usage": "NATIONAL_OVERVIEW_APPROXIMATE_CITY_REFERENCE_NOT_TEAM_ADDRESS",
+  "entries": [
+    {"cityCode":"110000","provinceCode":"110000","name":"北京市","region":"北京市","entityId":"Q956","revision":2565775546,"statementId":"Q956$4E8B7883-1595-4CD1-9590-44D9D767F7B0","sourceSha256":"800512ef61c6b39882493cb3d44111fa5ee29c715b7d84285d04842600ef200f"},
+    {"cityCode":"310000","provinceCode":"310000","name":"上海市","region":"上海市","entityId":"Q8686","revision":2554225580,"statementId":"q8686$3E38F89C-284B-4C4B-9C69-C0580486CA19","sourceSha256":"e092be552fc0c953857cee7fd929dca4653e50156d7d6ad6c990541b54726c81"},
+    {"cityCode":"210200","provinceCode":"210000","name":"大连市","region":"辽宁省","entityId":"Q74881","revision":2548806680,"statementId":"q74881$F18011A9-3606-4981-BF43-43B6BB7F48F5","sourceSha256":"b2ca4caaf32bcbf6f9fe6fd5c404a5b616cf24b39b826e805af61ae5baaae935"}
+  ]
+}

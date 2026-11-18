@@ -1,0 +1,5 @@
+# T18 新Methods已创建后的审核续阶段
+
+实际新Run cmwdq0636001jlud6scho3s1q 已由原researcher/authVersion0以原key4d702e3b-de76-49ea-9196-c495f39a6af5创建、真实Worker一次、数值对照通过。管理员初次进入时运行列表读取较慢，默认30s标签等待超时；没有review POST/pending。只读60s等待已真实显示审核框，保存证据与首屏延迟限制，不扩大性能改造。
+
+本候选独立CLI/fail-closed，严格核上述partial state、原creator及原create GET回执，不允许再create；同Run当前source/oracle/Worker轨迹核验全部保留。只新增原Run的管理员review，原键/actor/correction/basis与baseline pointers保持。原候选和失败保留；新成功producer仍供更正报告消费。页面等待上限90s只用于既有列表，无数据补造/自动写入重试。根及独审通过后才移除sentinel执行。

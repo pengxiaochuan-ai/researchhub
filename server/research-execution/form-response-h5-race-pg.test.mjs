@@ -1,0 +1,98 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {createRequire} from 'node:module';
+import {loadFixtureInput} from '../../../app/server/scripts/wp01/local-config.mjs';
+import {assertFixtureTarget,withFixtureTransaction,validateFixtureConfig} from '../../../app/server/scripts/wp01/fixture-guard.mjs';
+import {normalizePolicySections} from './policy-input.mjs';
+import {requestHash} from '../research-studies/contract.mjs';
+const require=createRequire(new URL('../../../app/server/package.json',import.meta.url));require('ts-node').register({project:new URL('../../../app/server/tsconfig.json',import.meta.url).pathname,transpileOnly:true});
+const {StudyFormsService}=require('./src/study-operations/study-forms.service.ts');
+const {StudyOutreachService}=require('./src/study-operations/study-outreach.service.ts');
+const {StudyOperationsService}=require('./src/study-operations/study-operations.service.ts');
+const {visitCompletionIntegrity,reverifyCompletedVisitInTransaction}=require('./src/study-operations/formal-visit-evidence.ts');
+const {readFormalVisitInTransaction,listFormalVisitsInTransaction}=require('./src/study-operations/formal-response-visits.ts');
+const {hashInvitationToken}=require('./src/study-operations/study-outreach-policy.ts');
+const {reviewFormalResponseInTransaction}=require('./src/study-operations/formal-response-review.ts');
+const {writeAnswersInTransaction}=require('./src/study-operations/formal-response-commands.ts');
+const {readFormalResponseInTransaction,readFormalResponseReceiptInTransaction}=require('./src/study-operations/formal-response-query.ts');
+const {assignVisitFormInTransaction}=require('./src/study-operations/formal-response-assignment.ts');
+const {env}=loadFixtureInput('../.superpowers/sdd/implementation-plan/wp01-full-baseline-target.json');
+const direct=fn=>withFixtureTransaction(env,'direct',fn);
+test('real PG: H5 draft and channel withdrawal serialize in both directions',async()=>{
+ assert.equal((await assertFixtureTarget(env)).databaseName,'wp01_test_full_baseline');
+ const prefix=validateFixtureConfig(env).runId+'__form_race_'+randomUUID().slice(0,8),id=Object.fromEntries(['tenant','group','project','account','subject','protocol','policy','enrollment','plan','visit','requirement','template','version','onsite','h5','participant','invitation','session'].map(k=>[k,prefix+'_'+k]));
+ const scope={tenantId:id.tenant,studyGroupId:id.group,researchProjectId:id.project};
+ const seeded=await direct(async tx=>{
+  await tx.tenant.create({data:{id:id.tenant,slug:id.tenant,name:'Synthetic'}});await tx.studyGroup.create({data:{id:id.group,tenantId:id.tenant,slug:'synthetic',name:'Synthetic'}});
+  await tx.researchProject.create({data:{id:id.project,tenantId:id.tenant,studyGroupId:id.group,code:'SYNTHETIC',name:'Synthetic'}});
+  const account=await tx.account.create({data:{id:id.account,tenantId:id.tenant,username:'synthetic',displayName:'Synthetic',passwordHash:'test',role:'tenant_admin',isTenantAdmin:true}});
+  for(const featureKey of ['study_operations','participant_h5'])await tx.tenantFeatureEntitlement.create({data:{tenantId:id.tenant,featureKey,enabled:true}});
+  await tx.subject.create({data:{id:id.subject,...scope,subjectId:'SYNTHETIC'}});
+  await tx.studyProtocolVersion.create({data:{id:id.protocol,...scope,versionNumber:1,status:'draft',title:'Synthetic',purpose:'Synthetic',primaryOutcomes:[]}});
+  const base={status:'not_applicable',source:'synthetic',reason:'synthetic'},input=Object.fromEntries(['ethics','screening','researchConsent','dataUse','withdrawal','safety','blinding'].map(k=>[k,base]));input.site={...base,status:'configured',mode:'study_wide'};input.captureReview={...base,status:'configured',rules:{correction:'r',locking:'r',unlocking:'r',reviewResponsibility:'r',reviewIndependence:'not_required'}};
+  const sections=normalizePolicySections(input,id.account,new Date('2026-01-01T00:00:00Z')),hash=requestHash(sections);
+  await tx.$executeRaw`INSERT INTO public.study_execution_policy_version (id,"tenantId","studyGroupId","researchProjectId","protocolVersionId","versionNumber",status,sections,"contentHash","createdBy","reviewedBy","reviewedAt") VALUES (${id.policy},${id.tenant},${id.group},${id.project},${id.protocol},1,'approved',${JSON.stringify(sections)}::jsonb,${hash},${id.account},${id.account},now())`;
+  await tx.studyProtocolVersion.update({where:{id:id.protocol},data:{status:'executing',approvedPolicyVersionId:id.policy,approvedPolicyHash:hash}});
+  await tx.studyEnrollment.create({data:{id:id.enrollment,...scope,subjectId:id.subject,protocolVersionId:id.protocol,status:'enrolled',enrolledAt:new Date()}});
+  for(const [sequence,kind] of [[1,'screening'],[2,'research_consent'],[3,'data_use_consent']])await tx.$executeRaw`INSERT INTO public.study_participation_event (id,"tenantId","studyGroupId","researchProjectId","subjectId","enrollmentId","protocolVersionId","policyVersionId","policyHash",sequence,kind,decision,evidence,reason,"effectiveAt","recordedBy") VALUES (${prefix+'_'+kind},${id.tenant},${id.group},${id.project},${id.subject},${id.enrollment},${id.protocol},${id.policy},${hash},${sequence},${kind},'not_applicable','synthetic','synthetic',now(),${id.account})`;
+  await tx.visitPlan.create({data:{id:id.plan,...scope,protocolVersionId:id.protocol,code:'V1',name:'Synthetic',sequence:1}});
+  await tx.subjectVisit.create({data:{id:id.visit,...scope,enrollmentId:id.enrollment,subjectId:id.subject,visitPlanId:id.plan,protocolVersionId:id.protocol,status:'planned',scheduleState:'scheduled',anchorAt:new Date(),targetDate:new Date(),windowStart:new Date(),windowEnd:new Date()}});
+  await tx.formTemplate.create({data:{id:id.template,...scope,key:'synthetic',name:'Synthetic'}});
+  await tx.formVersion.create({data:{id:id.version,...scope,templateId:id.template,versionNumber:1,status:'published',lockedAt:new Date(),schema:{fields:[{key:'flag',label:'Flag',type:'boolean',required:true},{key:'a',label:'A',type:'number',score:true,required:true},{key:'b',label:'B',type:'number',score:true,required:false}]},scoring:{algorithm:'numeric-sum-v1'}}});
+  await tx.visitRequirement.create({data:{id:id.requirement,...scope,visitPlanId:id.plan,kind:'form_response',code:'FORM',name:'Synthetic',config:{formVersionId:id.version,allowedCaptureModes:['researcher','patient_h5']}}});
+  const h5Visit=prefix+'_h5_visit';await tx.subjectVisit.create({data:{id:h5Visit,...scope,enrollmentId:id.enrollment,subjectId:id.subject,visitPlanId:id.plan,protocolVersionId:id.protocol,occurrence:2,status:'planned',scheduleState:'scheduled',anchorAt:new Date(),targetDate:new Date(),windowStart:new Date(),windowEnd:new Date()}});
+  await tx.participant.create({data:{id:id.participant,...scope,subjectId:id.subject,code:'SYNTHETIC'}});
+  for(const [key,mode] of [['onsite','researcher'],['h5','patient_h5']]){await tx.formAssignment.create({data:{id:id[key],...scope,subjectId:id.subject,enrollmentId:id.enrollment,subjectVisitId:mode==='patient_h5'?h5Visit:id.visit,formVersionId:id.version,mode,participantId:mode==='patient_h5'?id.participant:null}});await tx.formResponse.create({data:{...scope,assignmentId:id[key]}});}
+  const token='session-'+randomUUID()+'-'+randomUUID();
+  await tx.questionnaireInvitation.create({data:{id:id.invitation,...scope,assignmentId:id.h5,participantId:id.participant,tokenHash:hashInvitationToken('invite-'+token),expiresAt:new Date(Date.now()+3600000),redeemedAt:new Date()}});
+  await tx.questionnaireSession.create({data:{id:id.session,...scope,assignmentId:id.h5,invitationId:id.invitation,sessionTokenHash:hashInvitationToken(token),expiresAt:new Date(Date.now()+3600000)}});
+  await tx.messageDelivery.create({data:{...scope,invitationId:id.invitation,channel:'sms_sandbox',status:'sent',toHash:'synthetic',providerMessageId:'synthetic-provider'}});
+  const consent=await tx.participantConsent.create({data:{...scope,participantId:id.participant,purpose:'questionnaire_h5',channel:'sms_sandbox',status:'granted'}});
+  return {token,consentId:consent.id,authVersion:account.authVersion};
+ });
+ let release;const hold=new Promise(r=>release=r);let locked;const ready=new Promise(r=>locked=r);
+ const user={...scope,accountId:id.account,role:'tenant_admin',isTenantAdmin:true,authVersion:seeded.authVersion};
+ const revokePrisma={forTenant:()=>({}),forTenantTransaction:(_t,_g,_p,fn)=>direct(async tx=>{const result=await fn(tx);locked();await hold;return result;})};
+ const revoker=new StudyOutreachService(revokePrisma,{assertEnabled:async()=>{}});
+ const withdrawing=revoker.withdrawConsent(user,seeded.consentId);await ready;
+ let waitingPid;let gotPid;const pidReady=new Promise(r=>gotPid=r);
+ const writerPrisma={elevated:{$transaction:fn=>direct(async tx=>{waitingPid=(await tx.$queryRaw`SELECT pg_backend_pid() AS pid`)[0].pid;gotPid();return fn(tx);})}};
+ const outreach=new StudyOutreachService(writerPrisma,{assertEnabled:async()=>{}});
+ const writer=outreach.saveH5Session(seeded.token,{flag:false,a:0,b:2},false,{requestKey:'h5-race-'+randomUUID(),expectedVersion:0});await pidReady;
+ let blocked=false;for(let i=0;i<80&&!blocked;i++){blocked=await direct(async tx=>Boolean((await tx.$queryRaw`SELECT cardinality(pg_blocking_pids(${waitingPid}::int)) AS count`)[0].count));if(!blocked)await new Promise(r=>setTimeout(r,25));}
+ assert.equal(blocked,true,'writer must wait on withdrawal transaction');release();await withdrawing;
+ await assert.rejects(writer,e=>e?.response?.code==='QUESTIONNAIRE_SESSION_REVOKED');
+ const after=await direct(async tx=>{const [response]=await tx.$queryRaw`SELECT version,answers FROM public.form_response WHERE "assignmentId"=${id.h5}`;const [receipts]=await tx.$queryRaw`SELECT count(*)::int AS count FROM public.form_response_command_receipt WHERE "assignmentId"=${id.h5}`;return {response,receipts};});
+ assert.equal(after.response.version,0);assert.deepEqual(after.response.answers,{});assert.equal(after.receipts.count,0);
+ const token2='session-'+randomUUID()+'-'+randomUUID(),invitation2=prefix+'_invitation2',session2=prefix+'_session2';
+ const next=await direct(async tx=>{
+  const consent=await tx.participantConsent.create({data:{...scope,participantId:id.participant,purpose:'questionnaire_h5',channel:'sms_sandbox',status:'granted'}});
+  await tx.questionnaireInvitation.create({data:{id:invitation2,...scope,assignmentId:id.h5,participantId:id.participant,tokenHash:hashInvitationToken('invite-'+token2),expiresAt:new Date(Date.now()+3600000),redeemedAt:new Date()}});
+  await tx.questionnaireSession.create({data:{id:session2,...scope,assignmentId:id.h5,invitationId:invitation2,sessionTokenHash:hashInvitationToken(token2),expiresAt:new Date(Date.now()+3600000)}});
+  await tx.messageDelivery.create({data:{...scope,invitationId:invitation2,channel:'sms_sandbox',status:'sent',toHash:'synthetic',providerMessageId:'synthetic-provider'}});
+  return consent.id;
+ });
+ let releaseWriter;const holdWriter=new Promise(r=>releaseWriter=r);let wrote;const wroteReady=new Promise(r=>wrote=r);
+ const firstWriterPrisma={elevated:{$transaction:fn=>direct(async tx=>{const result=await fn(tx);wrote();await holdWriter;return result;})}};
+ const firstWriter=new StudyOutreachService(firstWriterPrisma,{assertEnabled:async()=>{}});
+ const saving=firstWriter.saveH5Session(token2,{flag:false,a:0,b:2},false,{requestKey:'h5-first-'+randomUUID(),expectedVersion:0});await wroteReady;
+ let withdrawalPid;let gotWithdrawalPid;const withdrawalPidReady=new Promise(r=>gotWithdrawalPid=r);
+ const delayedPrisma={forTenant:()=>({}),forTenantTransaction:(_t,_g,_p,fn)=>direct(async tx=>{withdrawalPid=(await tx.$queryRaw`SELECT pg_backend_pid() AS pid`)[0].pid;gotWithdrawalPid();return fn(tx);})};
+ const delayedRevoker=new StudyOutreachService(delayedPrisma,{assertEnabled:async()=>{}}),withdrawal=delayedRevoker.withdrawConsent(user,next);await withdrawalPidReady;
+ blocked=false;for(let i=0;i<80&&!blocked;i++){blocked=await direct(async tx=>Boolean((await tx.$queryRaw`SELECT cardinality(pg_blocking_pids(${withdrawalPid}::int)) AS count`)[0].count));if(!blocked)await new Promise(r=>setTimeout(r,25));}
+ assert.equal(blocked,true,'withdrawal must wait for prior writer transaction');releaseWriter();const saved=await saving;assert.equal(saved.version,1);await withdrawal;
+ const final=await direct(tx=>tx.questionnaireSession.findUnique({where:{id:session2}}));assert.equal(final.status,'revoked');
+ // Two actual account writers contend on the same formal response and stale CAS cannot overwrite.
+ let releaseCas,casDone;const casHold=new Promise(r=>releaseCas=r),casReady=new Promise(r=>casDone=r);
+ const command={requestKey:'onsite-cas-'+randomUUID(),expectedVersion:0,kind:'draft',answers:{flag:false,a:0,b:2}};
+ const first=direct(async tx=>{const result=await writeAnswersInTransaction(tx,user,scope,id.onsite,command);casDone();await casHold;return result;});await casReady;
+ let casPid,casPidDone;const casPidReady=new Promise(r=>casPidDone=r);
+ const second=direct(async tx=>{casPid=(await tx.$queryRaw`SELECT pg_backend_pid() AS pid`)[0].pid;casPidDone();return writeAnswersInTransaction(tx,user,scope,id.onsite,{...command,requestKey:'stale-'+randomUUID(),answers:{flag:true,a:1,b:2}});});await casPidReady;
+ blocked=false;for(let i=0;i<80&&!blocked;i++){blocked=await direct(async tx=>Boolean((await tx.$queryRaw`SELECT cardinality(pg_blocking_pids(${casPid}::int)) AS count`)[0].count));if(!blocked)await new Promise(r=>setTimeout(r,25));}
+ assert.equal(blocked,true,'second formal writer must wait');releaseCas();const firstResult=await first;
+ await assert.rejects(second,e=>e?.response?.code==='FORM_VERSION_CONFLICT');
+ const replay=await direct(tx=>writeAnswersInTransaction(tx,user,scope,id.onsite,command));assert.deepEqual(replay,firstResult);
+ const casState=await direct(async tx=>{const [response]=await tx.$queryRaw`SELECT version,answers FROM public.form_response WHERE "assignmentId"=${id.onsite}`;const [receipts]=await tx.$queryRaw`SELECT count(*)::int AS count FROM public.form_response_command_receipt WHERE "assignmentId"=${id.onsite}`;return {response,receipts};});
+ assert.equal(casState.response.version,1);assert.deepEqual(casState.response.answers,command.answers);assert.equal(casState.receipts.count,1);
+});

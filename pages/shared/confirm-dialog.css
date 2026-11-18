@@ -1,0 +1,9 @@
+.ui-confirm-dialog{box-sizing:border-box;width:min(480px,calc(100% - 32px));max-width:calc(100% - 32px);max-height:calc(100dvh - 32px);overflow-y:auto;overscroll-behavior:contain;padding:24px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text-primary);font-family:inherit;font-size:14px;line-height:22px}
+.ui-confirm-dialog::backdrop{background:rgb(15 35 71 / .4)}
+.ui-confirm-dialog h2{font-size:var(--text-h2-size);line-height:var(--text-h2-line);margin:0 0 16px}
+.ui-confirm-dialog-body{overflow-wrap:anywhere}
+.ui-confirm-dialog-body p{margin:0 0 12px}
+.ui-confirm-dialog-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:12px;margin-top:24px}
+@media(max-width:480px){.ui-confirm-dialog{padding:16px}.ui-confirm-dialog-actions{margin-top:20px}}
+
+.ui-result-dialog .ui-button{min-height:44px;font:500 14px/22px var(--font-zh,sans-serif)}

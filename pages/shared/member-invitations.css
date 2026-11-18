@@ -1,0 +1,16 @@
+.member-workspace .member-content{padding:24px;display:grid;gap:16px;min-width:0;font-size:14px;line-height:22px}
+.member-workspace{scroll-padding-top:80px;scroll-padding-bottom:88px}
+.member-card{padding:24px;background:var(--surface,#fff);border:1px solid var(--border,#e3e8f1);border-radius:8px;min-width:0;overflow-wrap:anywhere}
+.member-card h2{font-size:20px;line-height:28px;margin:0 0 16px}.member-card h3{font-size:16px;line-height:24px;margin:0}
+.member-card label{display:block;margin:16px 0}.member-card input,.member-card select{display:block;width:100%;max-width:640px;margin-top:8px;padding:12px;border:1px solid var(--border,#e3e8f1);border-radius:8px;font:inherit;color:var(--text-primary,#0f2347);background:#fff}
+.member-card button{font:inherit;padding:8px 16px;min-height:40px;border:1px solid var(--border,#e3e8f1);border-radius:6px;background:#fff;color:var(--text-primary,#0f2347)}
+.member-card button.primary{background:var(--brand-primary,#5746f5);color:#fff}.member-card button.danger{color:#a32232}.member-card button:disabled{opacity:.65;cursor:not-allowed}
+.member-list{padding:0;list-style:none;display:grid;gap:16px}.member-list li{border-top:1px solid var(--border,#e3e8f1);padding-top:16px;min-width:0}
+.member-actions,.member-toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.member-toolbar{justify-content:space-between;margin-top:24px}.member-actions span{font-size:13px;line-height:20px}
+.member-content .member-error{font-size:14px;line-height:22px;color:#a32232;overflow-wrap:anywhere}.member-notice{padding:16px;background:var(--brand-soft,#f0edff);border-radius:8px;overflow-wrap:anywhere}
+.member-workspace :focus-visible{outline:3px solid var(--brand-primary,#5746f5);outline-offset:3px}
+.member-list li[data-invitation-selected=true]{scroll-margin-top:88px;outline:2px solid var(--brand-primary,#5746f5);outline-offset:6px}
+.member-governance-back{margin-left:16px;color:var(--brand-primary,#5746f5);font-size:14px;line-height:22px}
+@media(max-width:1000px){body:has(.member-workspace) .qiyan-header-search{display:none!important}.member-card{padding:16px}}
+@media(max-width:700px){.member-workspace .member-content{padding:16px 16px 80px}body:has(.member-workspace) .qiyan-header-brand{width:80px!important}body:has(.member-workspace) .qiyan-header-brand .lingshu-brand-copy,body:has(.member-workspace) .qiyan-header-notification,body:has(.member-workspace) .qiyan-header-separator{display:none!important}}
+@media(prefers-reduced-motion:reduce){body:has(.member-workspace) .qiyan-platform-sidebar{transition:none}}

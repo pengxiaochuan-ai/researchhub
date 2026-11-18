@@ -5,6 +5,8 @@ import {
 } from 'lucide-react';
 import china from './china.json';
 import './style.css';
+import { RealHubOverview } from '../../shared/RealHub.jsx';
+import { isHubSourceRealMode } from '../../../src/hub-source-api.js';
 
 const KPIS = [
   ['临床注册研究', '286', '项', '+18', '近 12 个月', '较上年 +6.7%', ClipboardList],
@@ -300,4 +302,4 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(isHubSourceRealMode() ? <RealHubOverview /> : <App />);

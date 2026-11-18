@@ -1,0 +1,3 @@
+import {BUSINESS_LOCAL_MEMBER} from '../server/research-assets/business-local.mjs';
+export const memberKinds=['protocol','protocol','dataset','instrument','analysis','publication'];
+export const memberInput=(ids,index)=>({kind:memberKinds[index],metadata:{title:'C1成员合成资产 '+(index+1),summary:'本人原创合成科研资产说明，供固定版本整理与审核。',purpose:'核对资产登记、修订及允许用途。',limitations:'仅合成说明材料，不包含临床数据、实际算分或方法执行结果。',author:'合成资产科研人员',domains:['合成科研']},sourceKind:'author',sourceBindings:[],policy:{rightsEvidence:'本人原创合成材料，允许本机登记、私有审核；仅第一份方案经明确许可向同Study研究者提供摘要、阅读及书目引用，不授权AI或导出。',discoveryRecipients:[BUSINESS_LOCAL_MEMBER]},contentMd:'# 合成科研资产说明\n\n这是本人原创的合成说明材料。\n\n## 使用前核对\n\n数据集说明不等于导入原始数据；量表说明不包含自动计分；方法说明不冒充运行结果。',requestKey:'c1-member-20261117-create-'+index});

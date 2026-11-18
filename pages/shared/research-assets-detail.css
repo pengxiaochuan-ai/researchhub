@@ -1,0 +1,43 @@
+.research-assets-detail .research-asset-reading { max-width:48rem;min-width:0;overflow-wrap:anywhere;padding:var(--space-4); }
+.research-assets-detail .research-asset-reading :is(p,li) { font-size:var(--text-reading-size);line-height:var(--text-reading-line); }
+.research-assets-detail .research-asset-reading :is(pre,table) { max-width:100%;overflow:auto;font-size:var(--text-body-size);line-height:var(--text-body-line); }
+.research-assets-detail .hero-detail-card > * { min-width:0;overflow-wrap:anywhere; }
+.research-assets-detail .detail-list b { overflow-wrap:anywhere; }
+.research-asset-page button:disabled { opacity:.55;cursor:not-allowed; }
+.research-assets-detail .asset-version-comparison pre { white-space:pre-wrap;overflow-wrap:anywhere;font-size:var(--text-reading-size);line-height:var(--text-reading-line);max-width:100%; }
+
+.research-assets-detail .asset-detail-connections :is(p,li,a) { font-size:var(--text-body-size);line-height:var(--text-body-line); }
+.research-assets-detail .asset-detail-connections h3 { font-size:var(--text-h3-size);line-height:var(--text-h3-line); }
+.research-assets-detail .asset-comment { border-bottom:1px solid var(--border-color, #e5eaf3);padding:16px 0;overflow-wrap:anywhere; }
+.research-assets-detail .asset-comment .asset-comment-body { white-space:pre-wrap;font-size:var(--text-reading-size);line-height:var(--text-reading-line); }
+.research-assets-detail .asset-comment .asset-comment-meta { font-size:var(--text-secondary-size);line-height:var(--text-secondary-line); }
+
+/* Fixed-asset AI uses the existing operation typography inside its original card. */
+.ai-panel .asset-ai-content,
+.ai-panel .asset-ai-content p,
+.ai-panel .asset-ai-content summary,
+.ai-panel .asset-ai-content label,
+.ai-panel .asset-ai-content li,
+.ai-panel .asset-ai-content textarea { font-size: 14px; line-height: 22px; }
+.asset-ai-content label { display: grid; gap: 8px; margin: 12px 0; }
+.asset-ai-content textarea { box-sizing: border-box; width: 100%; min-height: 88px; padding: 10px; border: 1px solid #dfe5f2; border-radius: 6px; font-family: inherit; }
+
+/* A02 content preview only: reflow by its own available width, not the global Shell. */
+.research-assets-detail .asset-preview-container { container: asset-preview / inline-size; min-width:0; }
+.research-assets-detail .asset-preview-context { padding:var(--space-4); padding-bottom:0; font-size:var(--text-body-size); line-height:var(--text-body-line); }
+.research-assets-detail .asset-preview-context :is(p,a) { font-size:var(--text-body-size); line-height:var(--text-body-line); }
+.research-assets-detail .asset-preview-context p { margin-top:0; }
+.research-assets-detail .asset-preview-use-conditions { display:grid; gap:var(--space-2); margin:0 0 var(--space-4); font-size:var(--text-body-size); line-height:var(--text-body-line); }
+.research-assets-detail .asset-preview-use-conditions > div { display:grid; grid-template-columns:72px minmax(0,1fr); gap:var(--space-2); }
+.research-assets-detail .asset-preview-use-conditions :is(dt,dd) { margin:0; min-width:0; overflow-wrap:anywhere; }
+.research-assets-detail .asset-preview-use-conditions dt { font-weight:500; }
+.research-assets-detail .asset-preview-container .asset-preview > * { min-width:0; }
+.research-assets-detail .asset-preview-container .research-asset-reading [role="region"] { max-width:100%; overflow-x:auto; }
+.research-assets-detail .asset-preview-container .research-asset-reading [role="region"]:focus-visible { outline:2px solid var(--brand-primary); outline-offset:2px; }
+.research-assets-detail .asset-preview-container .research-asset-reading table { width:max-content; min-width:100%; max-width:none; }
+.research-assets-detail .asset-preview-container .research-asset-reading table :is(th,td,code) { font-size:var(--text-body-size); line-height:var(--text-body-line); overflow-wrap:normal; word-break:normal; }
+.research-assets-detail .asset-preview-container .research-asset-reading th { white-space:nowrap; }
+@container asset-preview (width < 840px) {
+ .research-assets-detail .asset-preview-container .asset-preview { grid-template-columns:minmax(0,1fr); }
+}
+html[data-page="a02"] .research-assets-detail button.ui-button{font-size:var(--text-body-size);line-height:var(--text-body-line)}

@@ -1,0 +1,25 @@
+.full-study-v2{font-size:14px;line-height:22px}.full-study-v2 fieldset{border:1px solid var(--border);padding:16px;min-width:0}.full-study-v2 label{display:flex;flex-direction:column;gap:8px;margin:8px 0;min-width:0}.full-study-v2 input,.full-study-v2 textarea{font:14px/22px inherit;font-size:14px;line-height:22px;min-height:40px;padding:8px;max-width:100%;border:1px solid var(--border);border-radius:6px}.full-study-slices{display:grid;gap:12px;margin-top:16px}.full-study-slices dl{display:flex;flex-wrap:wrap;gap:16px}.full-study-slices dd{margin:0}.full-study-v2 .ui-button{min-height:40px}.full-study-v2 a:focus-visible,.full-study-v2 input:focus-visible,.full-study-v2 textarea:focus-visible{outline:2px solid var(--brand-primary);outline-offset:2px}
+
+.full-study-slices,.full-study-slices section{min-width:0;max-width:100%}.full-study-slices{display:block;font-size:14px;line-height:22px}.full-study-slices h3{font-size:16px;line-height:24px;margin:24px 0 12px}.full-study-table-scroll{max-width:100%;overflow-x:auto;margin:12px 0 20px;border:1px solid var(--border);border-radius:6px;overscroll-behavior-x:contain}.full-study-slices table{width:100%;min-width:1100px;border-collapse:collapse;font-size:14px;line-height:22px}.full-study-slices caption{text-align:left;font-weight:600;padding:12px 16px;background:var(--surface-secondary,#f5f7fb)}.full-study-slices th,.full-study-slices td{padding:12px;vertical-align:top;text-align:left;border-bottom:1px solid var(--border);font-size:14px;line-height:22px;font-variant-numeric:tabular-nums}.full-study-slices thead th{white-space:nowrap}.full-study-slices tbody th{min-width:154px}.full-study-slices td{overflow-wrap:anywhere;min-width:66px}.full-study-slices summary{cursor:pointer;min-height:40px;display:list-item;align-content:center}.full-study-slices td details{min-width:145px;max-width:300px}.full-study-slices td details[open]{min-width:240px}.full-study-slices .full-study-na{margin-top:20px}.full-study-table-scroll:focus-visible,.full-study-slices summary:focus-visible{outline:2px solid var(--brand-primary);outline-offset:2px}
+
+.full-study-slices table:has(th:nth-child(10)) tbody td:nth-child(n+3):nth-child(-n+8){white-space:nowrap}
+
+.full-study-return{display:inline-flex;align-items:center;min-height:40px;font-size:14px;line-height:22px}
+@media(max-width:1100px){
+ html:has(.full-study-v2),body:has(.full-study-v2),body:has(.full-study-v2) #root,body:has(.full-study-v2) .platform-app{min-width:0!important;width:100%;max-width:100%}
+ body:has(.full-study-v2) .qiyan-platform-sidebar{display:none!important}
+ body:has(.full-study-v2) .platform-main{margin-left:0!important;min-width:0!important;width:100%;max-width:100%}
+ body:has(.full-study-v2) .qiyan-page-context{min-width:0;max-width:100%;padding-inline:16px}
+ body:has(.full-study-v2) .qiyan-context-breadcrumb{flex-wrap:wrap;height:auto;min-height:40px;gap:4px}
+ body:has(.full-study-v2) .qiyan-page-heading{min-width:0;padding:16px;flex-wrap:wrap}
+ body:has(.full-study-v2) .qiyan-page-heading-copy{min-width:0}
+ body:has(.full-study-v2) header.global-platform-header .qiyan-header-search,body:has(.full-study-v2) header.global-platform-header .qiyan-header-notification,body:has(.full-study-v2) header.global-platform-header .qiyan-header-separator,body:has(.full-study-v2) header.global-platform-header .lingshu-brand-copy small{display:none!important}
+ body:has(.full-study-v2) header.global-platform-header .qiyan-header-brand{width:calc(100% - 182px)!important;min-width:0;padding-left:12px!important}
+ body:has(.full-study-v2) header.global-platform-header .qiyan-user-trigger{right:6px!important}
+ .full-study-v2 .ep-content{padding-inline:16px;min-width:0;max-width:100%}
+ .full-study-v2 .ui-card{min-width:0;max-width:100%;padding:16px}
+ .full-study-v2 .ui-card>ul{padding-left:20px;min-width:0}
+ .full-study-v2 .ui-button{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+}
+@media(max-width:360px){body:has(.full-study-v2) header.global-platform-header .qiyan-header-brand{width:80px!important}body:has(.full-study-v2) header.global-platform-header .qiyan-header-brand .lingshu-brand-copy{display:none!important}}
+@media(max-width:700px){body.qiyan-mobile-menu-open:has(.full-study-v2) .qiyan-platform-sidebar{display:flex!important}}

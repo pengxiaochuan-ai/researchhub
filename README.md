@@ -1,8 +1,16 @@
 # 岐研前端页面整合工程
 
+## 当前仓库交付与数据库部署
+
+本仓库保存ResearchHub自身的前后端实现、适配器、测试及设计。现有Docker/Compose只发布静态前端，完整后端仍有旧项目服务依赖，不能仅clone后即部署全部能力。数据库沿用已确认的“共享PG实例/库/公共表＋租户隔离”，正式迁移需从目标基线另行审定；不要恢复本机合成数据库或运行本机夹具脚本。
+
+详见[独立仓库与数据库部署边界](docs/technical/repository-and-database-delivery-2026-11-18.md)和[无凭据配置模板](deploy/researchhub.env.example)。现有main代码推送会触发自动发布；本次源码交付用`[skip ci]`避免生产发布，后续发布仍须明确确认。生成证据、原始资料和本机运行配置保留本地，不在公开仓库提供。
+
 本工程将各个高保真页面保持为独立路由与入口，在同一个 Vite 服务中访问。已有压缩包页面保留各自的 `src`，后续同一产品线页面可复用 `pages/shared/` 中的平台组件，但页面编号、入口和母版映射始终独立，因此同名文件不会覆盖。
 
 ## 开发前必读
+
+用户验证与实际操作请从[用户验证与操作手册](docs/product/用户验证与操作手册.md)开始。后续各功能验证流程、用户反馈与复验统一维护在该文档。
 
 项目已经冻结 **岐研 Demo UI Foundation v1.0** 和 **Navigation & Page Header Standard v1.0**。人工开发者及 AI 编程工具必须先阅读 [项目文档中心](docs/README.md) 和 [AGENTS.md](AGENTS.md)。业务页面不得自行重新设计 Topbar、Sidebar、Breadcrumb、Page Header 或 Context Navigation。
 
@@ -21,7 +29,7 @@ pnpm install
 pnpm dev
 ```
 
-访问根地址后进入开放性首页。登录后进入“我的科研”。生产构建与本地预览：
+访问根地址后进入开放性首页。登录后进入“我的工作台”。生产构建与本地预览：
 
 ```powershell
 pnpm build
@@ -40,7 +48,7 @@ node ./scripts/serve-dist.mjs
 | --- | --- | --- |
 | P00 | 开放性首页 | `/pages/p00/` |
 | P002 | 灵枢心域开放首页（整页，不是站点入口） | `/pages/p002/` |
-| P01 | 我的科研 | `/pages/p01/` |
+| P01 | 我的工作台 | `/pages/p01/` |
 | H05 | 领域研究 | `/pages/h05/` |
 | H01 | 针灸治疗情志病 | `/pages/h01/` |
 | H02 | 创建 Research Hub · 基本信息 | `/pages/h02/` |

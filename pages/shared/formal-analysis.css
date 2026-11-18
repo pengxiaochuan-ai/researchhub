@@ -1,0 +1,27 @@
+.rh-formal-analysis .fa-create,.rh-formal-analysis .fa-plan section{margin-top:24px;padding-top:20px;border-top:1px solid var(--border,#dfe3ef)}
+.rh-formal-analysis .fa-create>summary{cursor:pointer;font-weight:600}
+.rh-formal-analysis .fa-choice{display:flex;align-items:flex-start;gap:8px;margin:10px 0;font-size:14px;line-height:22px}
+.rh-formal-analysis .fa-choice input{flex:none;margin-top:4px}
+.rh-formal-analysis fieldset{border:1px solid var(--border,#dfe3ef);border-radius:8px;padding:12px;margin:16px 0}
+.rh-formal-analysis legend{font-size:14px;line-height:22px;padding:0 4px}
+.rh-formal-analysis .fa-search{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.rh-formal-analysis .fa-search .ep-label{flex:1;min-width:180px;margin-bottom:0}
+.rh-formal-analysis .fa-candidates,.rh-formal-analysis .fa-plan-list{list-style:none;padding:0}
+.rh-formal-analysis .fa-candidates li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border,#dfe3ef)}
+.rh-formal-analysis .fa-plan-list>li{padding:16px 0;border-bottom:1px solid var(--border,#dfe3ef)}
+.rh-formal-analysis .fa-candidates span,.rh-formal-analysis .fa-plan-list strong,.rh-formal-analysis .fa-plan p{overflow-wrap:anywhere}
+.rh-formal-analysis .fa-table-scroll{overflow-x:auto;max-width:100%;margin:16px 0}
+.rh-formal-analysis table{border-collapse:collapse;min-width:100%;font-size:14px;line-height:22px}
+.rh-formal-analysis th,.rh-formal-analysis td{text-align:left;vertical-align:top;padding:10px 12px;border:1px solid var(--border,#dfe3ef);min-width:130px;max-width:320px;overflow-wrap:anywhere}
+.rh-formal-analysis td a{display:block;margin-top:8px;white-space:nowrap}
+.rh-formal-analysis .ui-tabs>a{display:inline-flex;align-items:center;padding:8px 12px;font-size:14px;line-height:22px;white-space:nowrap}
+.rh-formal-analysis .fa-plan h3{font-size:16px;line-height:24px;margin:16px 0 12px}
+/* Keep intrinsic card/table widths inside the analysis column. */
+.rh-formal-analysis .ep-content{grid-template-columns:minmax(0,1fr);max-width:100%}
+.rh-formal-analysis .stats-row{min-width:0;grid-template-columns:repeat(6,minmax(0,1fr))}
+.rh-formal-analysis .main-grid{grid-template-columns:minmax(0,1fr) minmax(0,320px)}
+@media(max-width:1200px){html:has(.rh-formal-analysis),body:has(.rh-formal-analysis),body:has(.rh-formal-analysis) #root{min-width:0!important;width:100%!important}body:has(.rh-formal-analysis) .platform-main{min-width:0!important;max-width:100%;width:100%;margin-left:0!important}}
+@media(min-width:701px) and (max-width:1200px){body:has(.rh-formal-analysis) .platform-main{margin-left:var(--layout-sidebar)!important;width:calc(100% - var(--layout-sidebar))!important}}
+@media(max-width:1200px){.rh-formal-analysis .main-grid,.rh-formal-analysis .three-col{grid-template-columns:minmax(0,1fr)}.rh-formal-analysis .stats-row{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){.rh-formal-analysis .stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.rh-formal-analysis .fa-search{align-items:stretch}.rh-formal-analysis .fa-search .ep-label{min-width:100%}.rh-formal-analysis .fa-candidates li{align-items:flex-start;flex-direction:column}}

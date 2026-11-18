@@ -1,0 +1,41 @@
+// No Provider request and no persisted rewrite: compare the saved real response.
+import assert from 'node:assert/strict';
+import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {createHash,randomUUID} from 'node:crypto';
+import {loadFixtureInput} from '../../app/server/scripts/wp01/local-config.mjs';
+import {assertFixtureTarget,withFixtureTransaction} from '../../app/server/scripts/wp01/fixture-guard.mjs';
+import {parseArticleResponse,verifyArticleResponse,articleCoreText,restoreArticleCoreResult} from './article-response-policy.mjs';
+import {articleToolResult} from '../server/hub-sources/article-evidence.mjs';
+import {HUB_TOOL_KB_ID,hubCoreQuestion} from './hub-agent-contract.mjs';
+import {assertAnswer} from './knowledge-ai-contract.mjs';
+const {env}=loadFixtureInput('../.superpowers/sdd/implementation-plan/wp01-full-baseline-target.json');
+assert.equal((await assertFixtureTarget(env)).databaseName,'wp01_test_full_baseline');
+const rt=JSON.parse(readFileSync('../.tmp/researchhub-knowledge-local/runtime.json'));
+const trace=JSON.parse(readFileSync('../.tmp/researchhub-knowledge-local/ai-traces/19f907de-ee0e-4435-977b-bad216e7d2d6.json'));
+const jobId='cmw4ri9oy0004luyiuc1eq9u3',sha=v=>createHash('sha256').update(typeof v==='string'?v:JSON.stringify(v,(_k,x)=>typeof x==='bigint'?x.toString():x)).digest('hex');
+const snapshot=()=>withFixtureTransaction(env,'direct',async db=>{
+ const job=await db.knowledgeChatJob.findFirst({where:{id:jobId,tenantId:rt.ids.tenant}});assert.equal(job.status,'completed');
+ const message=await db.message.findUnique({where:{id:job.assistantMessageId}});
+ const reservations=await db.tokenQuotaReservation.findMany({where:{tenantId:rt.ids.tenant},orderBy:{id:'asc'}});
+ return {job,message,protectedHash:sha({jobs:await db.knowledgeChatJob.count({where:{tenantId:rt.ids.tenant}}),messages:await db.message.count({where:{tenantId:rt.ids.tenant}}),reservations,job,message})};
+},{readOnly:true});
+const before=await snapshot(),pack=before.job.payload.articleEvidence,raw=trace.response[0].message.content;
+const old=parseArticleResponse(raw,pack,{policy:'rh-article-response.v3'}),current=parseArticleResponse(raw,pack);
+assert.equal(old.text,before.message.content);assert.doesNotThrow(()=>verifyArticleResponse(before.message.meta.provenance.articleResponseValidation,pack,before.message.content));
+assert.equal(old.validation.sections.filter(s=>s.action==='withheld').length,3);
+assert.equal(current.validation.sections.filter(s=>s.action==='withheld').length,1);
+assert(current.text.includes('本研究为单中心随机对照试验（RCT）。'));
+assert(current.text.includes('原文明确局限：所有结局均为主观量表，缺乏客观或生物标志物终点。'));
+for(const section of current.validation.sections){const original=current.validation.response[section.key].text;for(const c of section.checks.filter(c=>c.kind==='qualitative-prefix'))assert.equal(c.text,original.slice(c.offset,c.cutAt).trim().replace(/[，,；;。！？\s]+$/,'')+'。');}
+const require=createRequire(new URL('../../app/server/package.json',import.meta.url));require('ts-node').register({project:new URL('../../app/server/tsconfig.json',import.meta.url).pathname,transpileOnly:true});
+const {OrchestratorService}=require('./src/orchestrator/orchestrator.service.ts');
+let replayCalls=0;const provider={chat:async()=>{replayCalls++;return{text:articleCoreText(current),usedMock:false,usage:trace.usage,route:{model:trace.model,profileId:'free-stored-response-replay',fallbackIndex:0}};},chatWithTools:()=>assert.fail('unexpected tool loop')};
+const tools={toolDefs:()=>[{type:'function',function:{name:'kb_search',parameters:{type:'object',properties:{query:{type:'string'}}}}}],execute:async()=>articleToolResult(pack)};
+const result=await new OrchestratorService({},provider,{},{},tools).run({user:{tenantId:rt.ids.tenant,accountId:rt.ids.admin},userMessage:hubCoreQuestion,history:[],ctx:{kbAgent:true,agentKind:'research',tools:['knowledge.search'],kbIds:[HUB_TOOL_KB_ID],model:{provider:'deepseek',model:'deepseek-v4-pro',maxTokens:1536}}});
+assert.equal(replayCalls,1);assertAnswer({...result,finalText:current.citationText},[pack.source]);assert.equal(restoreArticleCoreResult(result,current,pack).finalText,current.text);
+assert.equal((await snapshot()).protectedHash,before.protectedHash);
+const out='docs/testing/evidence/article-mixed-replay-'+randomUUID();mkdirSync(out,{recursive:true});
+const evidence={passed:true,at:new Date().toISOString(),jobId,assistantMessageId:before.message.id,offlineReplay:true,realProviderCalls:0,newBusinessWrites:0,historyAndAccountingUnchanged:true,packHash:pack.packHash,oldActions:old.validation.sections.map(({key,action})=>({key,action})),newActions:current.validation.sections.map(({key,action})=>({key,action})),recovered:current.validation.sections.flatMap(s=>s.checks.filter(c=>c.kind==='qualitative-prefix').map(c=>({section:s.key,...c}))),oldTextHash:sha(old.text),newTextHash:sha(current.text),originalStatus:before.job.status,note:'Not a new model response, historical rewrite or full professional acceptance.'};
+writeFileSync(out+'/result.json',JSON.stringify(evidence,null,2));writeFileSync(out+'/preview.json',JSON.stringify({messageId:before.message.id,sessionId:before.job.sessionId,recordId:pack.binding.recordId,content:current.text,provenance:{...before.message.meta.provenance,articleResponseValidation:current.validation,articleNumericEvidence:current.numericEvidence}},null,2));
+console.log(JSON.stringify({passed:true,evidence:out,recovered:evidence.recovered}));

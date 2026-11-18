@@ -1,0 +1,45 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';
+import {createDirectoryService} from './commands.mjs';import {directoryRollback} from './test-support.mjs';
+import {rebaseInstitutionEdit} from '../../src/team-institution-edit.js';
+test('real PG tenant team review updates an effective public institution without publishing its team or new lead',async()=>directoryRollback(async({db,direct,ctx,provenance,suffix,rowId})=>{
+ const s=createDirectoryService({db}),a=ctx('admin'),o=await s.createEntity(a,{kind:'organization',stableKey:'mixed-scope-org-'+suffix,requestKey:randomUUID()});
+ const old=await s.appendAssertion(a,o.id,{kind:'profile',assertionKey:'profile',expectedRevision:0,payload:{name:'公开合成机构'},provenance,requestKey:randomUUID()});
+ await s.decide(a,old.id,{expectedDecisionVersion:0,assertionHash:old.hash,decision:'approve',audience:'public',reason:'合成公开版本',requestKey:randomUUID()});
+ const p=(await s.adminEntity(a,o.id)).facts[0],organization={entityId:o.id,name:'公开合成机构更正',type:'',edit:{expectedRevision:p.revision,baseProfile:p.payload,profile:{...p.payload,name:'公开合成机构更正'}}};
+ const c=await s.createTeamWorkspace(a,{data:{name:'仅租户合成团队-'+suffix,verificationMethod:'administrator',organization,members:[{key:'lead',name:'合成新负责人',role:'lead'}]},requestKey:randomUUID()});
+ await direct(tx=>tx.$executeRaw`UPDATE rh_source.review_decision SET audience='tenant' WHERE tenant_id=${db.tenantId} AND source_record_id=${rowId}`);const blocked=await s.previewTeamWorkspace(a,c.id,'tenant');assert.equal(blocked.canApprove,false,'public-source downgrade cannot be recovered by tenant team review');
+ await direct(tx=>tx.$executeRaw`UPDATE rh_source.review_decision SET audience='public' WHERE tenant_id=${db.tenantId} AND source_record_id=${rowId}`);
+ const plan=await s.previewTeamWorkspace(a,c.id,'tenant');assert.equal(plan.canApprove,true,JSON.stringify(plan.issues));assert.equal(plan.jointInstitutions[0].audience,'public');
+ const body={expectedVersion:1,planHash:plan.planHash,audience:'tenant',requestKey:randomUUID()};await assert.rejects(()=>s.reviewTeamWorkspace(ctx('owner'),c.id,body),{status:403});await s.reviewTeamWorkspace(a,c.id,body);
+ const institution=(await s.adminEntity(a,o.id)).facts[0],w=await s.teamWorkspace(a,c.id);assert.equal(institution.decision.audience,'public');assert.equal(institution.revision,2);assert(institution.sources.every(x=>x.available));assert.equal(w.reviewedVersion,w.version);assert.equal(w.publishedAudience,'tenant');assert.equal(w.data.members[0].organization.entityId,o.id);
+ assert.equal(w.verifications.length,2);assert.deepEqual(w.verifications.find(x=>x.audience==='public').claims.map(x=>x.entityId),[o.id]);assert(w.verifications.find(x=>x.audience==='tenant').claims.every(x=>x.entityId!==o.id));
+ await assert.rejects(()=>s.team(ctx('owner'),c.id,'public'),{status:404});assert.equal((await s.adminAssertion(a,old.id)).payload.name,'公开合成机构');assert.deepEqual(await s.reviewTeamWorkspace(a,c.id,body),(await s.teamWorkspaceReceipt(a,c.id,body.requestKey)).result);
+}));
+test('real PG inline institution draft is non-publishing; one atomic review appends version, preserves history and exact scope',async()=>directoryRollback(async({db,ctx,provenance,suffix})=>{
+ const s=createDirectoryService({db}),a=ctx('admin'),o=await s.createEntity(a,{kind:'organization',stableKey:'inline-org-'+suffix,requestKey:randomUUID()});
+ const old=await s.appendAssertion(a,o.id,{kind:'profile',assertionKey:'profile',expectedRevision:0,payload:{name:'原合成机构',summary:'原说明'},provenance,requestKey:randomUUID()});
+ await s.decide(a,old.id,{expectedDecisionVersion:0,assertionHash:old.hash,decision:'approve',audience:'tenant',reason:'合成原版本',requestKey:randomUUID()});
+ const p=(await s.adminEntity(a,o.id)).facts.find(f=>f.kind==='profile'),institution={entityId:o.id,name:'修订合成机构',type:'研究所',edit:{expectedRevision:p.revision,baseProfile:p.payload,profile:{...p.payload,name:'修订合成机构',organizationType:'研究所',summary:'修订说明'}}};
+ const c=await s.createTeamWorkspace(a,{data:{name:'原位修订团队-'+suffix,verificationMethod:'administrator',organization:institution,members:[{key:'lead',name:'合成负责人',role:'lead',organization:institution}]},requestKey:randomUUID()});
+ assert.equal((await s.adminEntity(a,o.id)).facts[0].revision,1,'draft does not write shared profile');
+ assert.equal((await s.teamWorkspace(a,c.id)).data.organization.edit.profile.name,'修订合成机构');
+ const plan=await s.previewTeamWorkspace(a,c.id,'tenant');assert.equal(plan.canApprove,true,JSON.stringify(plan.issues));assert.equal(plan.jointInstitutions.length,1);assert.equal(plan.changes.filter(x=>x.label.includes('资料修订')).length,1);
+ assert.equal((await s.previewTeamWorkspace(a,c.id,'public')).canApprove,false,'no scope expansion');
+ const body={expectedVersion:1,planHash:plan.planHash,audience:'tenant',reason:'本轮原位合成核实',requestKey:randomUUID()};await assert.rejects(()=>s.reviewTeamWorkspace(ctx('owner'),c.id,body),{status:403});
+ await s.reviewTeamWorkspace(a,c.id,body);const next=(await s.adminEntity(a,o.id)).facts[0],w=await s.teamWorkspace(a,c.id);
+ assert.equal(next.revision,2);assert.equal(next.payload.name,'修订合成机构');assert.equal(next.decision.audience,'tenant');assert.equal((await s.adminAssertion(a,old.id)).payload.name,'原合成机构');assert.equal(w.verifications.length,1);assert.equal(w.data.organization.name,next.payload.name);assert(!w.data.organization.edit);assert.equal((await s.team(ctx('owner'),c.id,'tenant')).item.organization.name,next.payload.name);
+ assert.deepEqual(await s.reviewTeamWorkspace(a,c.id,body),(await s.teamWorkspaceReceipt(a,c.id,body.requestKey)).result);
+}));
+test('real PG concurrent institution update rejects the old proposal, explicit field merge permits save and review',async()=>directoryRollback(async({db,ctx,provenance,suffix})=>{
+ const s=createDirectoryService({db}),a=ctx('admin'),o=await s.createEntity(a,{kind:'organization',stableKey:'inline-conflict-'+suffix,requestKey:randomUUID()});
+ await s.appendAssertion(a,o.id,{kind:'profile',assertionKey:'profile',expectedRevision:0,payload:{name:'机构原名',summary:'旧简介'},provenance,requestKey:randomUUID()});
+ const old=(await s.adminEntity(a,o.id)).facts[0],mine={entityId:o.id,name:'用户改名',type:'',edit:{expectedRevision:old.revision,baseProfile:old.payload,profile:{...old.payload,name:'用户改名'}}};
+ const c=await s.createTeamWorkspace(a,{data:{name:'冲突恢复团队-'+suffix,verificationMethod:'administrator',organization:mine,members:[{key:'p',name:'合成负责人',role:'lead'}]},requestKey:randomUUID()});
+ const concurrent=await s.appendAssertion(a,o.id,{kind:'profile',assertionKey:'profile',expectedRevision:old.revision,payload:{...old.payload,summary:'另一管理员新简介',city:{name:'合成新市',region:'合成新省',longitude:null,latitude:null,coordinateKind:null}},provenance,requestKey:randomUUID()});
+ await s.decide(a,concurrent.id,{expectedDecisionVersion:0,assertionHash:concurrent.hash,decision:'approve',audience:'tenant',reason:'并发合成核实',requestKey:randomUUID()});
+ await assert.rejects(()=>s.previewTeamWorkspace(a,c.id,'tenant'),{status:409});
+ const w=await s.teamWorkspace(a,c.id),latest=(await s.adminEntity(a,o.id)).facts[0],merged=rebaseInstitutionEdit(w.data.organization,latest);assert.equal(merged.name,'用户改名');assert.equal(merged.edit.profile.summary,'另一管理员新简介');assert.equal(merged.edit.profile.city.name,'合成新市');
+ await s.saveTeamWorkspace(a,c.id,{expectedVersion:w.version,baseRevision:w.currentRevision,data:{...w.data,organization:merged},requestKey:randomUUID()});
+ const plan=await s.previewTeamWorkspace(a,c.id,'tenant');assert(plan.canApprove,JSON.stringify(plan.issues));const saved=await s.teamWorkspace(a,c.id);await s.reviewTeamWorkspace(a,c.id,{expectedVersion:saved.version,planHash:plan.planHash,audience:'tenant',reason:'核对后保留用户字段',requestKey:randomUUID()});
+ const result=(await s.adminEntity(a,o.id)).facts[0];assert.equal(result.revision,3);assert.equal(result.payload.name,'用户改名');assert.equal(result.payload.summary,'另一管理员新简介');assert.equal(result.payload.city.name,'合成新市');assert.equal((await s.teamWorkspace(a,c.id)).verifications.length,1);
+}));

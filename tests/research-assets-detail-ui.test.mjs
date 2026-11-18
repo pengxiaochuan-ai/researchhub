@@ -1,0 +1,20 @@
+import {test,after} from 'node:test';
+import assert from 'node:assert/strict';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {createServer} from 'vite';
+import react from '@vitejs/plugin-react';
+const server=await createServer({configFile:false,plugins:[react()],optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false},appType:'custom'});
+after(()=>server.close());
+test('fixed asset detail retains the original summary, preview/sidebar and seven tabs without fake approvals or AI findings',async()=>{
+ const {default:View}=await server.ssrLoadModule('/pages/shared/ResearchAssetDetail.jsx');
+ const asset={id:'a1',kind:'dataset',title:'合成字典资产',status:'draft',version:1,currentVersion:2,isHistorical:true,createdAt:'2026-11-12T00:00:00Z',metadata:{summary:'人工整理摘要',purpose:'方法讨论',limitations:'不能用于临床',author:'合成作者'},source:{kind:'author_declared_synthetic',label:'作者整理的合成材料'},contentMd:'## 数据字典\n\n只有合成说明，不含真实被试记录。',versions:[{version:2,changeSummary:'修订说明'},{version:1,changeSummary:'初版'}],hasMoreVersions:false};
+ const html=renderToStaticMarkup(React.createElement(View,{asset,scope:{studyGroupId:'g1',researchProjectId:'p1'}}));
+ for(const text of ['hero-detail-card','asset-cover','asset-preview','内容概览','版本历史','引用与复用','相关研究','评论与讨论','文件附件','变更记录','AI 资产解读','相关资产推荐','5. 复用此资产','人工整理摘要','只有合成说明'])assert(html.includes(text),text);
+ assert(html.includes('历史版本'));assert(html.includes('尚未审核'));assert(html.includes('作者整理的合成材料'));
+ for(const text of ['已通过专家审核','320 例','2.3 MB','王教授','设计符合 CONSORT'])assert(!html.includes(text),text);
+ assert(!html.includes('data-page="q02"'));assert(!html.includes('href="/api/'));
+ assert.match(html,/<button[^>]*disabled=""[^>]*>查看详细分析/);
+ for(const label of ['编辑标签','查看更多'])assert.match(html,new RegExp('<button[^>]*disabled=""[^>]*>'+label));
+ for(const label of ['创建时间','版本时间','资产编号'])assert(html.includes(label),label);
+});

@@ -1,0 +1,19 @@
+// Only adds two explicitly named source rows. No source is approved here and no
+// canonical publication, private account, membership or permission is created.
+import assert from 'node:assert/strict';import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';import {fileURLToPath} from 'node:url';
+import {loadFixtureInput} from '../../app/server/scripts/wp01/local-config.mjs';import {withFixtureTransaction,assertFixtureTarget} from '../../app/server/scripts/wp01/fixture-guard.mjs';import {directoryHash} from '../server/directory/contract.mjs';
+const root=fileURLToPath(new URL('../../',import.meta.url)),s=JSON.parse(readFileSync(root+'.tmp/researchhub-knowledge-local/runtime.json')),{env}=loadFixtureInput(root+'.superpowers/sdd/implementation-plan/wp01-full-baseline-target.json');assert.equal((await assertFixtureTarget(env)).databaseName,'wp01_test_full_baseline');
+const key='rh-directory-t01-20261103',sourceId=key+'-source',batchId=key+'-batch';
+const packets=[{id:key+'-synthetic-row',title:'[合成验收] T01目录事实清单',abstract:'所有主体及人员均为虚构，仅用于本机专用合成库验证，不是公开科研事实。\n1. [合成验收] 目录研究机构甲，机构类型：科研机构。\n2. [合成验收] 针灸情志研究团队，属于上述合成机构，类型：临床研究；方向：针灸治疗、情志病；简介：用于目录与审核链技术验收。\n3. [合成验收] 研究者甲，为上述合成团队负责人；上述人员不是平台注册账号。\n4. 合成团队及机构城市：北京，地区：北京；城市中心坐标116.4,39.9，仅合成定位验证，不代表机构地址。\n5. 团队与本Hub针灸情志主题高相关，仅合成场景声明。\n6. 当前收录的上述团队成员仅研究者甲；没有已收录论文或临床注册关联。统计只指当前收录集合。'},
+ {id:key+'-confirmation-row',title:'灵枢心域团队范围：用户确认记录（名称待补）',abstract:'来源为用户本轮直接确认，不是机构网站抓取。用户确认真实机构：中国中医科学院中医临床基础医学研究所；团队范围：所内负责灵枢心域项目的具体研究团队。正式团队名称、负责人、成员名单、成果归属、坐标均未提供。不得根据机构名称、共著关系或该记录推断上述未知信息。'}];
+const fileHash=directoryHash(packets),manifest={runId:key,sourceId,batchId,rows:packets.map(p=>({id:p.id,title:p.title,hash:directoryHash(p)})),scope:'local-synthetic-only',review:'pending'};
+await withFixtureTransaction(env,'direct',async tx=>{
+ await tx.$executeRaw`SELECT set_config('app.tenant_id',${s.ids.tenant},true),set_config('app.hub_key','lingshu-xinyu',true)`;
+ await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key},0))`;
+ const [old]=await tx.$queryRaw`SELECT file_sha256 AS hash,row_count AS n FROM rh_source.import_batch WHERE tenant_id=${s.ids.tenant} AND id=${batchId}`;if(old){assert.equal(old.hash,fileHash);assert.equal(old.n,2);for(const p of manifest.rows){const [r]=await tx.$queryRaw`SELECT row_sha256 AS hash FROM rh_source.source_record WHERE tenant_id=${s.ids.tenant} AND id=${p.id}`;assert.equal(r?.hash,p.hash);}return;}
+ const [counts]=await tx.$queryRaw`SELECT count(*)::int AS n FROM rh_directory.entity WHERE tenant_id=${s.ids.tenant}`;assert(counts.n<=9,'Directory fixture cap must not be expanded');
+ await tx.$executeRaw`INSERT INTO rh_source.source_registry(id,tenant_id,hub_key,source_key,source_name,terms_version,rights_status) VALUES(${sourceId},${s.ids.tenant},'lingshu-xinyu',${key},'T01具名本机目录验证材料','owned-synthetic-and-user-confirmation-v1','verified')`;
+ await tx.$executeRaw`INSERT INTO rh_source.import_batch(id,tenant_id,hub_key,file_name,file_sha256,snapshot_path,sheet_name,mapper_version,scope_key,row_count,error_count,created_by) VALUES(${batchId},${s.ids.tenant},'lingshu-xinyu','directory-t01-owned-fixture.txt',${fileHash},'synthetic://directory-t01-20261103','事实清单','directory-owned-fixture-v1',${key},2,0,${s.ids.admin})`;
+ for(const [i,p]of packets.entries())await tx.$executeRaw`INSERT INTO rh_source.source_record(id,tenant_id,hub_key,batch_id,source_registry_id,row_number,row_sha256,raw_fields,title,abstract_text) VALUES(${p.id},${s.ids.tenant},'lingshu-xinyu',${batchId},${sourceId},${i+2},${directoryHash(p)},${JSON.stringify({sourceType:'owned_directory_material',scope:'local-synthetic-only',statement:p.abstract})}::jsonb,${p.title},${p.abstract})`;
+});
+const dir=root+'.tmp/researchhub-directory/';mkdirSync(dir,{recursive:true,mode:0o700});writeFileSync(dir+'fixture.json',JSON.stringify(manifest,null,2),{mode:0o600});console.log(JSON.stringify({createdOrVerified:true,rows:2,review:'pending',noPublicationOrGrants:true}));

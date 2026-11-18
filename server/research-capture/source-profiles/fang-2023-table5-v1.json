@@ -1,0 +1,379 @@
+{
+  "key": "fang-2023-table5-v1",
+  "name": "抑郁症肝郁气滞证诊断量表（方格等，2023，表5）",
+  "versionTag": "fang-2023-table5-5e34d90ff887-source-v1-project-policy-v1",
+  "source": {
+    "title": "抑郁症肝郁气滞证诊断模型构建方法比较及量表的应用形式",
+    "sha256": "5e34d90ff887e801d3635ecfb2e216227b5510c540302082694d352ee6def3f1",
+    "printedPage": 1776,
+    "table": 5,
+    "frozenOn": "2026-11-13"
+  },
+  "schema": {
+    "schemaVersion": "form-schema.v1",
+    "presentation": {
+      "title": "抑郁症肝郁气滞证诊断量表（表5）",
+      "instruction": "逐项记录原表“有、无”。“不适用”“无法判断”单独记录，不计为“无”。舌象、脉象类别由临床评定者确认；两种脉象同时为“有”时须复核。",
+      "attribution": "方格等，中华中医药杂志，2023，38(4)：1774–1777；表5（第1776页）。类别、共计和不适用处理属于本课题操作规则。"
+    },
+    "fields": [
+      {
+        "key": "main_distension_pain",
+        "label": "胀满（闷）或胀痛或窜痛（胸胁、少腹、乳房等）",
+        "type": "select",
+        "required": true,
+        "score": false,
+        "options": [
+          {
+            "value": "present",
+            "label": "有"
+          },
+          {
+            "value": "absent",
+            "label": "无"
+          },
+          {
+            "value": "not_applicable",
+            "label": "不适用"
+          },
+          {
+            "value": "uncertain",
+            "label": "无法判断"
+          }
+        ]
+      },
+      {
+        "key": "main_depressed_emotion",
+        "label": "情志抑郁",
+        "type": "select",
+        "required": true,
+        "score": false,
+        "options": [
+          {
+            "value": "present",
+            "label": "有"
+          },
+          {
+            "value": "absent",
+            "label": "无"
+          },
+          {
+            "value": "not_applicable",
+            "label": "不适用"
+          },
+          {
+            "value": "uncertain",
+            "label": "无法判断"
+          }
+        ]
+      },
+      {
+        "key": "secondary_irritability",
+        "label": "急躁易怒",
+        "type": "select",
+        "required": true,
+        "score": false,
+        "options": [
+          {
+            "value": "present",
+            "label": "有"
+          },
+          {
+            "value": "absent",
+            "label": "无"
+          },
+          {
+            "value": "not_applicable",
+            "label": "不适用"
+          },
+          {
+            "value": "uncertain",
+            "label": "无法判断"
+          }
+        ]
+      },
+      {
+        "key": "secondary_sighing",
+        "label": "太息",
+        "type": "select",
+        "required": true,
+        "score": false,
+        "options": [
+          {
+            "value": "present",
+            "label": "有"
+          },
+          {
+            "value": "absent",
+            "label": "无"
+          },
+          {
+            "value": "not_applicable",
+            "label": "不适用"
+          },
+          {
+            "value": "uncertain",
+            "label": "无法判断"
+          }
+        ]
+      },
+      {
+        "key": "secondary_globus",
+        "label": "咽部异物感",
+        "type": "select",
+        "required": true,
+        "score": false,
+        "options": [
+          {
+            "value": "present",
+            "label": "有"
+          },
+          {
+            "value": "absent",
+            "label": "无"
+          },
+          {
+            "value": "not_applicable",
+            "label": "不适用"
+          },
+          {
+            "value": "uncertain",
+            "label": "无法判断"
+          }
+        ]
+      },
+      {
+        "key": "secondary_irregular_menses",
+        "label": "月经不调",
+        "type": "select",
+        "required": true,
+        "score": false,
+        "options": [
+          {
+            "value": "present",
+            "label": "有"
+          },
+          {
+            "value": "absent",
+            "label": "无"
+          },
+          {
+            "value": "not_applicable",
+            "label": "不适用"
+          },
+          {
+            "value": "uncertain",
+            "label": "无法判断"
+          }
+        ]
+      },
+      {
+        "key": "secondary_dysmenorrhea",
+        "label": "痛经",
+        "type": "select",
+        "required": true,
+        "score": false,
+        "options": [
+          {
+            "value": "present",
+            "label": "有"
+          },
+          {
+            "value": "absent",
+            "label": "无"
+          },
+          {
+            "value": "not_applicable",
+            "label": "不适用"
+          },
+          {
+            "value": "uncertain",
+            "label": "无法判断"
+          }
+        ]
+      },
+      {
+        "key": "secondary_emotional_trigger",
+        "label": "遇情志不遂时易诱发或加重",
+        "type": "select",
+        "required": true,
+        "score": false,
+        "options": [
+          {
+            "value": "present",
+            "label": "有"
+          },
+          {
+            "value": "absent",
+            "label": "无"
+          },
+          {
+            "value": "not_applicable",
+            "label": "不适用"
+          },
+          {
+            "value": "uncertain",
+            "label": "无法判断"
+          }
+        ]
+      },
+      {
+        "key": "tongue_pale_red",
+        "label": "舌质淡红",
+        "type": "select",
+        "required": true,
+        "score": false,
+        "options": [
+          {
+            "value": "present",
+            "label": "有"
+          },
+          {
+            "value": "absent",
+            "label": "无"
+          },
+          {
+            "value": "not_applicable",
+            "label": "不适用"
+          },
+          {
+            "value": "uncertain",
+            "label": "无法判断"
+          }
+        ]
+      },
+      {
+        "key": "tongue_thin_white_coating",
+        "label": "苔薄白",
+        "type": "select",
+        "required": true,
+        "score": false,
+        "options": [
+          {
+            "value": "present",
+            "label": "有"
+          },
+          {
+            "value": "absent",
+            "label": "无"
+          },
+          {
+            "value": "not_applicable",
+            "label": "不适用"
+          },
+          {
+            "value": "uncertain",
+            "label": "无法判断"
+          }
+        ]
+      },
+      {
+        "key": "pulse_wiry",
+        "label": "脉弦",
+        "type": "select",
+        "required": true,
+        "score": false,
+        "options": [
+          {
+            "value": "present",
+            "label": "有"
+          },
+          {
+            "value": "absent",
+            "label": "无"
+          },
+          {
+            "value": "not_applicable",
+            "label": "不适用"
+          },
+          {
+            "value": "uncertain",
+            "label": "无法判断"
+          }
+        ]
+      },
+      {
+        "key": "pulse_deep_wiry",
+        "label": "脉沉弦",
+        "type": "select",
+        "required": true,
+        "score": false,
+        "options": [
+          {
+            "value": "present",
+            "label": "有"
+          },
+          {
+            "value": "absent",
+            "label": "无"
+          },
+          {
+            "value": "not_applicable",
+            "label": "不适用"
+          },
+          {
+            "value": "uncertain",
+            "label": "无法判断"
+          }
+        ]
+      },
+      {
+        "key": "tongue_category",
+        "label": "舌象类别判定（评定者确认）",
+        "type": "select",
+        "required": true,
+        "score": false,
+        "options": [
+          {
+            "value": "met",
+            "label": "符合"
+          },
+          {
+            "value": "not_met",
+            "label": "不符合"
+          },
+          {
+            "value": "uncertain",
+            "label": "无法判断"
+          }
+        ]
+      },
+      {
+        "key": "pulse_category",
+        "label": "脉象类别判定（评定者确认）",
+        "type": "select",
+        "required": true,
+        "score": false,
+        "options": [
+          {
+            "value": "met",
+            "label": "符合"
+          },
+          {
+            "value": "not_met",
+            "label": "不符合"
+          },
+          {
+            "value": "uncertain",
+            "label": "无法判断"
+          }
+        ]
+      }
+    ]
+  },
+  "scoring": {
+    "algorithm": "fang-2023-table5-v1",
+    "sourceSha256": "5e34d90ff887e801d3635ecfb2e216227b5510c540302082694d352ee6def3f1",
+    "projectPolicy": {
+      "status": "confirmed",
+      "categoryMode": "explicit_reviewed_categories",
+      "pulseCooccurrence": "review_required",
+      "inapplicable": "incomplete_no_total",
+      "reviewedBy": "project-user-confirmation",
+      "reviewedAt": "2026-11-13T09:18:47.000Z"
+    }
+  },
+  "allowedCaptureModes": [
+    "researcher"
+  ]
+}

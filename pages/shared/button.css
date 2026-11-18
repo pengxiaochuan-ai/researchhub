@@ -1,0 +1,12 @@
+.ui-button:disabled {
+  cursor: not-allowed;
+}
+
+.ui-button[aria-busy="true"] {
+  cursor: progress;
+}
+
+.ui-button .ui-button-busy {
+  font: inherit;
+  white-space: nowrap;
+}

@@ -1,0 +1,44 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync,writeFileSync,readFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+const api=await import('./synthetic-crf-methods-ai-approval.mjs').catch(e=>{if(e.code==='ERR_MODULE_NOT_FOUND')return{};throw e;});
+test('WP07 explicit approval preserves original ledger and scopes, limits three new requests, never renews implicitly',()=>{
+ assert.equal(typeof api.activateCrfMethodsAi,'function','missing approved activation');
+ const dir=mkdtempSync(tmpdir()+'/rh-crf-approval-'),ledgerPath=dir+'/ledger.json',scopePath=dir+'/scope.json',receiptPath=dir+'/approval.json';
+ const ledger={schema:'rh-knowledge-ai-20261022',limitMicroCny:5000000,priceValidUntil:'2000-01-01T00:00:00Z',records:[{id:'prior',status:'known',costMicroCny:1464417}]},scope={schema:'rh-synthetic-crf-method-scope.v1',enabled:true,accounts:['owner','admin'],operations:['R01','R02','R03'],paidAiApproved:false};
+ writeFileSync(ledgerPath,JSON.stringify(ledger),{mode:0o600});writeFileSync(scopePath,JSON.stringify(scope),{mode:0o600});
+ const opts={ledgerPath,scopePath,receiptPath,checkedAt:new Date().toISOString()};const receipt=api.activateCrfMethodsAi(opts),first=readFileSync(ledgerPath,'utf8');
+ assert.deepEqual(JSON.parse(first).records,ledger.records);assert.equal(JSON.parse(first).limitMicroCny,5000000);assert.deepEqual(JSON.parse(readFileSync(scopePath)),{...scope,paidAiApproved:true});
+ assert.equal(receipt.maxNewRequests,3);assert.equal(api.assertCrfApprovedLedger(JSON.parse(first),receipt),true);
+ api.activateCrfMethodsAi({...opts,checkedAt:new Date(Date.now()+500).toISOString()});assert.equal(readFileSync(ledgerPath,'utf8'),first);
+ for(const change of [{limitMicroCny:6000000},{records:[]},{records:[...ledger.records,{id:'u',status:'unknown',reservedMicroCny:2}]},{records:[...ledger.records,...Array.from({length:4},(_,i)=>({id:'n'+i,status:'known',costMicroCny:1}))]}])assert.throws(()=>api.assertCrfApprovedLedger({...JSON.parse(first),...change},receipt));
+ writeFileSync(scopePath,JSON.stringify({...scope,paidAiApproved:false}),{mode:0o600});assert.throws(()=>api.activateCrfMethodsAi(opts));
+});
+test('explicit fourth-call approval binds failed fee and original quote; fifth call and replay stay forbidden',async()=>{
+ assert.equal(typeof api.approveCrfFourthRequest,'function','explicit four-call approval missing');
+ const dir=mkdtempSync(tmpdir()+'/rh-crf-four-'),ledgerPath=dir+'/ledger.json',scopePath=dir+'/scope.json',receiptPath=dir+'/approval.json',markerPath=dir+'/round.json',extensionPath=dir+'/four-calls.json';
+ writeFileSync(ledgerPath,JSON.stringify({schema:'rh-knowledge-ai-20261022',limitMicroCny:5000000,priceValidUntil:'2000-01-01',records:[{id:'original',status:'known',costMicroCny:1464417}]}),{mode:0o600});writeFileSync(scopePath,JSON.stringify({schema:'rh-synthetic-crf-method-scope.v1',enabled:true,accounts:['owner','admin'],operations:['R01','R02','R03'],paidAiApproved:false}),{mode:0o600});
+ api.activateCrfMethodsAi({ledgerPath,scopePath,receiptPath,checkedAt:new Date().toISOString()});
+ const prior={...JSON.parse(readFileSync(ledgerPath)),records:[{id:'original',status:'known',costMicroCny:1464417},{id:'failed-paid',status:'known',costMicroCny:12051}]};writeFileSync(ledgerPath,JSON.stringify(prior));const held={...JSON.parse(readFileSync(scopePath)),paidAiApproved:false,implementationHold:'model-output-citation-review'},marker={key:'original-round',at:'2026-10-25T14:00:00Z',executionKey:'old-execution',executionStartedAt:'2026-10-25T15:00:00Z',status:'blocked_after_paid_output_validation',newModelCalls:1,feePlanConsumed:1};writeFileSync(scopePath,JSON.stringify(held));writeFileSync(markerPath,JSON.stringify(marker),{mode:0o600});
+ const oldLedger=readFileSync(ledgerPath,'utf8'),oldReceipt=readFileSync(receiptPath,'utf8'),opts={ledgerPath,scopePath,receiptPath,markerPath,extensionPath,approval:'2026-10-26-user-WP07-four-total-requests-original-CNY5-no-topup',verifyRecordedFailure:async()=>true};
+ await assert.rejects(()=>api.approveCrfFourthRequest({...opts,approval:'unapproved'}));await assert.rejects(()=>api.approveCrfFourthRequest({...opts,verifyRecordedFailure:async()=>false}));assert.deepEqual(JSON.parse(readFileSync(scopePath)),held);
+ const extension=await api.approveCrfFourthRequest(opts);assert.equal(extension.maxNewRequests,4);assert.equal(readFileSync(ledgerPath,'utf8'),oldLedger);assert.equal(readFileSync(receiptPath,'utf8'),oldReceipt);assert.equal(JSON.parse(readFileSync(markerPath)).executionKey,marker.executionKey);assert.equal(JSON.parse(readFileSync(scopePath)).paidAiApproved,true);
+ const receipt=JSON.parse(oldReceipt),four={...prior,records:[...prior.records,...[1,2,3].map(n=>({id:'remaining-'+n,status:'known',costMicroCny:1}))]};assert(api.assertCrfApprovedLedger(four,receipt,extension));assert.throws(()=>api.assertCrfApprovedLedger(four,receipt));assert.throws(()=>api.assertCrfApprovedLedger({...four,records:[...four.records,{id:'fifth',status:'known',costMicroCny:1}]},receipt,extension));
+ for(const patch of [{maxNewRequests:5},{priceValidUntil:'2099-01-01'},{originalReceiptHash:'wrong'},{approvedLedgerHash:'wrong'}])assert.throws(()=>api.assertCrfApprovedLedger(four,receipt,{...extension,...patch}));
+ const changed=structuredClone(four);changed.records[1].costMicroCny=0;assert.throws(()=>api.assertCrfApprovedLedger(changed,receipt,extension));await assert.rejects(()=>api.approveCrfFourthRequest(opts));
+ assert.equal(typeof api.startCrfExtendedRound,'function');api.startCrfExtendedRound({...opts,key:'new-approved-round'});assert.throws(()=>api.startCrfExtendedRound({...opts,key:'unapproved-retry'}));
+});
+test('explicit storage resume preserves original expiry, ledger and blocked-round history; refuses consumed or unverified round',async()=>{
+ assert.equal(typeof api.resumeCrfMethodsAi,'function','missing explicitly approved storage resume');
+ const dir=mkdtempSync(tmpdir()+'/rh-crf-resume-'),ledgerPath=dir+'/ledger.json',scopePath=dir+'/scope.json',receiptPath=dir+'/approval.json',markerPath=dir+'/round.json';
+ writeFileSync(ledgerPath,JSON.stringify({schema:'rh-knowledge-ai-20261022',limitMicroCny:5000000,priceValidUntil:'2000-01-01',records:[{id:'old',status:'known',costMicroCny:1464417}]}),{mode:0o600});writeFileSync(scopePath,JSON.stringify({schema:'rh-synthetic-crf-method-scope.v1',enabled:true,accounts:['owner','admin'],operations:['R01','R02','R03'],paidAiApproved:false}),{mode:0o600});
+ api.activateCrfMethodsAi({ledgerPath,scopePath,receiptPath,checkedAt:new Date().toISOString()});
+ const held={...JSON.parse(readFileSync(scopePath)),paidAiApproved:false,implementationHold:'terminal-run-binding-review'},marker={key:'original-round-key',at:'2026-10-25T14:00:00Z',status:'blocked_before_provider',newModelCalls:0,feePlanConsumed:0,nextActionRequiresStorageSpecApproval:true};writeFileSync(scopePath,JSON.stringify(held));writeFileSync(markerPath,JSON.stringify(marker),{mode:0o600});
+ const beforeLedger=readFileSync(ledgerPath,'utf8'),beforeReceipt=readFileSync(receiptPath,'utf8'),opts={ledgerPath,scopePath,receiptPath,markerPath,approval:'2026-10-25-user-approved-minimal-terminal-storage-fix',verifyUnconsumed:async()=>true};
+ await assert.rejects(()=>api.resumeCrfMethodsAi({...opts,approval:'unknown'}));await assert.rejects(()=>api.resumeCrfMethodsAi({...opts,verifyUnconsumed:async()=>false}));assert.deepEqual(JSON.parse(readFileSync(scopePath)),held);
+ await api.resumeCrfMethodsAi(opts);assert.equal(readFileSync(ledgerPath,'utf8'),beforeLedger);assert.equal(readFileSync(receiptPath,'utf8'),beforeReceipt);const after=JSON.parse(readFileSync(markerPath));assert.equal(after.key,marker.key);assert.equal(after.at,marker.at);assert.equal(after.previousStatus,'blocked_before_provider');assert.equal(after.status,'resumed_after_storage_approval');assert.equal(JSON.parse(readFileSync(scopePath)).paidAiApproved,true);assert(!JSON.parse(readFileSync(scopePath)).implementationHold);
+ await assert.rejects(()=>api.resumeCrfMethodsAi(opts));
+ assert.equal(typeof api.startCrfPaidRound,'function');const firstRound=api.startCrfPaidRound({ledgerPath,receiptPath,markerPath,key:'resumed-round-key'});assert.equal(firstRound.key,marker.key);assert.equal(firstRound.executionKey,'resumed-round-key');assert(firstRound.executionStartedAt);await assert.rejects(()=>api.resumeCrfMethodsAi(opts));assert.throws(()=>api.startCrfPaidRound({ledgerPath,receiptPath,markerPath,key:'retry-forbidden'}));
+ writeFileSync(scopePath,JSON.stringify(held));writeFileSync(markerPath,JSON.stringify({...marker,newModelCalls:1,feePlanConsumed:1}));await assert.rejects(()=>api.resumeCrfMethodsAi(opts));
+});

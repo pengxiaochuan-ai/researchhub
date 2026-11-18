@@ -1,0 +1,13 @@
+.study-due-visits{min-width:0;font-size:14px;line-height:22px;overflow-wrap:anywhere}
+.real-study-overview .left-dashboard:has(> .bottom-row > .study-due-visits){grid-template-rows:124px 195px 272px auto}
+.real-study-overview .study-due-visits p{height:auto;display:block;grid-template-columns:none;margin:0;padding:0 16px 12px;white-space:normal}
+.study-due-visits .card-title h2{min-width:0}
+.study-due-visits p,.study-due-visits button,.study-due-visits a{font-size:14px;line-height:22px}
+.study-due-visits-day{margin:0 0 12px}
+.study-due-visits-list{list-style:none;padding:0;margin:0;display:grid;gap:12px}
+.study-due-visits-list li{min-width:0;display:grid;gap:8px;padding-bottom:12px;border-bottom:1px solid var(--border-color,#e2e8f0)}
+.study-due-visits-list li>div{min-width:0;display:grid;gap:4px}
+.study-due-visits-list strong,.study-due-visits-list span,.study-due-visits-list a{min-width:0;white-space:normal;overflow-wrap:anywhere}
+.study-due-visits-list a{justify-self:start}
+.study-due-visits-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;min-width:0}
+.study-due-visits a:focus-visible{outline:2px solid currentColor;outline-offset:2px}

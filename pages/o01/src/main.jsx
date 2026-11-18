@@ -49,7 +49,7 @@ const opportunities = [
 ];
 
 function Nav(){
- const items=[[Home,"我的科研"],[Compass,"领域研究"],[Sparkles,"岐研 AI"],[Box,"科研资产"],[Settings,"管理与治理"]];
+ const items=[[Home,"我的工作台"],[Compass,"领域研究"],[Sparkles,"岐研 AI"],[Box,"科研资产"],[Settings,"管理与治理"]];
  return <aside className="side">
    <div className="brand"><div className="brandmark">岐</div><div className="brandText"><b>岐研</b><span>中医临床研究智能平台</span></div></div>
    <nav>{items.map(([I,t])=><div className={"nav "+(t==="领域研究"?"active":"")} key={t}><I size={18}/><span>{t}</span></div>)}</nav>

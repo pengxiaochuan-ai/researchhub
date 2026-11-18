@@ -1,0 +1,14 @@
+.team-photo-unavailable{width:132px;height:88px;background:#f3f6fa;border:1px solid #e3e8ef;border-radius:6px;color:#65758b;display:flex;align-items:center;justify-content:center;font-size:12px;line-height:20px;text-align:center}
+.team-empty button{margin-left:12px;text-decoration:underline;background:transparent;border:0;color:#2563eb;font:inherit;cursor:pointer}
+.team-card h2,.team-card p,.team-card li,.team-map li{overflow-wrap:anywhere}.team-card aside a{color:inherit;text-decoration:underline}.team-map ul{overflow-y:auto;max-height:500px}.team-filters select{min-width:0}
+.unit-hero>.team-photo-unavailable{width:156px;height:112px}.unit-board h2,.unit-board p,.unit-board li{overflow-wrap:anywhere}.unit-board .team-back{font-size:14px;line-height:22px;background:white;border:1px solid var(--border);border-radius:6px;padding:6px 10px}
+.team-search input{line-height:22px}
+/* UI07, explicitly approved: local narrow consumers only. Desktop untouched. */
+@media(max-width:900px){
+ body[data-hub-source-real="true"] .team-board,body[data-hub-source-real="true"] .unit-board{padding-inline:16px;min-width:0}
+ .team-filters{flex-wrap:wrap}.team-search{flex-basis:calc(100% - 86px);min-width:140px}.team-filters select{width:calc(50% - 4px);flex:1 1 calc(50% - 4px)}.team-filters select:last-of-type{width:100%}
+ .team-meta{flex-wrap:wrap}.team-view{flex-wrap:wrap}.team-card{grid-template-columns:28px minmax(0,1fr)}.team-card>div:not(.team-photo-unavailable),.team-card>aside{grid-column:1/-1}.team-card header{flex-wrap:wrap}.team-card>aside{min-width:0}
+ .team-map{grid-template-columns:minmax(0,1fr)}.team-page{flex-wrap:wrap;justify-content:flex-start}
+ .unit-hero,.unit-split,.unit-intro{grid-template-columns:minmax(0,1fr)}.unit-hero header{flex-wrap:wrap}.unit-hero h2{width:100%}.unit-hero header .unit-actions{position:static;flex-wrap:wrap;margin-left:auto}.unit-stats{flex-wrap:wrap;justify-content:space-between}.unit-stats>p{flex:1 1 calc(50% - 16px)}
+ .unit-tabs{overflow-x:auto;overflow-y:hidden;white-space:nowrap;gap:16px;flex:none;min-height:52px}.unit-tabs>button{flex:none}.unit-dirs{grid-template-columns:repeat(2,minmax(0,1fr))}.unit-side{position:static}
+}

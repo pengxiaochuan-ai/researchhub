@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {openHarness,json,save,key,privateDir,evidenceDir} from './study-form-runtime.mjs';
+assert.deepEqual(process.argv.slice(2),['--local-synthetic']);
+const h=await openHarness(),f=json(privateDir+'fixture.json');
+assert(f.protocolReady&&!f.cases.ONSITE.assignmentId);
+const root='/research-studies/'+f.study.id,body={requestKey:key(),formVersionId:f.refs.form};
+const assigned=await h.post(root+'/visits/'+f.cases.ONSITE.visitId+'/assignments',body);
+f.cases.ONSITE.assignmentId=assigned.result.id;f.network.push(...h.network);
+const view=await h.get(root+'/assignments/'+assigned.result.id);assert.equal(view.response.status,'draft');assert.equal(view.response.version,0);assert.deepEqual(view.response.answers,{});
+save(privateDir+'fixture.json',f);save(evidenceDir+'fixture.json',f);
+save(evidenceDir+'onsite-assignment-preparation.json',{at:new Date().toISOString(),syntheticOnly:true,studyId:f.study.id,assignmentId:assigned.result.id,version:0,answersEmpty:true,receipt:assigned.receipt,network:h.network});
+console.log(JSON.stringify({ready:true,assignmentId:assigned.result.id,noAnswersWritten:true}));

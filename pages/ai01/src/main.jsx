@@ -2,8 +2,11 @@ import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {Home,BookOpen,Box,BrainCircuit,Landmark,Search,Bell,ChevronDown,ChevronRight,Sparkles,FileText,Upload,Send,Database,ChartNoAxesColumnIncreasing,ClipboardCheck,PenLine,ShieldCheck,CheckCircle2,Info,Paperclip,SlidersHorizontal,ExternalLink,CalendarDays,Users,Lightbulb} from 'lucide-react';
 import './style.css';
+import '../../../src/page-linking.js';
+import {realModeRouteState} from '../../../src/real-mode-route.js';
+import RealAiWorkspace from '../../shared/RealAiWorkspace.jsx';
 
-function Shell(){return <><header><div className="brand"><div className="mark">岐</div><div><b>岐研</b><small>Qiyan Research Intelligence</small></div><span>中医临床研究智能平台</span></div><div className="search"><Search/><span>搜索课题、文献、研究问题或数据...</span></div><Bell className="bell"/><i></i><div className="avatar">王</div><div className="prof"><b>王教授</b><small>课题负责人</small></div><ChevronDown className="down"/></header><aside><nav><a><Home/>我的科研</a><a><BookOpen/>领域研究</a><a className="active"><BrainCircuit/>岐研 AI</a><a><Box/>科研资产</a><a><Landmark/>管理与治理</a></nav><div className="aihelp"><Sparkles/><div><b>岐研 AI 助手</b><small>随时为您的研究工作<br/>提供支持</small></div><ChevronRight/></div><div className="collapse">‹　收起菜单</div></aside></>}
+function Shell(){return <><header><div className="brand"><div className="mark">岐</div><div><b>岐研</b><small>Qiyan Research Intelligence</small></div><span>中医临床研究智能平台</span></div><div className="search"><Search/><span>搜索课题、文献、研究问题或数据...</span></div><Bell className="bell"/><i></i><div className="avatar">王</div><div className="prof"><b>王教授</b><small>课题负责人</small></div><ChevronDown className="down"/></header><aside><nav><a><Home/>我的工作台</a><a><BookOpen/>领域研究</a><a className="active"><BrainCircuit/>岐研 AI</a><a><Box/>科研资产</a><a><Landmark/>管理与治理</a></nav><div className="aihelp"><Sparkles/><div><b>岐研 AI 助手</b><small>随时为您的研究工作<br/>提供支持</small></div><ChevronRight/></div><div className="collapse">‹　收起菜单</div></aside></>}
 const conversations=[['今天','针刺治疗抑郁的人组策略优化','10:24'],['','中心 03 入组下降的原因分析','09:15'],['','基于舌象的分型研究设计建议','08:40'],['最近 7 天','针灸治疗焦虑的证据汇总','04-20'],['','睡眠障碍的中西医结合方案','04-18'],['','研究方案统计分析方法咨询','04-17'],['','伦理审查常见问题','04-16'],['','针灸不良事件的文献分析','04-15'],['更早','针灸治疗情志病的研究趋势','04-10'],['','如何构建研究问题 (PICO)','04-08'],['','MSC 评分量表效应量场景','04-05']];
 const causes=[['筛选失败率上升','研究数据','高','中心 03 近两周筛选 28 例，入组仅 4 例，失败率从 21% 上升至 38%。'],['研究医生变更/人力不足','中心反馈','高','3 月底核心研究医生请假，新医生尚在适应期。'],['患者来源减少','历史数据','中','门诊量较上月下降约 25%，与春季假期相关。'],['入排标准理解不一致','质控记录','中','近期发现 5 例因细节执行偏差未能入组。'],['患者顾虑增加','文献证据','中','类似研究中常见，主要与疗程时间和针刺治疗顾虑相关。']];
 const evidence=[['针灸治疗抑郁症的临床疗效 Meta 分析','2023 · JAMA Psychiatry','高相关'],['多中心临床研究中入组影响因素分析','2022 · BMC Medical Research','中等相关'],['针刺治疗抑郁症的安全性与不良事件','2021 · Frontiers in Psychiatry','中等相关']];
@@ -24,4 +27,6 @@ function Composer(){
   return <div className="composer"><div className="composerField"><textarea ref={box} rows={1} placeholder="继续提问，或输入其他研究问题..." onInput={grow}/><button type="button" aria-label="发送"><Send/></button></div><div className="composerTools"><button type="button"><Upload/> 上传文件</button><button type="button"><SlidersHorizontal/> 深度分析 <ChevronDown/></button><button type="button"><Search/> 联网检索</button><span>基于当前研究 <ChevronDown/></span></div></div>;
 }
 function App(){return <><Shell/><main className="platform-main"><section className="aiHeader"><div><h1>岐研 AI</h1><p>基于领域知识与您的研究上下文，提供证据化的分析、建议与研究设计支持。</p></div></section><div className="tabs"><b>对话</b><span>研究设计</span><span>文献检索</span><span>数据分析</span><span>方案评审</span><span>写作助手</span></div><div className="workspace"><ConversationList/><MainAnswer/><ContextRail/></div></main></>}
-createRoot(document.getElementById('root')).render(<App/>);
+let demoMode=false;try{demoMode=sessionStorage.getItem('lingshu-demo-mode')==='true';}catch{}
+const entry=realModeRouteState('ai01',location.search,{configured:Boolean(import.meta.env.VITE_AUTH_TENANT_SLUG),explicitDemo:demoMode})==='entry';
+createRoot(document.getElementById('root')).render(entry?<RealAiWorkspace/>:<App/>);

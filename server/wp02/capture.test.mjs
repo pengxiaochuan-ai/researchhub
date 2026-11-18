@@ -1,0 +1,33 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync,readFileSync,statSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import nodemailer from 'nodemailer';
+import {startCapture} from './capture.mjs';
+const config={mode:'capture',baseUrl:'http://127.0.0.1:19501',from:'researchhub@example.test',smtpHost:'127.0.0.1',smtpPort:0,inboxHost:'127.0.0.1',inboxPort:0};
+test('real MIME capture is private and bootstrap can only be exchanged once',async t=>{
+ const dir=mkdtempSync(join(tmpdir(),'wp02-mail-')),c=await startCapture(config,{dir});t.after(()=>c.close());
+ const transport=nodemailer.createTransport({host:'127.0.0.1',port:c.sendPort,secure:false,ignoreTLS:true});
+ const id='test-capture-one',token='a'.repeat(43);
+ await transport.sendMail({from:config.from,to:'recipient@example.test',subject:'合成验证',text:'请确认：http://127.0.0.1:19501/pages/p004/#verify='+token,textEncoding:'base64',headers:{'X-WP02-ID':id,'X-WP02-Expires':String(Date.now()+60000)}});
+ assert.equal(c.receipt(id).id,id);assert.equal(statSync(join(dir,id+'.json')).mode&0o777,0o600);
+ const base='http://127.0.0.1:'+c.inboxPort;
+ assert.equal((await fetch(base+'/messages')).status,401);
+ const {bootstrap}=JSON.parse(readFileSync(c.credentialsPath,'utf8'));
+ const login=await fetch(base+'/session',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify({bootstrap})});
+ assert.equal(login.status,200);const cookie=login.headers.get('set-cookie').split(';')[0];
+ assert.equal((await fetch(base+'/session',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify({bootstrap})})).status,403);
+ const listing=await fetch(base+'/messages',{headers:{Cookie:cookie}});const items=await listing.json();assert.equal(items.items[0].id,id);assert(!JSON.stringify(items).includes(token));
+ const message=await fetch(base+'/messages/'+id,{headers:{Cookie:cookie}});assert((await message.text()).includes(token));assert.equal(message.headers.get('cache-control'),'no-store');
+ assert.equal((await fetch(base+'/messages',{headers:{Cookie:cookie,Origin:'https://evil.invalid'}})).status,403);
+ await assert.rejects(transport.sendMail({from:config.from,to:'bad@external.invalid',text:'forbidden'}));
+});
+test('nonloopback capture cannot start',async()=>{await assert.rejects(startCapture({...config,smtpHost:'0.0.0.0'},{dir:mkdtempSync(join(tmpdir(),'wp02-deny-'))}));});
+test('expired captured message cannot be read and remains metadata-only in listing',async t=>{
+ let clock=Date.now();const dir=mkdtempSync(join(tmpdir(),'wp02-expiry-')),c=await startCapture(config,{dir,now:()=>clock});t.after(()=>c.close());
+ const transport=nodemailer.createTransport({host:'127.0.0.1',port:c.sendPort,secure:false,ignoreTLS:true});
+ await transport.sendMail({from:config.from,to:'reader@example.test',text:'private-expired-token',headers:{'X-WP02-ID':'test-expired-msg','X-WP02-Expires':String(clock+1000)}});
+ const base='http://127.0.0.1:'+c.inboxPort,{bootstrap}=JSON.parse(readFileSync(c.credentialsPath));const r=await fetch(base+'/session',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify({bootstrap})});const headers={Cookie:r.headers.get('set-cookie').split(';')[0]};clock+=1001;
+ assert.equal((await fetch(base+'/messages/test-expired-msg',{headers})).status,410);assert.equal((await fetch(base+'/view/test-expired-msg',{headers})).status,410);const list=await(await fetch(base+'/messages',{headers})).json();assert.equal(list.items[0].expired,true);assert(!JSON.stringify(list).includes('private-expired-token'));
+});

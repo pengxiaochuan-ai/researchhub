@@ -1,0 +1,43 @@
+✔ 跨页保留合法研究上下文，拒绝未知目标及外部返回地址 (1.2865ms)
+✔ 课题持久化，刷新恢复且方案继承名称与PICO (2.319ms)
+✔ 不完整PICO不能创建方案，未知ID不能跳到其他示例 (0.263584ms)
+✔ 存储失败不会产生已保存记录 (0.142958ms)
+✔ 产出发布与复用保留来源版本、目标及独立对象 (1.158875ms)
+✔ 未确认产出不能发布且存储损坏不被静默覆盖 (0.288375ms)
+✔ 两个已打开的数据服务交替保存不丢失其他页面记录 (0.222083ms)
+✔ 复用提交失败整体保持不变，重试仍可完整写入来源记录 (0.361167ms)
+✔ 保存部分课题更新保留已有来源和状态，旧方案版本不能覆盖新版本 (0.466792ms)
+✔ 方案更新与复用血缘只执行一次完整存储提交 (0.303ms)
+✔ cropped source starts fetching eagerly even without an intersection observer (0.959625ms)
+✔ successful load removes the loading feedback without changing the source (0.144417ms)
+✔ a cached source resolves immediately when no later load event is delivered (0.090625ms)
+✔ a failed source shows an honest recoverable error rather than leaving a blank card (0.281791ms)
+✔ an already failed cached source does not remain in the loading state (0.134833ms)
+✔ decorative crops load and settle without adding a status label (0.083625ms)
+✔ listeners catch synchronous source completion before the post-assignment cache check (0.120166ms)
+✔ 完整问题与PICO可以进入下一步，验证不会改动原输入 (1.636458ms)
+✔ 保存草稿只要求课题名称，允许未完成的问题和PICO (0.096667ms)
+✔ 空白名称定位到课题名称，下一步按表单顺序返回全部错误 (0.110291ms)
+✔ 核心问题需要中文或英文问号结尾，忽略末尾空白 (0.142792ms)
+✔ 各PICO字段分别校验，修正一个字段后仍定位到剩余首个错误 (0.09525ms)
+✔ a shared action inside a form defaults to button instead of implicit submit (2.680708ms)
+✔ an explicitly declared submit action retains its native submit type (0.173041ms)
+✔ native form, identification, description and event props reach the real button (0.288333ms)
+✔ native text attributes are escaped when rendered rather than inserted as markup (0.141ms)
+✔ an enabled action forwards its original click event once (0.822ms)
+✔ disabled actions expose native disabled state and reject callback execution (0.166917ms)
+✔ loading actions expose busy and disabled state and reject repeated clicks (0.086709ms)
+✔ loading has readable default feedback while retaining the original accessible content (0.158208ms)
+✔ custom busy feedback keeps an explicit accessible name and description intact (0.184667ms)
+✔ loading cannot be overridden by a conflicting native busy attribute (0.097084ms)
+✔ the caller can recover from a failed request and enable a retry (0.192167ms)
+✔ ending loading does not override a separate caller disabled condition (0.056417ms)
+✔ existing primary, danger and caller classes remain on the native button (0.080917ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 315.042333

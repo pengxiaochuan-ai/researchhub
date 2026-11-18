@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import{readFileSync,writeFileSync,mkdirSync}from'node:fs';
+import{randomUUID}from'node:crypto';
+import{fileURLToPath}from'node:url';
+const root=fileURLToPath(new URL('../../',import.meta.url)),privateDir=root+'.tmp/researchhub-knowledge-local/',runtime=JSON.parse(readFileSync(privateDir+'runtime.json')),fixture=JSON.parse(readFileSync(root+'docs/test/evidence/2026-10-22-researchhub-research-plan/plan-385027be/fixture.json')),base='http://127.0.0.1:19501',out=root+'docs/test/evidence/2026-10-22-researchhub-synthetic-quality/api-'+randomUUID().slice(0,8)+'/';mkdirSync(out,{recursive:true});
+const save=(n,v)=>writeFileSync(out+n,JSON.stringify(v,null,2)),before=readFileSync(privateDir+'ai-budget-20261022.json','utf8'),headers={'X-Study-Group-Id':runtime.ids.group,'X-Research-Project-Id':runtime.ids.project},contexts=[],checks=[];
+const pw=await import(root+'app/node_modules/.pnpm/playwright@1.63.0/node_modules/playwright/index.js'),request=pw.request??pw.default.request;
+async function login(actor){const c=await request.newContext({baseURL:base,extraHTTPHeaders:headers});contexts.push(c);assert.equal((await c.post('/api/auth/login',{data:{tenantSlug:runtime.ids.tenant,username:actor+'@example.org',password:runtime.password}})).status(),201);return c;}
+let runId;
+try{
+ const owner=await login('owner'),plan=await(await owner.get('/api/research-plan-drafts/'+fixture.planId)).json(),path='/api/research-plan-drafts/'+plan.id+'/synthetic-trials',input={baseVersionNo:plan.version,seed:42,requestKey:'api-'+randomUUID()};
+ const response=await owner.post(path,{data:input});assert.equal(response.status(),201,(await response.text()).slice(0,300));const created=await response.json();runId=created.id;checks.push('create-owned-derived-snapshot');
+ let run;for(let n=0;n<150;n++){run=await(await owner.get(path+'/'+runId)).json();if(['needs_review','failed'].includes(run.status))break;await new Promise(ok=>setTimeout(ok,100));}assert.equal(run.status,'needs_review',JSON.stringify(run.error));assert.equal(run.reviewStatus,'pending_review');assert.ok(run.numericEvidence.length);assert.ok(run.findings.some(f=>f.code==='RANGE_ABOVE_MAX'&&f.cells.length));save('run.json',run);checks.push('actual-original-operator-and-numeric-evidence-no-review');
+ const repeated=await(await owner.post(path,{data:input})).json();assert.equal(repeated.id,runId);assert.equal((await owner.post(path,{data:{...input,seed:43}})).status(),409);checks.push('idempotent-creation-and-payload-conflict');
+ assert.equal((await owner.post(path,{data:{...input,requestKey:'invalid-'+randomUUID(),seed:'42'}})).status(),400);assert.equal((await owner.post(path,{data:{...input,requestKey:'owner-'+randomUUID(),ownerAccountId:runtime.ids.admin}})).status(),400);checks.push('strict-input-no-forged-owner');
+ for(const actor of ['admin','viewer','uninvited']){const c=await login(actor);assert.equal((await c.get(path+'/'+runId)).status(),403);checks.push(actor+'-cannot-read-owner-run');}
+ assert.equal((await owner.get(path+'/'+runId,{headers:{'X-Research-Project-Id':'foreign'}})).status(),403);checks.push('forged-project-denied');
+ for(const action of ['review','release','export','lock'])assert.equal((await owner.post(path+'/'+runId+'/'+action,{data:{}})).status(),404);checks.push('no-review-lock-release-export-routes');
+ assert.equal((await owner.post(path+'/'+runId+'/revisions',{data:{requestKey:'bad-'+randomUUID(),reason:'不允许修改患者姓名和任意表',edits:[{table:'subjects',rowId:'SYN-001',field:'patientName',value:'禁止'}]}})).status(),400);checks.push('revision-rejects-non-whitelisted-data');
+ const input2={requestKey:'rev-'+randomUUID(),reason:'本轮软件测试人工修正缺失值',edits:[{table:'subjects',rowId:'SYN-001',field:'age',value:35}]},rev=await owner.post(path+'/'+runId+'/revisions',{data:input2});assert.equal(rev.status(),201,await rev.text());const next=await rev.json();assert.notEqual(next.id,runId);assert.equal(next.revision,2);assert.equal((await(await owner.post(path+'/'+runId+'/revisions',{data:input2})).json()).id,next.id);assert.equal((await owner.post(path+'/'+runId+'/revisions',{data:{...input2,requestKey:'stale-'+randomUUID()}})).status(),409);checks.push('new-revision-idempotent-and-old-base-conflict');
+ const previous=await(await owner.get(path+'/'+runId)).json();assert.equal(previous.dataset.subjects[0].age,null);assert.equal(previous.revision,1);checks.push('old-data-and-result-preserved');
+ const list=await(await owner.get(path+'?limit=1')).json();assert.equal(list.items.length,1);assert.equal(list.items[0].id,next.id);assert.ok(list.nextCursor);checks.push('bounded-own-plan-list');
+ assert.equal(readFileSync(privateDir+'ai-budget-20261022.json','utf8'),before);save('result.json',{passed:true,checks,paidCalls:0,planId:plan.id,runId});console.log(JSON.stringify({passed:true,checks:checks.length,evidence:out}));
+}catch(e){save('failure.json',{message:e.message,checks,runId});console.error(JSON.stringify({passed:false,message:e.message.slice(0,400),evidence:out}));process.exitCode=1;}
+finally{for(const c of contexts)await c.dispose();}

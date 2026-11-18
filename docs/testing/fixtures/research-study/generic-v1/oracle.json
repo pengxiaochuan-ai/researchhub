@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "generic-workflow-oracle-v1",
+  "syntheticOnly": true,
+  "acceptancePerformed": false,
+  "clinicalAcceptance": false,
+  "unit": "one current approved response per subject and BASELINE visit",
+  "source": "Python standard library statistics; no LLM-calculated statistics",
+  "missingRule": "absent optional field is missing; zero and false remain observed values",
+  "rounding": "unrounded numeric results; compare with an explicit tolerance in executor tests",
+  "rows": [
+    {
+      "case": "onsite",
+      "visitCode": "BASELINE",
+      "source": "researcher",
+      "answers": {
+        "value": 0,
+        "optional_value": 0,
+        "completed": false
+      }
+    },
+    {
+      "case": "h5",
+      "visitCode": "BASELINE",
+      "source": "patient_h5",
+      "answers": {
+        "value": 2,
+        "completed": true
+      }
+    },
+    {
+      "case": "csv",
+      "visitCode": "BASELINE",
+      "source": "import",
+      "answers": {
+        "value": 4,
+        "optional_value": 4,
+        "completed": true
+      }
+    }
+  ],
+  "expected": {
+    "value": {
+      "totalRows": 3,
+      "observed": 3,
+      "missing": 0,
+      "sum": 6,
+      "mean": 2,
+      "median": 2,
+      "sampleStandardDeviation": 2.0,
+      "min": 0,
+      "max": 4
+    },
+    "optional_value": {
+      "totalRows": 3,
+      "observed": 2,
+      "missing": 1,
+      "sum": 4,
+      "mean": 2,
+      "median": 2.0,
+      "sampleStandardDeviation": 2.8284271247461903,
+      "min": 0,
+      "max": 4
+    },
+    "completed": {
+      "true": 2,
+      "false": 1,
+      "missing": 0
+    }
+  },
+  "correction": {
+    "case": "onsite",
+    "field": "value",
+    "oldValue": 0,
+    "newValue": 1,
+    "expected": {
+      "value": {
+        "totalRows": 3,
+        "observed": 3,
+        "missing": 0,
+        "sum": 7,
+        "mean": 2.3333333333333335,
+        "median": 2,
+        "sampleStandardDeviation": 1.5275252316519468,
+        "min": 1,
+        "max": 4
+      },
+      "optional_value": {
+        "totalRows": 3,
+        "observed": 2,
+        "missing": 1,
+        "sum": 4,
+        "mean": 2,
+        "median": 2.0,
+        "sampleStandardDeviation": 2.8284271247461903,
+        "min": 0,
+        "max": 4
+      },
+      "completed": {
+        "true": 2,
+        "false": 1,
+        "missing": 0
+      }
+    }
+  }
+}

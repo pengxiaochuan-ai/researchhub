@@ -1,0 +1,43 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {loadFixtureInput} from '../../../app/server/scripts/wp01/local-config.mjs';
+import {withFixtureTransaction} from '../../../app/server/scripts/wp01/fixture-guard.mjs';
+const schema=await import('../../scripts/ai-session-media-schema.mjs').catch(e=>{if(e.code==='ERR_MODULE_NOT_FOUND')return null;throw e;});
+const {env}=loadFixtureInput(new URL('../../../.superpowers/sdd/implementation-plan/wp01-full-baseline-target.json',import.meta.url).pathname);
+const scope=['rh-kb-local-b0e2af9d-tenant','rh-kb-local-b0e2af9d-group','rh-kb-local-b0e2af9d-project','rh-kb-local-b0e2af9d-owner'];
+const rollback=Symbol('video-schema-rollback');
+test('MV01 media schema enforces real parents, frozen sources, CAS and RLS in a full rollback',async t=>{
+ assert(schema,'media schema migration missing');
+ await assert.rejects(withFixtureTransaction(env,'direct',async tx=>{
+  await schema.applyMediaSchemaInTransaction(tx,env);
+  assert.equal((await schema.applyMediaSchemaInTransaction(tx,env)).created,false);
+  const [tenant,group,project,account]=scope,sid='rh-media-schema-'+randomUUID(),mid='rh-media-'+randomUUID();
+  await tx.$queryRawUnsafe(`SELECT set_config('app.tenant_id',$1,true),set_config('app.study_group_id',$2,true),set_config('app.research_project_id',$3,true),set_config('app.account_id',$4,true)`,...scope);
+  await tx.$executeRawUnsafe(`INSERT INTO public.session(id,"tenantId","studyGroupId","researchProjectId","accountId","agentId",title,channel,"contextKey","updatedAt") VALUES($1,$2,$3,$4,$5,$6,'合成视频约束验证','knowledge',$7,now())`,sid,...scope,tenant+'-kb-research','hub:lingshu-xinyu:conversation:'+randomUUID());
+  const insert=async(accountId=account)=>tx.$executeRawUnsafe(`INSERT INTO rh_ai.session_media_uploads(id,tenant_id,study_group_id,research_project_id,account_id,session_id,request_key,request_fingerprint,extension,content_type,safe_filename,byte_size,storage_key) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'mp4','video/mp4',$10,100,$9)`,mid,tenant,group,project,accountId,sid,'media-'+randomUUID(),'a'.repeat(64),`${tenant}/hub-media/${sid}/${mid}.mp4`,mid+'.mp4');
+  async function rejected(name,fn,match){await t.test(name,async()=>{await tx.$executeRawUnsafe('SAVEPOINT media_reject');try{await assert.rejects(fn,e=>String(e.meta?.message??e.message).includes(match));}finally{await tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT media_reject');}});}
+  await rejected('cross-account context cannot bind current owner session',()=>insert('rh-kb-local-b0e2af9d-admin'),'MEDIA_CONTEXT');
+  await insert();
+  await rejected('updates require an exact version increment',()=>tx.$executeRawUnsafe(`UPDATE rh_ai.session_media_uploads SET archive_state='failed' WHERE id=$1`,mid),'MEDIA_VERSION');
+  await rejected('archived cannot be asserted without actual hash and upload binding',()=>tx.$executeRawUnsafe(`UPDATE rh_ai.session_media_uploads SET archive_state='archived',version=version+1 WHERE id=$1`,mid),'session_media_archived');
+  const uploadId=randomUUID();
+  await tx.$executeRawUnsafe(`UPDATE rh_ai.session_media_uploads SET upload_id=$1::uuid,version=version+1 WHERE id=$2`,uploadId,mid);
+  await tx.$executeRawUnsafe(`UPDATE rh_ai.session_media_uploads SET source_sha256=$1,version=version+1 WHERE id=$2`,'b'.repeat(64),mid);
+  await rejected('complete retry cannot replace the first frozen SHA',()=>tx.$executeRawUnsafe(`UPDATE rh_ai.session_media_uploads SET source_sha256=$1,version=version+1 WHERE id=$2`,'c'.repeat(64),mid),'MEDIA_IMMUTABLE');
+  await rejected('uploadId cannot be rebound after initialization',()=>tx.$executeRawUnsafe(`UPDATE rh_ai.session_media_uploads SET upload_id=$1::uuid,version=version+1 WHERE id=$2`,randomUUID(),mid),'MEDIA_IMMUTABLE');
+  await tx.$executeRawUnsafe(`UPDATE rh_ai.session_media_uploads SET archive_state='archived',version=version+1 WHERE id=$1`,mid);
+  await rejected('inspection running requires execution token and lease',()=>tx.$executeRawUnsafe(`UPDATE rh_ai.session_media_uploads SET inspection_state='running',version=version+1 WHERE id=$1`,mid),'session_media_lease');
+  await rejected('successful inspection needs a valid classification',()=>tx.$executeRawUnsafe(`UPDATE rh_ai.session_media_uploads SET inspection_state='complete',inspection_classification='corrupt',version=version+1 WHERE id=$1`,mid),'session_media_classification');
+  await rejected('parent removal rejects further state publication',async()=>{await tx.session.update({where:{id:sid},data:{deletedAt:new Date()}});await tx.$executeRawUnsafe(`UPDATE rh_ai.session_media_uploads SET version=version+1 WHERE id=$1`,mid);},'MEDIA_PARENT');
+  await tx.$executeRawUnsafe('SET LOCAL ROLE aisci_app');
+  assert.equal((await tx.$queryRawUnsafe('SELECT id FROM rh_ai.session_media_uploads WHERE id=$1',mid)).length,1);
+  await tx.$queryRawUnsafe(`SELECT set_config('app.account_id',$1,true)`,'rh-kb-local-b0e2af9d-admin');
+  assert.equal((await tx.$queryRawUnsafe('SELECT id FROM rh_ai.session_media_uploads WHERE id=$1',mid)).length,0);
+  const [rights]=await tx.$queryRawUnsafe(`SELECT has_table_privilege(current_user,'rh_ai.session_media_uploads','DELETE') AS del,has_table_privilege(current_user,'rh_ai.session_media_uploads','TRUNCATE') AS trunc`);
+  assert.deepEqual(rights,{del:false,trunc:false});
+  await tx.$executeRawUnsafe('RESET ROLE');
+  await rejected('migration refuses policy drift',async()=>{await tx.$executeRawUnsafe('ALTER TABLE rh_ai.session_media_uploads DISABLE ROW LEVEL SECURITY');await schema.applyMediaSchemaInTransaction(tx,env);},'MEDIA_SCHEMA_CONFLICT');
+  throw rollback;
+ }),e=>e===rollback);
+});

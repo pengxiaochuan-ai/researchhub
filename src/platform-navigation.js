@@ -6,7 +6,7 @@ export const pageRoutes = Object.freeze(
 );
 
 const navRoutes = Object.freeze({
-  我的科研: 'p01',
+  我的工作台: 'p01',
   领域研究: 'h01',
   '岐研 AI': 'ai01',
   科研资产: 'a01',

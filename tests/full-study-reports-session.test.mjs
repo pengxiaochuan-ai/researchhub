@@ -1,0 +1,8 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import * as full from '../src/full-study-reports-session.js';
+import {splitReportMarkdown} from '../src/formal-reports-session.js';
+test('v2 main results remain visible while only exact source appendix is collapsed without changing text',()=>{const md='> 合成数据模拟验收\n\n## PHQ-9总分 · 组别与时点\n\n| 均值 | 14 |\n\n## PHQ-9总分 · 患者配对变化\n\n| 变化 | -0.5 |\n\n## 可复核来源\n\n根快照：source\n';const parts=full.splitFullStudyReportMarkdown(md);assert(parts.body.includes('| 均值 | 14 |'));assert(parts.body.includes('| 变化 | -0.5 |'));assert(!parts.body.includes('根快照'));assert(parts.appendix.startsWith('\n## 可复核来源\n'));assert.equal(parts.body+parts.appendix,md);assert.equal(parts.legacy,false);});
+test('missing exact v2 boundary preserves the whole original in a conservative disclosure',()=>{for(const md of ['## PHQ-9总分\n主结果，没有来源标题\n','正文中提到 ## 可复核来源 的文字\n','## PHQ-9\n\n## 可复核来源（旧标题）\n说明\n']){const parts=full.splitFullStudyReportMarkdown(md);assert.equal(parts.body,'');assert.equal(parts.appendix,md);assert.equal(parts.legacy,true);assert.equal(parts.body+parts.appendix,md);}});
+test('v1 legacy source-marker behavior stays unchanged',()=>{const md='## 既有报告\n\n## 可复核来源\n原始来源\n';assert.deepEqual(splitReportMarkdown(md),{body:'',appendix:md,legacy:true});});
+
+test('v2 chooses the last exact source heading when a multiline title or body repeats it',()=>{const md='## 自定义多行标题\n## 可复核来源\n标题补充\n\n## PHQ-9总分 · 组别与时点\n| 均值 | 14 |\n\n## 可复核来源\n根快照：actual-source\n';const parts=full.splitFullStudyReportMarkdown(md);assert(parts.body.includes('标题补充'));assert(parts.body.includes('| 均值 | 14 |'));assert.equal(parts.appendix,'\n## 可复核来源\n根快照：actual-source\n');assert.equal(parts.body+parts.appendix,md);});

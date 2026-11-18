@@ -1,0 +1,62 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';
+import {createRequire} from 'node:module';import {readFileSync} from 'node:fs';
+import {loadFixtureInput} from '../../../app/server/scripts/wp01/local-config.mjs';
+import {withFixtureTransaction} from '../../../app/server/scripts/wp01/fixture-guard.mjs';
+const adapter=await import('../../scripts/local-session-materials.mjs').catch(e=>{if(e.code==='ERR_MODULE_NOT_FOUND')return null;throw e;});
+const {env}=loadFixtureInput(new URL('../../../.superpowers/sdd/implementation-plan/wp01-full-baseline-target.json',import.meta.url).pathname);
+const {ids}=JSON.parse(readFileSync(new URL('../../../.tmp/researchhub-knowledge-local/runtime.json',import.meta.url),'utf8'));
+const require=createRequire(new URL('../../../app/server/package.json',import.meta.url));
+require('ts-node').register({project:new URL('../../../app/server/tsconfig.json',import.meta.url).pathname,transpileOnly:true});
+const load=(path,name)=>require(new URL('../../../app/server/src/'+path+'.ts',import.meta.url).pathname)[name];
+const rollback=Symbol('materials-pg-rollback');
+test('native queued source and material association share the transaction and same-key receipt',async()=>{
+  assert.ok(adapter,'native material adapter is missing');
+  await assert.rejects(withFixtureTransaction(env,'app',async tx=>{
+    const account=await tx.account.findFirst({where:{id:ids.owner,tenantId:ids.tenant}});
+    // Fixture helper does not set the tenant context automatically.
+    if(!account)await tx.$queryRawUnsafe(`SELECT set_config('app.tenant_id',$1,true)`,ids.tenant);
+    const actor=await tx.account.findFirst({where:{id:ids.owner,tenantId:ids.tenant}});
+    const user={tenantId:ids.tenant,studyGroupId:ids.group,researchProjectId:ids.project,accountId:ids.owner,authVersion:actor.authVersion};
+    await tx.$queryRawUnsafe(`SELECT set_config('app.study_group_id',$1,true),set_config('app.research_project_id',$2,true)`,ids.group,ids.project);
+    const session='rh-material-native-session-'+randomUUID(),key='rh-material-native-'+randomUUID();
+    await tx.$executeRawUnsafe(`INSERT INTO public.session(id,"tenantId","studyGroupId","researchProjectId","accountId","agentId",title,channel,"contextKey","updatedAt") VALUES($1,$2,$3,$4,$5,$6,'合成材料原子性验证','knowledge',$7,now())`,session,ids.tenant,ids.group,ids.project,ids.owner,ids.tenant+'-kb-research','hub:lingshu-xinyu:conversation:'+randomUUID());
+    const access=adapter.createLocalMaterialAccess({env,ids,load,transaction:(_user,fn)=>fn(tx)});
+    const storage={putFile:async()=>{},remove:async()=>{}};
+    const scope=load('common/deployment-scope','parseDeploymentScope')({DEPLOYMENT_ID:'rh-material-test',DEPLOYMENT_PRODUCT:'researchhub',ALLOWED_TENANT_IDS:ids.tenant,DEFAULT_TENANT_ID:ids.tenant,ENABLED_WORKER_KINDS:'knowledge-import'});
+    const {createSessionMaterials,assertNoLegacyMaterialQuestion}=await import('./session-materials.mjs');
+    const inspect=load('knowledge/knowledge-file-policy','inspectKnowledgeImportFile');
+    const service=createSessionMaterials({access,inspectFile:inspect,startImport:()=>{},createOperations:(db,current)=>adapter.materialNativeOperations({tx:db,user:current,load,storage,scope})});
+    assert.equal(typeof assertNoLegacyMaterialQuestion,'function','P02 server admission guard missing');
+    await assertNoLegacyMaterialQuestion(tx,user,session);
+    const file={path:new URL('../../scripts/fixtures/agent-material-basic.txt',import.meta.url).pathname,originalname:'private-original-name.txt',mimetype:'text/plain',size:readFileSync(new URL('../../scripts/fixtures/agent-material-basic.txt',import.meta.url)).length};
+    const first=await service.upload(user,session,{requestKey:key,file});
+    const {createConversationCommands}=await import('./conversation-commands.mjs');
+    const commands=createConversationCommands({tenantId:ids.tenant,transaction:fn=>fn(tx),authorize:async()=>user,admit:assertNoLegacyMaterialQuestion,stage:async()=>{throw Error('must not dispatch');},schedule:()=>{throw Error('must not schedule');}});
+    await assert.rejects(commands.submit(user,session,{text:'请解读刚上传的合成资料',requestKey:'rh-material-guard-'+randomUUID(),kbIds:[]}),e=>e.code==='HUB_MATERIAL_ANALYSIS_UNAVAILABLE');
+    assert.equal(await tx.message.count({where:{sessionId:session}}),0);
+    assert.equal(await tx.knowledgeChatJob.count({where:{sessionId:session}}),0);
+    const same=await service.upload(user,session,{requestKey:key,file});
+    assert.equal(first.id,same.id);assert.equal(first.state,'importing');
+    const rows=await tx.$queryRawUnsafe('SELECT * FROM rh_ai.session_materials WHERE id=$1',first.id);
+    assert.equal(rows.length,1);const row=rows[0];
+    const base=await tx.knowledgeBase.findUnique({where:{id:row.kb_id}}),source=await tx.knowledgeSourceFile.findUnique({where:{id:row.source_file_id}});
+    assert.equal(base.visibility,'private');assert.equal(base.ownerAccountId,ids.owner);
+    assert(source.filename.startsWith('knowledge_'));assert(!source.filename.includes('private-original-name'));
+    assert.equal((await tx.knowledgeImportTask.findUnique({where:{id:row.import_task_id}})).status,'queued');
+    assert.deepEqual(await service.receipt(user,session,key),{found:true,item:same});
+    const list=await service.list(user,session);assert.equal(list.items[0].id,first.id);
+    await assert.rejects(service.list({...user,accountId:ids.admin},session),e=>e.code==='HUB_MATERIAL_ACCESS_REJECTED');
+    // A native safety retry can finish between two status reads. The association
+    // must traverse its existing blocked -> importing -> ready state contract.
+    await tx.knowledgeImportTask.update({where:{id:row.import_task_id},data:{status:'blocked',stage:'blocked',safetyLevel:'warning'}});
+    assert.equal((await service.receipt(user,session,key)).item.state,'blocked');
+    const doc=await tx.knowledgeDoc.create({data:{id:'rh-material-native-doc-'+randomUUID(),tenantId:ids.tenant,studyGroupId:ids.group,kbId:row.kb_id,title:'合成私人未审草稿',contentMd:'Synthetic private evidence. Value: 0.',status:'draft',reviewed:false,safetyLevel:'allow'}});
+    await tx.knowledgeSourceFile.update({where:{id:row.source_file_id},data:{docId:doc.id}});
+    await tx.knowledgeImportTask.update({where:{id:row.import_task_id},data:{docId:doc.id,status:'complete',stage:'complete',safetyLevel:'allow',progress:100}});
+    const ready=(await service.receipt(user,session,key)).item;
+    assert.equal(ready.state,'ready');assert.equal(ready.docId,doc.id);
+    const saved=await tx.knowledgeDoc.findUnique({where:{id:doc.id}});
+    assert.equal(saved.reviewed,false);assert.equal(saved.status,'draft');
+    throw rollback;
+  }),e=>e===rollback);
+});

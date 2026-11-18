@@ -1,0 +1,19 @@
+/* Workspace entry links: shared defaults, below component-specific styling. */
+:where(body[data-platform-header="true"]) a:where([href]) {
+  color: var(--brand-primary);
+  text-decoration: none;
+}
+
+:where(body[data-platform-header="true"]) a:where([href]:hover) {
+  color: var(--brand-hover);
+}
+
+:where(body[data-platform-header="true"]) a:where([href]):focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}
+
+/* Inline research citations retain their reading cue, unlike navigation. */
+:where(body[data-platform-header="true"]) :is(.agent-message, .research-asset-reading, .academic-body) a:where([href]) {
+  text-decoration: underline;
+}

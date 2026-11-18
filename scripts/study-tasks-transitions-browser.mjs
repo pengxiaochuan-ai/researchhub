@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {randomUUID} from 'node:crypto';
+import {loadFixtureInput} from '../../app/server/scripts/wp01/local-config.mjs';
+import {withFixtureTransaction,assertFixtureTarget} from '../../app/server/scripts/wp01/fixture-guard.mjs';
+const root=fileURLToPath(new URL('../../',import.meta.url)),base='http://127.0.0.1:19501';
+const {env}=loadFixtureInput(root+'.superpowers/sdd/implementation-plan/wp01-full-baseline-target.json');assert.equal((await assertFixtureTarget(env)).databaseName,'wp01_test_full_baseline');
+const runtime=JSON.parse(readFileSync(root+'.tmp/researchhub-knowledge-local/runtime.json'));
+const [row]=await withFixtureTransaction(env,'direct',db=>db.$queryRaw`SELECT manifest FROM wp01_meta.fixture_run WHERE manifest->>'purpose'='ResearchHub-S08-20261102-task-page'`,{readOnly:true});assert(row?.manifest?.syntheticOnly);const {plan,taskIds}=row.manifest,taskId=taskIds[1];
+const task=()=>withFixtureTransaction(env,'direct',db=>db.studyTask.findFirst({where:{id:taskId,tenantId:plan.scope.tenantId,studyGroupId:plan.scope.studyGroupId,researchProjectId:plan.project.id},select:{id:true,status:true,version:true,reviewStatus:true,completionNote:true,blockedReason:true,assigneeAccountId:true,subjectVisitId:true,enrollmentId:true}}),{readOnly:true});
+const out=root+'researchhub/docs/testing/evidence/study-tasks-s08-2026-11-02/'+plan.runId+'/browser-transitions/';mkdirSync(out,{recursive:true});
+const pw=await import(root+'app/node_modules/.pnpm/playwright@1.63.0/node_modules/playwright/index.js'),browser=await(pw.chromium??pw.default.chromium).launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});
+let context=await browser.newContext({viewport:{width:1440,height:900}}),page=await context.newPage(),stage='login';const checks=[],network=[],errors=[];
+try{
+ await page.goto(base+'/pages/p003/');await page.getByLabel('邮箱',{exact:true}).fill('admin@example.org');await page.getByLabel('密码',{exact:true}).fill(runtime.password);await page.getByRole('button',{name:'登录',exact:true}).click();await page.waitForURL('**/pages/p01/');
+ const auth=await context.storageState();await context.close();context=await browser.newContext({storageState:auth,viewport:{width:1440,height:900},recordVideo:{dir:out+'video',size:{width:1440,height:900}}});page=await context.newPage();
+ page.on('pageerror',error=>errors.push({stage,name:error.name,message:error.message.slice(0,160)}));page.on('response',r=>{const u=new URL(r.url());if(u.origin===base&&u.pathname.startsWith('/api/'))network.push({stage,path:u.pathname,method:r.request().method(),status:r.status()});});
+ await page.goto(base+'/pages/s08/?'+new URLSearchParams({studyGroupId:plan.scope.studyGroupId,researchProjectId:plan.project.id,taskId}));await page.getByRole('heading',{level:1,name:plan.project.name}).waitFor();checks.push('real_admin_without_membership_enters_auxiliary_study');
+ async function open(){await page.getByText('执行与状态操作',{exact:true}).click();return page.locator('.s08-transition-form');}
+ async function confirm(form){const response=page.waitForResponse(r=>r.request().method()==='POST'&&new URL(r.url()).pathname==='/api/study-tasks/'+taskId+'/transitions');await form.getByRole('button',{name:'确认状态变更',exact:true}).click();assert.equal((await response).status(),200);await page.waitForFunction(()=>!document.querySelector('.s08-tasks .ui-button[aria-busy="true"]'));}
+ if((await task()).status==='open'){
+  stage='start';let form=await open();await form.getByLabel('任务状态操作',{exact:true}).selectOption('in_progress');assert.equal((await task()).status,'open');await confirm(form);assert.equal((await task()).status,'in_progress');checks.push('choosing_status_does_not_commit_without_explicit_confirm');
+  stage='blocked';form=await open();await form.getByLabel('任务状态操作',{exact:true}).selectOption('blocked');await form.getByRole('button',{name:'确认状态变更',exact:true}).click();await form.locator('[role=alert]').waitFor();assert.equal((await task()).status,'in_progress');await form.getByLabel('受阻说明',{exact:true}).fill('合成管理员演练：等待核对执行清单');await confirm(form);assert.equal((await task()).status,'blocked');checks.push('blocked_requires_reason_and_preserves_state_on_invalid_submit');
+  stage='resume';form=await open();await form.getByLabel('任务状态操作',{exact:true}).selectOption('in_progress');await confirm(form);assert.equal((await task()).status,'in_progress');
+  stage='complete';form=await open();await form.getByLabel('任务状态操作',{exact:true}).selectOption('completed');await form.getByLabel('完成说明',{exact:true}).fill('合成管理员已完成本Study任务清单核对，提交本人任务验收；没有临床采集或数据导出。');await confirm(form);
+ }else{assert.equal((await task()).reviewStatus,'pending_review','S08_TRANSITION_BROWSER_PHASE_ADVANCED');checks.push('existing_named_submission_reused_no_new_state_write');}
+ const final=await task();assert.equal(final.status,'completed');assert.equal(final.reviewStatus,'pending_review');assert.equal(final.assigneeAccountId,plan.ids.admin);assert.equal(final.subjectVisitId,null);assert.equal(final.enrollmentId,null);checks.push('real_submit_pending_review_no_formal_clinical_parent_writes');
+ stage='layout';for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});if(width<700)await page.waitForFunction(()=>document.querySelector('.qiyan-platform-sidebar').getBoundingClientRect().right<=1);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.locator('.s08-task-detail').scrollIntoViewIfNeeded();await page.screenshot({path:out+'submitted-'+width+'.png',animations:'disabled',fullPage:false});}checks.push('submitted_task_three_viewports_no_horizontal_overflow');
+ assert.equal(errors.length,0);assert(!network.some(r=>/jobs|chat|export|approve|lock/.test(r.path)));
+ writeFileSync(out+'result-'+randomUUID()+'.json',JSON.stringify({passed:true,at:new Date().toISOString(),syntheticOnly:true,actualChrome:true,checks,network,errors,taskId,version:final.version,newTasks:0,modelCalls:0},null,2)+'\n');console.log(JSON.stringify({passed:true,checks,taskId,version:final.version,newTasks:0,evidence:out}));
+}catch(error){writeFileSync(out+'failure-'+randomUUID()+'.json',JSON.stringify({passed:false,stage,checks,network,errors,message:String(error.message).slice(0,300)},null,2)+'\n');console.error(JSON.stringify({passed:false,stage,message:String(error.message).slice(0,200),evidence:out}));process.exitCode=1;}
+finally{await context.close();await browser.close();}

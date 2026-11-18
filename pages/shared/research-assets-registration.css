@@ -1,0 +1,16 @@
+.ui-confirm-dialog:has(.asset-registration-form){width:min(640px,calc(100% - 32px))}
+.asset-registration-form{font-size:14px;line-height:22px}
+.asset-registration-form fieldset{border:0;margin:0;padding:0;min-width:0}
+.asset-registration-form label{display:flex;flex-direction:column;gap:4px;margin-bottom:16px;min-width:0}
+.asset-registration-form input,.asset-registration-form textarea,.asset-registration-form select{box-sizing:border-box;width:100%;min-width:0;min-height:40px;font:inherit;color:var(--text-primary);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px}
+.asset-registration-form textarea{resize:vertical}
+.asset-registration-form .asset-registration-reading{font-size:16px;line-height:28px}
+.asset-registration-fields{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.asset-registration-sources{display:flex;flex-direction:column;align-items:start;gap:8px;margin-bottom:16px}
+.asset-registration-sources button{white-space:normal;text-align:left;height:auto;min-height:40px}
+.asset-registration-error{color:var(--danger,var(--text-primary));font-size:14px;line-height:22px}
+.asset-registration-form [aria-invalid="true"]{border-color:var(--danger,var(--text-primary))}
+.asset-registration-form .asset-governance-check{flex-direction:row;align-items:flex-start;gap:8px;margin-top:12px}
+.asset-registration-form .asset-governance-check input{width:18px;height:18px;min-height:18px;flex:0 0 18px;margin-top:2px}
+@media(max-width:480px){.asset-registration-fields{grid-template-columns:1fr;gap:0}}
+.ui-confirm-dialog:has(.asset-registration-form) button.ui-button{font-size:var(--text-body-size);line-height:var(--text-body-line)}

@@ -1,0 +1,23 @@
+// READ ONLY transaction identity proof, scoped only to this new synthetic study.
+import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+import {privateDir,evidenceDir,json,save,normalize,requireQAWindow,validateFixture} from './visit-workflow-qa.mjs';
+import {preserveOld} from './visit-workflow-preserve.mjs';
+
+export function assertAtomicProof(audits,operations,studyId){
+ const finishes=audits.filter(a=>a.action==='researchhub.visit.review.finished'&&a.meta?.status==='completed');assert(finishes.length>0,'NO_SUCCESSFUL_FINISH_PROOF');const checks=[];
+ for(const finish of finishes){
+  const m=finish.meta,claim=audits.find(a=>a.id===m.claimId);assert(claim&&claim.action==='researchhub.visit.review.claim'&&claim.target===finish.target);assert.equal(claim.accountId,finish.accountId);assert.notEqual(claim.txid,finish.txid,'CLAIM_MUST_BE_COMMITTED_SEPARATELY');assert.deepEqual(m.nativeKeys,claim.meta.nativeKeys);assert.deepEqual(m.expectedRef,claim.meta.expectedRef);assert.equal(m.requestDigest,claim.meta.requestDigest);assert.equal(m.expectedStateHash,claim.meta.expectedStateHash);assert.equal(m.assignmentId,claim.meta.assignmentId);
+  const op=operations.find(o=>o.audit_id===claim.id);assert(op,'CLAIM_OPERATION_RECEIPT_REQUIRED');assert.equal(op.request_key,claim.meta.requestKey);assert.equal(op.request_hash,m.requestDigest);assert.equal(op.action,'visit.review.batch.advance');assert.equal(op.target_id,finish.target);assert.equal(op.actor_id,finish.accountId);assert.equal(op.result.studyId,studyId);assert.equal(op.result.claimId,claim.id);assert.equal(op.result.batchId,finish.target);assert.equal(op.result.assignmentId,m.assignmentId);assert.equal(op.txid,claim.txid,'CLAIM_AND_OPERATION_MUST_BE_ATOMIC');
+  assert(['review_lock','lock'].includes(m.memberAction));const kinds=m.memberAction==='review_lock'?['review','lock']:['lock'],native=[];
+  for(const kind of kinds){const action=kind==='review'?'formal_response_review_approved':'formal_response_lock',matches=audits.filter(a=>a.action===action&&a.meta?.requestKey===m.nativeKeys[kind]);assert.equal(matches.length,1,'EXACTLY_ONE_NATIVE_'+kind);const audit=matches[0];assert.equal(audit.accountId,finish.accountId);assert.equal(audit.target,m.expectedRef.responseId);assert.equal(audit.meta.assignmentId,m.assignmentId);assert.deepEqual(audit.meta.ref,m.expectedRef);assert.equal(audit.txid,finish.txid,'NATIVE_'+kind+'_AND_FINISH_MUST_BE_ATOMIC');native.push({id:audit.id,kind,txid:audit.txid});}
+  checks.push({finishId:finish.id,batchId:finish.target,assignmentId:m.assignmentId,action:m.memberAction,claimId:claim.id,claimTxid:claim.txid,finishTxid:finish.txid,operationId:op.id,operationTxid:op.txid,native});
+ }
+ return checks;
+}
+export async function runAtomicProof(){
+ requireQAWindow(['--local-synthetic','--preserve']);const {openHarness}=await import('./full-study-runtime.mjs'),h=await openHarness({privateOutputDir:privateDir+'atomic-proof-auth/'}),f=json(privateDir+'fixture.json');validateFixture(f);assert(f.ready);await preserveOld(h,'before-atomic-proof');
+ const proof=await h.read(async tx=>{const audits=normalize(await tx.$queryRaw`SELECT *, xmin::text AS txid FROM audit_log WHERE "tenantId"=${f.scope.tenantId} AND "studyGroupId"=${f.scope.studyGroupId} AND "researchProjectId"=${f.scope.researchProjectId} ORDER BY id`),ids=audits.filter(a=>a.action==='researchhub.visit.review.claim').map(a=>a.id);assert(ids.length>0);const operations=normalize(await tx.$queryRaw`SELECT *, xmin::text AS txid FROM rh_research.operation WHERE tenant_id=${f.scope.tenantId} AND audit_id=ANY(${ids}::text[]) ORDER BY id`);return{audits,operations};});
+ const checks=assertAtomicProof(proof.audits,proof.operations,f.study.id),out=evidenceDir+'atomic-proof/';save(out+'native-xmin.json',proof);save(out+'result.json',{at:new Date().toISOString(),passed:true,studyId:f.study.id,readOnly:true,businessWrites:0,successfulFinishes:checks.length,nativeAuditRows:checks.reduce((n,c)=>n+c.native.length,0),checks,qualified:'PostgreSQL xmin proves the observed immutable native audits and parent FINISH committed in the same transaction; each claim and its operation receipt committed separately. Current response xmin may change after later corrections and is not used as historical proof.'});await preserveOld(h,'after-atomic-proof');console.log(JSON.stringify({passed:true,successfulFinishes:checks.length,evidence:out+'result.json'}));
+}
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){assert.equal(requireQAWindow(process.argv.slice(2)),'preserve');await runAtomicProof();}

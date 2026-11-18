@@ -1,0 +1,21 @@
+{
+  "synced_on": "2026-10-19",
+  "root_page_id": "3fe56479-ab58-815e-a0ae-d63120f5ba2b",
+  "root_url": "https://app.notion.com/p/3fe56479ab58815ea0aed63120f5ba2b",
+  "verification": "Initial eight audit pages verified; five existing pages updated for implementation and three new implementation/product documents created, all eight changed pages fetched back and checked. Eleven document page mappings retained below.",
+  "media": "Screenshots remain in the local audit directory; Notion contains document text and evidence filenames only.",
+  "update_policy": "Update these existing page IDs on subsequent sync; do not create duplicate pages.",
+  "documents": [
+    {"path": "docs/README.md", "page_id": "3fe56479-ab58-81c2-8e1c-fdb4d1301553"},
+    {"path": "docs/ui/demo-ui-foundation-v1.0.md", "page_id": "3fe56479-ab58-8146-9c49-cb0909c3db5a"},
+    {"path": "docs/ui/navigation-page-header-standard-v1.0.md", "page_id": "3fe56479-ab58-810b-b559-f10822794ece"},
+    {"path": "docs/ui/page-layout-practice-v1.0.md", "page_id": "3fe56479-ab58-8113-aae1-e48bac0dcea1"},
+    {"path": "docs/ui/portal-typography-v1.0.md", "page_id": "3fe56479-ab58-8109-b164-d2f62afa2081"},
+    {"path": "docs/ui/audits/2026-10-19-p002/审查报告.md", "page_id": "3fe56479-ab58-816e-8689-c80dd1ba7a08"},
+    {"path": "docs/testing/ui-acceptance.md", "page_id": "3fe56479-ab58-81ba-974f-f100bec9918c"},
+    {"path": "docs/product/lingshu-portal-design-v1.1.md", "page_id": "3fe56479-ab58-8166-a3ac-feaa46919fb3"},
+    {"path": "docs/testing/p002-ui-remediation-2026-10-19.md", "page_id": "3fe56479-ab58-81b4-83a3-d0c85d59c8d0"},
+    {"path": "docs/product/product-baseline.md", "page_id": "3fe56479-ab58-81da-98e7-cf8c8e14ffb8"},
+    {"path": "docs/product/product-changes.md", "page_id": "3fe56479-ab58-81ae-b313-deb757612283"}
+  ]
+}

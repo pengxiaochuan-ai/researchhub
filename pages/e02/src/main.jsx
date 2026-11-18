@@ -1,8 +1,13 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Bookmark, FileText, Link2, Sparkles } from 'lucide-react';
 import './style.css';
 import { AiPanel } from './ai-panel.jsx';
+import { Button } from '../../shared/Components.jsx';
+import { isHubSourceRealMode } from '../../../src/hub-source-api.js';
+import { RealEvidenceDetail } from './RealEvidenceDetail.jsx';
+
+const DEMO_CITATION = '【固定演示，未核验】Li X, et al. Efficacy and safety of acupuncture for depressive disorders: a systematic review and meta-analysis of randomized controlled trials. JAMA Psychiatry. 2023;80(9):921–931. DOI: 10.1001/jamapsychiatry.2023.0123. 不可作为真实科研引用。';
 
 const TABS = ['概览', '方法与设计', '研究结果', '讨论与局限', '引用与关联'];
 const RESULT_TABS = ['HAMD 评分（主要结局）', '缓解率', '反应率', '不良事件'];
@@ -64,12 +69,22 @@ function App() {
   const [related, setRelated] = useState('临床试验');
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const [copyError, setCopyError] = useState('');
+  const sourceRef = useRef(null);
   const [aiOpen, setAiOpen] = useState(false);
   const abstract = lang === '中' ? ZH : EN;
 
-  const copyCite = () => {
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1200);
+  const copyCite = async () => {
+    if (copying) return;
+    setCopying(true); setCopied(false); setCopyError('');
+    try {
+      await navigator.clipboard.writeText(DEMO_CITATION);
+      setCopied(true);
+    } catch {
+      setCopyError('复制失败：请展开下方来源与原文状态，手动选择演示引用文本。');
+      sourceRef.current.open = true;
+    } finally { setCopying(false); }
   };
 
   return (
@@ -98,11 +113,18 @@ function App() {
             <b>IF 25.1</b><b>Q1</b>
           </p>
           <p className="detail-ids">DOI: 10.1001/jamapsychiatry.2023.0123　PMID: 36812345　PMCID: PMC3988776</p>
-          <p className="detail-source">来源：PubMed · Crossref · 期刊官网　查看来源与版本 (3)</p>
+          <details className="detail-source" ref={sourceRef}>
+            <summary>来源与原文状态（固定演示，未核验）</summary>
+            <p>当前仅展示固定示例，尚未连接原文与来源核验服务；上述标识和数据不可作为真实科研依据。</p>
+            <label htmlFor="demo-citation">完整演示引用（可手动选择复制）</label>
+            <textarea id="demo-citation" readOnly value={DEMO_CITATION} />
+          </details>
+          {copyError && <p className="detail-feedback error" role="alert">{copyError}</p>}
+          {copied && <p className="detail-feedback" role="status">演示引用已复制；使用前须核验真实来源。</p>}
         </div>
         <div className="detail-actions">
-          <button type="button"><FileText size={14} />查看原文</button>
-          <button type="button" onClick={copyCite}><Link2 size={14} />{copied ? '已复制' : '引用'}</button>
+          <button type="button" onClick={() => { sourceRef.current.open = true; sourceRef.current.querySelector('summary').focus(); }}><FileText size={14} />来源与原文状态</button>
+          <Button onClick={copyCite} loading={copying}><Link2 size={14} />复制演示引用</Button>
           <button type="button" onClick={() => setSaved((value) => !value)}><Bookmark size={14} />{saved ? '已收藏' : '收藏'}</button>
           <button type="button" className="paper-ai" onClick={() => setAiOpen(true)}><Sparkles size={14} />岐研 AI 解读</button>
         </div>
@@ -114,7 +136,7 @@ function App() {
           </div>
           {tab === '概览' && (
             <>
-              <article className="detail-abstract">
+              <article className="detail-abstract detail-reading">
                 <header><b>摘要</b><div><button type="button" className={lang === '中' ? 'on' : ''} onClick={() => setLang('中')}>中</button><button type="button" className={lang === '英' ? 'on' : ''} onClick={() => setLang('英')}>英</button></div></header>
                 {abstract.map(([title, text]) => <p key={title}><b>{title}</b>{text}</p>)}
                 <h3>关键词</h3>
@@ -126,10 +148,10 @@ function App() {
               <Results resultTab={resultTab} onChange={setResultTab} />
             </>
           )}
-          {tab === '方法与设计' && <article className="detail-abstract"><p><b>方法（Methods）</b>{ZH[2][1]}</p><p>对照包括假针灸和常规治疗。结局为 HAMD 评分、缓解率、反应率和不良事件。</p></article>}
+          {tab === '方法与设计' && <article className="detail-abstract detail-reading"><p><b>方法（Methods）</b>{ZH[2][1]}</p><p>对照包括假针灸和常规治疗。结局为 HAMD 评分、缓解率、反应率和不良事件。</p></article>}
           {tab === '研究结果' && <Results resultTab={resultTab} onChange={setResultTab} />}
           {tab === '讨论与局限' && (
-            <article className="detail-abstract">
+            <article className="detail-abstract detail-reading">
               <p><b>结论（Conclusions）</b>{ZH[4][1]}</p>
               <p><b>主要局限</b>纳入研究存在一定的异质性（针灸方案、对照方式、疗程）。部分研究方法学质量一般。长期疗效及不同人群亚组证据仍不充分。</p>
             </article>
@@ -215,4 +237,4 @@ function Results({ resultTab, onChange }) {
   );
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(isHubSourceRealMode() ? <RealEvidenceDetail /> : <App />);

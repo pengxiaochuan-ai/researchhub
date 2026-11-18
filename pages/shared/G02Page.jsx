@@ -1,3 +1,5 @@
+import ReportAssetReview from './ReportAssetReview.jsx';
+import {AcademicManagement} from './AcademicContent.jsx';
 import React from 'react';
 import {
   AlertTriangle, Building2, CheckCircle2, ClipboardCheck, Database, Download,
@@ -9,6 +11,13 @@ import {
 } from 'recharts';
 import { Shell } from './Shell.jsx';
 import { Card, DataTable, Tabs } from './Components.jsx';
+import { isHubSourceRealMode } from '../../src/hub-source-api.js';
+import HubSourceWorkbench from './HubSourceWorkbench.jsx';
+import DirectoryWorkbench from './TeamDirectoryWorkbench.jsx';
+import TokenReconciliation from './TokenReconciliation.jsx';
+import GovernanceOverview from './GovernanceOverview.jsx';
+import {governanceBackHref} from '../../src/governance-overview.js';
+import GovernanceSectionHeader from './GovernanceSectionHeader.jsx';
 
 const statusData = [
   {name:'进行中',value:28,color:'#438df1',rate:'66%'},
@@ -131,7 +140,25 @@ function ActivityChart() {
   </BarChart></ResponsiveContainer></div>;
 }
 
+function G02RealPage() {
+  const academicOpen = new URLSearchParams(window.location.search).get('view') === 'academic-content';
+  const sourceOpen = new URLSearchParams(window.location.search).get('view') === 'source-review';
+  const directoryOpen = new URLSearchParams(window.location.search).get('view') === 'directory-review';
+  const billingOpen = new URLSearchParams(window.location.search).get('view') === 'token-reconciliation';
+  const assetOpen = new URLSearchParams(window.location.search).get('view') === 'asset-review';
+  return <Shell className="g02-page g02-real-page" active="管理与治理" hero={{
+    breadcrumb:'管理与治理', title:'管理与治理',
+    subtitle:'保障研究合规、数据安全、质量可控，促进多中心协作与科研价值的可持续发展。',
+  }}>
+    {academicOpen ? <AcademicManagement/> : assetOpen ? <ReportAssetReview/> : billingOpen ? <TokenReconciliation/> : directoryOpen ? <section className="governance-workspace g02-team-maintenance" aria-label="数据治理 · 团队资料维护"><GovernanceSectionHeader title="团队资料维护" description="草稿仅管理员可见，审核通过后按所选范围展示。" backHref={governanceBackHref(window.location.search)}/><DirectoryWorkbench showTaskDescription={false}/></section> : sourceOpen ? <section className="governance-workspace governance-source-workspace" aria-label="数据治理 · 来源审核">
+      <GovernanceSectionHeader title="来源审核" description="选择内容并核对原文，然后确认可见范围。" backHref={governanceBackHref(window.location.search)}/>
+      <HubSourceWorkbench embedded showTaskDescription={false}/>
+    </section> : <GovernanceOverview/>}
+  </Shell>;
+}
+
 export default function G02Page() {
+  if (isHubSourceRealMode()) return <G02RealPage/>;
   return <Shell className="g02-page" active="管理与治理" hero={{
     breadcrumb:'管理与治理',
     title:'管理与治理',
@@ -139,7 +166,7 @@ export default function G02Page() {
     actions:[{label:'下载治理报告',icon:<Download/>},{label:'2024-01-01 ~ 2024-12-31'}],
   }}>
     <div className="content g02-content">
-      <Tabs items={['总览','伦理合规','数据治理','研究质量','用户与权限','多中心管理','审计日志','系统配置']}/>
+      <Tabs items={['总览','数据治理','用户与权限','审计日志','系统配置']}/>
 
       <section className="g02-stats">{stats.map(({label,value,note,Icon,tone,noteClass})=><article className="g02-stat" key={label}>
         <span className={`g02-stat-icon ${tone}`}><Icon/></span>

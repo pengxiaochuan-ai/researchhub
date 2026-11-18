@@ -1,0 +1,511 @@
+{
+  "key": "hamd17-crf-simulation-v1",
+  "name": "HAMD-17（CRF合成模拟）",
+  "versionTag": "hamd17-crf-da9bbbe2da77-simulation-v1",
+  "simulationOnly": true,
+  "simulationAssumption": "模拟约定：17项均为普通有效评分时直接求和；第14项特殊9或漏答时无完整总分，不补0、不折算、不分层，不冒称原件明示完整汇总公式。",
+  "source": {
+    "title": "CRF表-抑郁症.docx中的HAMD17",
+    "sha256": "da9bbbe2da775cacaaab5825659d56566bef066c4d0834e07b5b4ea23719c968",
+    "path": "docs/study/CRF表-抑郁症.docx",
+    "sourceType": "user_supplied_blank_CRF",
+    "authorScoringVerified": false,
+    "tables": [
+      10,
+      11
+    ],
+    "instructionRef": {
+      "table": 10,
+      "row": 1
+    },
+    "totalBlankRef": {
+      "block": 62
+    },
+    "sourceEvidenceRef": "docs/planning/real-study-full-simulation-2026-11-13/hamd-source/source-audit.json"
+  },
+  "schema": {
+    "schemaVersion": "form-schema.v1",
+    "presentation": {
+      "title": "汉密尔顿抑郁量表17项（HAMD17）",
+      "instruction": "评估基于上一周患者的感觉，填入最适合病人的分数。",
+      "attribution": "来源：课题组提供的空白CRF。仅用于合成数据模拟；本次合计和缺项处理采用模拟约定。"
+    },
+    "fields": [
+      {
+        "key": "hamd17_q1",
+        "label": "1.抑郁\n情绪",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 4,
+        "choices": [
+          {
+            "value": 0,
+            "label": "0=无症状；"
+          },
+          {
+            "value": 1,
+            "label": "1=只有在问到时才叙述；"
+          },
+          {
+            "value": 2,
+            "label": "2=在谈话中自发地表达；"
+          },
+          {
+            "value": 3,
+            "label": "3=不用语言也可以从表情、姿势、声音或欲哭中流露出这种情绪；"
+          },
+          {
+            "value": 4,
+            "label": "4=患者的自发言语和非言语表达(表情、动作)几乎完全表现为这种情绪"
+          }
+        ]
+      },
+      {
+        "key": "hamd17_q2",
+        "label": "2.有罪\n感",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 4,
+        "choices": [
+          {
+            "value": 0,
+            "label": "0=无症状"
+          },
+          {
+            "value": 1,
+            "label": "1=责备自己，感到自己已连累他人；"
+          },
+          {
+            "value": 2,
+            "label": "2=认为自己犯了罪，或反复思考以往的过失或错误；"
+          },
+          {
+            "value": 3,
+            "label": "3=认为目前的疾病是对自己的错误的惩罚或有罪恶妄想；"
+          },
+          {
+            "value": 4,
+            "label": "4=罪恶妄想伴有指责或威胁性幻觉"
+          }
+        ]
+      },
+      {
+        "key": "hamd17_q3",
+        "label": "3. 自杀",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 4,
+        "choices": [
+          {
+            "value": 0,
+            "label": "0=无症状；"
+          },
+          {
+            "value": 1,
+            "label": "1=觉得活着没有意义；"
+          },
+          {
+            "value": 2,
+            "label": "2=希望自己已经死去或常想到与死有关的事；"
+          },
+          {
+            "value": 3,
+            "label": "3=消极观念(自杀念头)；"
+          },
+          {
+            "value": 4,
+            "label": "4=有严重的自杀行为"
+          }
+        ]
+      },
+      {
+        "key": "hamd17_q4",
+        "label": "4.入睡\n困难",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 2,
+        "choices": [
+          {
+            "value": 0,
+            "label": "0=无症状；"
+          },
+          {
+            "value": 1,
+            "label": "1=主述有入睡困难，上床 30 分钟后仍不能入睡；"
+          },
+          {
+            "value": 2,
+            "label": "2=主述每晚均有入睡困难"
+          }
+        ]
+      },
+      {
+        "key": "hamd17_q5",
+        "label": "5.睡眠\n不深",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 2,
+        "choices": [
+          {
+            "value": 0,
+            "label": "0=无症状；"
+          },
+          {
+            "value": 1,
+            "label": "1=睡眠浅， 多恶梦"
+          },
+          {
+            "value": 2,
+            "label": "2=半夜(晚 12 点以前)曾醒来(不包括上厕所)"
+          }
+        ]
+      },
+      {
+        "key": "hamd17_q6",
+        "label": "6.早醒",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 2,
+        "choices": [
+          {
+            "value": 0,
+            "label": "0=无症状；"
+          },
+          {
+            "value": 1,
+            "label": "1=有早醒， 比平时早醒 1 小时，但能重新入睡；"
+          },
+          {
+            "value": 2,
+            "label": "2=早醒后无法重新入睡"
+          }
+        ]
+      },
+      {
+        "key": "hamd17_q7",
+        "label": "7.工作\n和兴趣",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 4,
+        "choices": [
+          {
+            "value": 0,
+            "label": "0=无症状；"
+          },
+          {
+            "value": 1,
+            "label": "1=提问时才叙述；"
+          },
+          {
+            "value": 2,
+            "label": "2=自发地直接或间接表达对活动、工作或学习失去兴趣，如感到无精打采、 犹豫不决、不能坚持或需强迫才能工作或活动；"
+          },
+          {
+            "value": 3,
+            "label": "3=活动时间减少或效率下降，住院者每天病房活动或娱乐不满 3 小时；"
+          },
+          {
+            "value": 4,
+            "label": "4=因目前的疾病而停止工作，住院者不参加任何活动或没有他人帮助便不能 完成病室日常事务"
+          }
+        ]
+      },
+      {
+        "key": "hamd17_q8",
+        "label": "8.迟滞\n思维和言语缓慢，注意力 难以集中，主动性减退",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 4,
+        "choices": [
+          {
+            "value": 0,
+            "label": "0=无症状；"
+          },
+          {
+            "value": 1,
+            "label": "1=精神检查中发现轻度迟滞；"
+          },
+          {
+            "value": 2,
+            "label": "2=精神检查中发现明显迟滞；"
+          },
+          {
+            "value": 3,
+            "label": "3=精神检查进行困难；"
+          },
+          {
+            "value": 4,
+            "label": "4=完全不能回答问题(木僵)"
+          }
+        ]
+      },
+      {
+        "key": "hamd17_q9",
+        "label": "9.激越",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 4,
+        "choices": [
+          {
+            "value": 0,
+            "label": "0=无症状；"
+          },
+          {
+            "value": 1,
+            "label": "1=检查时显得有些心神不定；"
+          },
+          {
+            "value": 2,
+            "label": "2=明显心神不定或小动作多；"
+          },
+          {
+            "value": 3,
+            "label": "3=不能静坐，检查中曾起立；"
+          },
+          {
+            "value": 4,
+            "label": "4=搓手、咬手指、扯头发、咬嘴唇"
+          }
+        ]
+      },
+      {
+        "key": "hamd17_q10",
+        "label": "10.精神性焦虑",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 4,
+        "choices": [
+          {
+            "value": 0,
+            "label": "0=无症状；"
+          },
+          {
+            "value": 1,
+            "label": "1=问及时叙述；"
+          },
+          {
+            "value": 2,
+            "label": "2=自发性表达；"
+          },
+          {
+            "value": 3,
+            "label": "3=表情和言谈流露出明显忧虑；"
+          },
+          {
+            "value": 4,
+            "label": "4=明显惊恐"
+          }
+        ]
+      },
+      {
+        "key": "hamd17_q11",
+        "label": "11.躯体性焦虑\n指焦虑的生理症状，包括 口干、腹胀、腹泻、打  嗝、腹绞痛、心悸、头  痛、过度换气和叹气、以 及尿频和出汗",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 4,
+        "choices": [
+          {
+            "value": 0,
+            "label": "0=无症状；"
+          },
+          {
+            "value": 1,
+            "label": "1=轻度；"
+          },
+          {
+            "value": 2,
+            "label": "2=中度，有肯定地上述症状；"
+          },
+          {
+            "value": 3,
+            "label": "3=重度，上述症状严重，影响生活或需要处理；"
+          },
+          {
+            "value": 4,
+            "label": "4=严重影响生活或活动"
+          }
+        ]
+      },
+      {
+        "key": "hamd17_q12",
+        "label": "12.胃肠道症状",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 2,
+        "choices": [
+          {
+            "value": 0,
+            "label": "0=无症状；"
+          },
+          {
+            "value": 1,
+            "label": "1=食欲减退，但不需要他人鼓励便自行进食"
+          },
+          {
+            "value": 2,
+            "label": "2=进食需他人催促或请求"
+          }
+        ]
+      },
+      {
+        "key": "hamd17_q13",
+        "label": "13.全身症状",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 2,
+        "choices": [
+          {
+            "value": 0,
+            "label": "0=无症状；"
+          },
+          {
+            "value": 1,
+            "label": "1=四肢、背部或颈部沉重感，背痛、头痛、肌肉疼痛，全身乏力或疲倦；"
+          },
+          {
+            "value": 2,
+            "label": "2-症状明显"
+          }
+        ]
+      },
+      {
+        "key": "hamd17_q14",
+        "label": "14.性症状\n指性欲减  退，月经紊 乱",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 9,
+        "choices": [
+          {
+            "value": 0,
+            "label": "0=无症状；"
+          },
+          {
+            "value": 1,
+            "label": "1=轻度"
+          },
+          {
+            "value": 2,
+            "label": "2=重度"
+          },
+          {
+            "value": 9,
+            "label": "9=不能肯定，或该项对评分者不适合(不计入总分)"
+          }
+        ]
+      },
+      {
+        "key": "hamd17_q15",
+        "label": "15.疑病",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 4,
+        "choices": [
+          {
+            "value": 0,
+            "label": "0=无症状"
+          },
+          {
+            "value": 1,
+            "label": "1=对身体健康过分关注；"
+          },
+          {
+            "value": 2,
+            "label": "2=反复考虑健康问题；"
+          },
+          {
+            "value": 3,
+            "label": "3=有疑病妄想；"
+          },
+          {
+            "value": 4,
+            "label": "4=伴幻觉的疑病妄想"
+          }
+        ]
+      },
+      {
+        "key": "hamd17_q16",
+        "label": "16.体重减轻",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 2,
+        "choices": [
+          {
+            "value": 0,
+            "label": "0=无症状；"
+          },
+          {
+            "value": 1,
+            "label": "1=一周内体重减轻 0.5kg 以上；"
+          },
+          {
+            "value": 2,
+            "label": "2=一周内体重减轻 1kg 以上"
+          }
+        ]
+      },
+      {
+        "key": "hamd17_q17",
+        "label": "17. 自知力",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 2,
+        "choices": [
+          {
+            "value": 0,
+            "label": "0=知道自己有病，表现为抑郁；"
+          },
+          {
+            "value": 1,
+            "label": "1=知道自己有病，但归咎于伙食太差、环境问题、工作过忙、需要休息；"
+          },
+          {
+            "value": 2,
+            "label": "2=完全否认有病"
+          }
+        ]
+      }
+    ]
+  },
+  "scoring": {
+    "algorithm": "hamd17-simulation-sum-v1",
+    "sourceSha256": "da9bbbe2da775cacaaab5825659d56566bef066c4d0834e07b5b4ea23719c968",
+    "simulationPolicy": "ordinary17-sum-special9-or-missing-no-total-v1"
+  },
+  "allowedCaptureModes": [
+    "researcher"
+  ]
+}

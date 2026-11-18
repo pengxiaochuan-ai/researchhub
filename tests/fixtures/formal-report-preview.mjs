@@ -1,0 +1,3 @@
+import {createHash} from 'node:crypto';
+const sha=x=>createHash('sha256').update(x).digest('hex');
+export function preview(full=false){const source=full?{runGroupId:'group-run'}:{runId:'run'},contentMd='合成数据，仅用于流程验证。\n\n| 观察值 | 均值 |\n| --- | --- |\n| 值 | 2 |\n\n## 可复核附录\n固定来源';const p={studyId:'study',status:'preview',title:'合成报告',contentMd,contentHash:sha(contentMd),sourceSnapshotHash:'b'.repeat(64),snapshotId:'snapshot',...source,capabilities:{canCreate:true,canReview:true,canRelease:true,canExport:true},docxExportStatus:'available'};p.previewHash=sha(['study',full?'runGroupId':'runId',Object.values(source)[0],p.contentHash,p.sourceSnapshotHash].join('\n'));return p;}

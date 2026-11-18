@@ -471,7 +471,7 @@ function App() {
           <b>岐研</b>
           <span>中医临床研究智能平台</span>
         </div>
-        <p>开放性首页介绍产品。登录后进入我的科研。</p>
+        <p>开放性首页介绍产品。登录后进入我的工作台。</p>
         <button type="button" onClick={() => go('p003')}>进入平台</button>
       </footer>
 

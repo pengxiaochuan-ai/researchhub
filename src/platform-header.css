@@ -188,7 +188,10 @@ header.global-platform-header .qiyan-header-search:focus-visible {
   flex-direction: column;
   gap: 4px;
   white-space: nowrap;
+  min-width: 0;
 }
+
+.qiyan-user-copy b,.qiyan-user-copy small{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 
 .qiyan-user-copy b {
   color: #101a3a;
@@ -258,4 +261,12 @@ body[data-platform-page="e03"] #root > main {
 
 @media (max-width: 1400px) {
   .qiyan-header-search { width: 340px !important; }
+}
+
+/* Restored real pages retain the same heading/actions at narrow widths without
+   squeezing the title into a one-character column. Desktop Shell is unchanged. */
+@media(max-width:760px){
+ body:has(main:is(.real-ai-workspace,.real-asset-entry,.real-design-entry,.real-study-overview,.real-evidence,.real-evidence-detail,.real-registry,.real-hub)) .qiyan-page-heading{flex-wrap:wrap;gap:12px}
+ body:has(main:is(.real-ai-workspace,.real-asset-entry,.real-design-entry,.real-study-overview,.real-evidence,.real-evidence-detail,.real-registry,.real-hub)) .qiyan-page-heading-copy{flex-basis:100%;width:100%}
+ body:has(main:is(.real-ai-workspace,.real-asset-entry,.real-design-entry,.real-study-overview,.real-evidence,.real-evidence-detail,.real-registry,.real-hub)) .qiyan-page-actions{flex-wrap:wrap;max-width:100%}
 }

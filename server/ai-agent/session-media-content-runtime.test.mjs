@@ -1,0 +1,2 @@
+import test from'node:test';import assert from'node:assert/strict';import{assertPrivateContentRoot}from'../../scripts/local-session-media-content.mjs';
+test('canonical private workspace refuses frontend itself and descendants while accepting separate runtime root',()=>{for(const root of ['/repo/hub','/repo/hub/jobs','/repo/hub/.tmp/jobs'])assert.throws(()=>assertPrivateContentRoot(root,'/repo/hub'),/MEDIA_CONTENT_PRIVATE_DIRECTORY/);assertPrivateContentRoot('/repo/.tmp/hub-runtime','/repo/hub');assertPrivateContentRoot('/repo/hub-private','/repo/hub');});

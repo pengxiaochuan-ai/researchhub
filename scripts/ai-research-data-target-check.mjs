@@ -1,0 +1,28 @@
+// Final target-environment recheck using only the four named P04 staged files.
+import assert from 'node:assert/strict';import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+const input=process.argv[2],readOnly=process.argv[3]==='--read-only';assert.match(input??'',/^\.tmp\/ai-file-data-2026-11-12\/p04-browser-\d+\/result\.json$/);assert.equal(process.argv.length,readOnly?4:3);const prior=JSON.parse(readFileSync(input,'utf8'));assert(prior.passed);
+const out=input.replace('/result.json','')+'/final-'+Date.now(),root='/Users/mac/aisciencesys/',base='http://127.0.0.1:19501';mkdirSync(out+'/video',{recursive:true,mode:0o700});
+const {ids,password}=JSON.parse(readFileSync(root+'.tmp/researchhub-knowledge-local/runtime.json','utf8')),headers={'X-Study-Group-Id':ids.group,'X-Research-Project-Id':ids.project},postHeaders={...headers,Origin:base};
+const pw=await import(root+'app/node_modules/.pnpm/playwright@1.63.0/node_modules/playwright/index.js'),browser=await pw.default.chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'}),results=[],errors=[],blocked=[];let passed=false;
+try{for(const actor of ['owner','admin']){
+ const a=prior.actors[actor],sid=a.sessionId,ctx=await browser.newContext({viewport:{width:1440,height:1000},recordVideo:{dir:out+'/video'}});
+ try{
+  assert.equal((await ctx.request.post(base+'/api/auth/login',{headers:{Origin:base},data:{tenantSlug:ids.tenant,username:actor+'@example.org',password}})).status(),201);
+  const get=async suffix=>{const r=await ctx.request.get(base+'/api/sessions/'+sid+'/'+suffix,{headers});assert.equal(r.status(),200);return r.json();};
+  const list=await get('research-data?limit=20');assert.equal(list.items.length,2);assert(list.items.every(i=>!('sampleRows'in i.summary)&&!('fields'in i.summary)));
+  const old=(await get('data-preflights')).item;assert(old.result.files.every(f=>old.state==='previewed'||f.sampleRows.length===0));
+  if(!readOnly){const invalid=await ctx.request.post(base+'/api/sessions/'+sid+'/data-preflights',{headers:postHeaders,data:{requestKey:'p04-invalid-ref-'+Date.now(),files:[null]}});assert.equal(invalid.status(),400);
+  const signature=await ctx.request.post(base+'/api/sessions/'+sid+'/research-data',{headers:postHeaders,multipart:{requestKey:'p04-invalid-signature-'+Date.now(),file:{name:'P04-invalid-signature.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from('SYNTHETIC-NOT-AN-XLSX')}}});assert.equal(signature.status(),400);
+  for(const suffix of ['commands','knowledge-messages']){const r=await ctx.request.post(base+'/api/sessions/'+sid+'/'+suffix,{headers:postHeaders,data:{requestKey:'p04-data-denied-'+actor+'-'+Date.now(),text:'汇总本会话研究数据',kbIds:[]}});assert.equal(r.status(),409);assert.equal((await r.json()).code,'DATA_ANALYSIS_UNAVAILABLE');}}
+  await ctx.route('**/*',route=>{const r=route.request(),u=new URL(r.url());if(u.origin!==base){blocked.push({actor,path:u.origin});return route.abort();}if(u.pathname.startsWith('/api/')&&r.method()!=='GET'&&!['/api/auth/renew',...(!readOnly?['/api/sessions/'+sid+'/data-preflights']:[])].includes(u.pathname)){blocked.push({actor,path:u.pathname});return route.abort();}return route.continue();});
+  const page=await ctx.newPage();page.on('pageerror',e=>errors.push({actor,message:e.message}));await page.goto(base+'/pages/ai01/?sessionId='+sid);await page.getByRole('heading',{name:'研究数据预检',exact:true}).waitFor();
+  let plan=old;if(old.state!=='previewed'){assert(!readOnly,'read-only verification cannot create another preview');const response=page.waitForResponse(r=>r.request().method()==='POST'&&new URL(r.url()).pathname==='/api/sessions/'+sid+'/data-preflights');await page.getByRole('button',{name:'重新预检',exact:true}).click();const r=await response;assert.equal(r.status(),201);plan=await r.json();}
+  assert.deepEqual(plan.files.map(x=>x.id).sort(),list.items.map(x=>x.id).sort());await page.getByText('已检查2份文件、7行记录；2行需要处理。',{exact:true}).waitFor();await page.locator('.research-data-preview details summary').filter({hasText:'.xlsx'}).click();
+  const styles=await page.locator('.research-data-preview p').first().evaluate(n=>({size:getComputedStyle(n).fontSize,line:getComputedStyle(n).lineHeight}));assert.deepEqual(styles,{size:'14px',line:'22px'});await page.screenshot({path:out+'/'+actor+'-desktop.png'});
+  for(const width of [390,320]){await page.setViewportSize({width,height:900});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:out+'/'+actor+'-'+width+'.png'});}
+  await page.reload();await page.getByText('已检查2份文件、7行记录；2行需要处理。',{exact:true}).waitFor();assert.equal((await get('data-preflights')).item.id,plan.id);assert.equal((await get('research-data?limit=20')).items.length,2);
+  results.push({actor,sessionId:sid,planId:plan.id,files:2,rows:7,rejected:2,refresh:true,rawListsRedacted:true,negativeHttpTested:!readOnly,styles});
+ }finally{await ctx.request.post(base+'/api/auth/logout',{headers:{Origin:base},data:{}});await ctx.close();}
+}assert.deepEqual(errors,[]);assert.deepEqual(blocked,[]);passed=true;
+}catch(e){writeFileSync(out+'/failure.json',JSON.stringify({code:e.code??e.name,message:String(e.message).split('\n')[0].slice(0,400),at:e.stack?.split('\n').find(l=>l.includes('ai-research-data-target-check.mjs:'))?.trim()},null,2),{mode:0o600});process.exitCode=1;}
+finally{await browser.close();writeFileSync(out+'/result.json',JSON.stringify({passed,results,errors,blocked,newUploads:0,modelCalls:0},null,2),{mode:0o600});console.log(JSON.stringify({passed,evidence:out,accounts:results.length,errors:errors.length,blocked:blocked.length,newUploads:0,modelCalls:0}));}

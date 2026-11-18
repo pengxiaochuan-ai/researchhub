@@ -1,3 +1,7 @@
+# pnpm 11 reads dependency overrides here; do not silently mix editor peers.
+overrides:
+  '@tiptap/extension-bubble-menu': 3.31.3
+  '@tiptap/extension-floating-menu': 3.31.3
 allowBuilds:
   esbuild: true
 confirmModulesPurge: false

@@ -1,0 +1,17 @@
+import {REPORT_CONTEXT} from '../scripts/research-assets-report-context.mjs';
+import {makeCatalogAssetUrl} from './research-assets-catalog-session.js';
+export const reportAssetScope=Object.freeze({studyGroupId:'rh-kb-local-b0e2af9d-group',researchProjectId:REPORT_CONTEXT.projectId});
+export const C2_REPORT_ID='rh-formal-report-2d0c1ee7-a6b9-48b9-8433-f47be111ae58';
+export const reportAssetCanEdit=(reportId,source)=>!source?.existing||source.existing.version<2&&(reportId===C2_REPORT_ID?source.existing.workingState==='changes_requested':['draft','changes_requested'].includes(source.existing.workingState));
+export const reportAssetWriteUncertain=({sent,received,error})=>received||sent&&(!error.status||error.status>=500);
+export function validC2ReportAssetReceipt(value,expected,fresh){
+ const allowed=expected&&[['created',1,1],['revised',2,4]].some(([operation,version,revision])=>expected.operation===operation&&expected.version===version&&expected.revision===revision);
+ return Boolean(allowed&&value?.status==='committed'&&/^rhab-[0-9a-f-]{36}$/.test(value.assetId??'')&&fresh?.reportId===C2_REPORT_ID&&fresh.studyId===REPORT_CONTEXT.studyId&&fresh.contentHash===REPORT_CONTEXT.hash&&fresh.existing?.assetId===value.assetId&&(value.operation==='existing'?['version','revision'].every(k=>value[k]===fresh.existing[k]):['operation','version','revision'].every(k=>value[k]===expected[k])));
+}
+export const reportAssetSourcePath=(id,operation)=>id===REPORT_CONTEXT.reportId?'/research-assets/report-context-'+(operation==='registrations'?'registrations':operation==='revisions'?'revisions':'source'):'/research-assets/report-sources/'+encodeURIComponent(id)+(operation?'/'+operation:'')+'?studyId='+REPORT_CONTEXT.studyId;
+export const reportAssetRequestAllowed=(method,path)=>method==='GET'&&(path==='/research-assets/report-context-source'||path===reportAssetSourcePath(C2_REPORT_ID))||method==='POST'&&['/research-assets/report-context-registrations','/research-assets/report-context-revisions',reportAssetSourcePath(C2_REPORT_ID,'registrations'),reportAssetSourcePath(C2_REPORT_ID,'revisions')].includes(path);
+export const canRegisterReportAsset=({user,studyId,report})=>user?.accountId==='rh-kb-local-b0e2af9d-admin'&&user.role==='tenant_admin'&&studyId===REPORT_CONTEXT.studyId&&[REPORT_CONTEXT.reportId,C2_REPORT_ID].includes(report?.artifactId)&&report.versionNo===1&&report.status==='released'&&report.contentHash===REPORT_CONTEXT.hash;
+export const reportAssetDetailUrl=(version,assetId=REPORT_CONTEXT.assetId)=>makeCatalogAssetUrl(reportAssetScope,assetId,version);
+export const reportAssetListUrl=(version=1,assetId=REPORT_CONTEXT.assetId)=>'/pages/a01/?'+new URLSearchParams({...reportAssetScope,selectedAssetId:assetId,selectedVersion:String(version)});
+export const reportAssetReviewUrl=(reportId=REPORT_CONTEXT.reportId)=>'/pages/g02/?'+new URLSearchParams({view:'asset-review',studyId:REPORT_CONTEXT.studyId,...reportAssetScope,...(reportId===C2_REPORT_ID?{reportId}:{})});
+export function validReportAssetReview(q){const keys=['view','studyId',...Object.keys(reportAssetScope),...(q.has('reportId')?['reportId']:[])];return [...q.keys()].length===keys.length&&keys.every(k=>q.getAll(k).length===1)&&q.get('view')==='asset-review'&&q.get('studyId')===REPORT_CONTEXT.studyId&&Object.entries(reportAssetScope).every(([k,v])=>q.get(k)===v)&&(!q.has('reportId')||q.get('reportId')===C2_REPORT_ID);}

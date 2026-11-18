@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { ChevronRight, Search, X } from 'lucide-react';
 import { PEOPLE, openResearcher } from './people.js';
 import './style.css';
+import ResearcherDirectory from '../../shared/ResearcherDirectory.jsx';
+import {realIdentityMode} from '../../../src/platform-user.js';
 
 const DIRECTIONS = ['抑郁障碍', '焦虑障碍', '针灸治疗', '心理治疗', '神经影像', '神经调控'];
 const REGIONS = ['北京', '上海', '长沙', '成都', '武汉'];
@@ -163,4 +165,4 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(realIdentityMode?<ResearcherDirectory/>:<App />);

@@ -2,6 +2,23 @@
 .profile-hero, .profile-main > section, .profile-intro section, .profile-side section, .profile-dirs article { border: 1px solid var(--border); border-radius: 8px; background: #fff; }
 .profile-hero { display: grid; grid-template-columns: 88px minmax(0, 1fr) auto; gap: 16px; align-items: start; padding: 16px; }
 .profile-hero img { width: 88px; height: 88px; object-fit: cover; object-position: center top; border-radius: 8px; }
+.profile-photo-unavailable { width:88px; height:88px; display:flex; align-items:center; justify-content:center; border-radius:8px; background:var(--canvas); color:var(--text-secondary); font-size:12px; line-height:18px; text-align:center; }
+.profile-provenance { margin-top:12px; color:var(--text-secondary); font-size:13px; line-height:20px; overflow-wrap:anywhere; }
+/* Approved 2026-11-12: keep the original 52px tab bar usable. */
+body[data-hub-source-real="true"] .profile-tabs { flex:none; min-height:52px; }
+body[data-hub-source-real="true"] .profile-board p,body[data-hub-source-real="true"] .profile-board h2,body[data-hub-source-real="true"] .profile-board b { overflow-wrap:anywhere; }
+@media(max-width:900px){
+ body[data-hub-source-real="true"] .profile-board { padding-inline:16px;min-width:0; }
+ body[data-hub-source-real="true"] .profile-hero,body[data-hub-source-real="true"] .profile-split,body[data-hub-source-real="true"] .profile-intro { grid-template-columns:minmax(0,1fr); }
+ body[data-hub-source-real="true"] .profile-stats { grid-template-columns:repeat(2,minmax(0,1fr)); width:100%; }
+ body[data-hub-source-real="true"] .profile-hero header div { flex-wrap:wrap;margin-left:0; }
+ body[data-hub-source-real="true"] .profile-hero h2 { width:100%; }
+ body[data-hub-source-real="true"] .profile-tabs { overflow-x:auto;overflow-y:hidden; }
+ body[data-hub-source-real="true"] .profile-tabs button { flex:none; }
+ body[data-hub-source-real="true"] .profile-side { position:static; }
+ body[data-hub-source-real="true"] .profile-dirs { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ body[data-hub-source-real="true"] .profile-result-tabs { flex-wrap:wrap; }
+}
 .profile-hero header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .profile-hero h2 { margin: 0; font-size: 20px; line-height: 28px; }
 .profile-hero header em, .profile-focus em, .profile-dirs em, .profile-papers em, .profile-lines em { padding: 0 8px; border-radius: 4px; background: var(--brand-soft); color: var(--brand-primary); font-style: normal; font-size: 12px; font-weight: 500; line-height: 20px; }

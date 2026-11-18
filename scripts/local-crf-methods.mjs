@@ -1,0 +1,108 @@
+// Approved local CRF method runs only. No old factory/grant initializer or Study-wide scan.
+import assert from'node:assert/strict';
+import{randomUUID,createHash}from'node:crypto';
+import{readFileSync,lstatSync,mkdirSync,writeFileSync}from'node:fs';
+import{CRF_METHOD_MARKER,CRF_METHOD_PREFIX,buildCrfMethodInput,projectCrfMethodResult,crfMethodInterrupted,compareCrfMethodRuns}from'./synthetic-crf-methods-contract.mjs';
+import{edcDigest,exactEdcFields,syntheticDataBasis,syntheticQualityCurrent}from'./synthetic-edc-contract.mjs';
+
+export function createLocalCrfMethods({root,ids,edc,load,require,scope,nativeFetch=globalThis.fetch}){
+ const{Controller,Get,Post,Req,Body,Param,Query,HttpException}=require('@nestjs/common');
+ const{RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(root+'app/server/src/common/decorators.ts');
+ const instanceId=randomUUID(),agentId=ids.tenant+'-kb-research',skillId=ids.tenant+'-synthetic-dq',active=new Set(),interruptedIds=new Set();let ai,reports;
+ const Worker=load('research-methods/research-method-worker.client','ResearchMethodWorkerClient');
+ const traceDir=root+'.tmp/researchhub-knowledge-local/crf-method-traces/';mkdirSync(traceDir,{recursive:true,mode:0o700});
+ const fail=(code,message,status=409)=>{throw new HttpException({code,message},status);};
+ const checked=fn=>{try{return fn();}catch(e){if(e instanceof assert.AssertionError)fail('CRF_METHOD_INPUT_INVALID','方法输入、来源或容量无法核对',400);throw e;}};
+ const exact=(v,keys)=>checked(()=>exactEdcFields(v,keys));
+ function authorized(user,operation='R01'){
+  let s;try{const stat=lstatSync(scope);assert(stat.isFile()&&!stat.isSymbolicLink()&&(stat.mode&0o077)===0&&stat.size<=8192);s=JSON.parse(readFileSync(scope));}catch{fail('CRF_METHOD_SCOPE_RESTRICTED','本片方法授权不可用',403);}
+  if(s.schema!=='rh-synthetic-crf-method-scope.v1'||s.enabled!==true||s.marker!==CRF_METHOD_MARKER||s.prefix!==CRF_METHOD_PREFIX||s.tenantId!==ids.tenant||s.studyGroupId!==ids.group||s.researchProjectId!==ids.project||user.tenantId!==ids.tenant||user.studyGroupId!==ids.group||user.researchProjectId!==ids.project||!Array.isArray(s.accounts)||s.accounts.length!==2||new Set(s.accounts).size!==2||![ids.owner,ids.admin].every(id=>s.accounts.includes(id))||!s.accounts.includes(user.accountId)||!s.operations?.includes(operation)||!Number.isFinite(Date.parse(s.approvedAt)))fail('CRF_METHOD_SCOPE_RESTRICTED','没有当前本片方法授权',403);return s;
+ }
+ async function guard(tx,user,p,pack){
+  const s=authorized(user);if(new Date(pack.a.createdAt).getTime()<Date.parse(s.approvedAt))fail('CRF_METHOD_SCOPE_RESTRICTED','仅允许本轮新建的本人合成记录包',403);
+  const feature=await tx.tenantFeatureEntitlement.findFirst({where:{tenantId:ids.tenant,featureKey:'research_methods_worker',enabled:true}}),assignment=await tx.skillAssignment.findFirst({where:{tenantId:ids.tenant,skillId,agentId,accountId:user.accountId,scopeKey:user.accountId,enabled:true,skill:{tenantId:ids.tenant,key:'research-data-quality',version:1,status:'published'}}});
+  const session=await tx.session.findFirst({where:{id:p.block.sessionId,tenantId:ids.tenant,studyGroupId:ids.group,researchProjectId:ids.project,accountId:user.accountId,agentId,channel:'knowledge',contextKey:'kb:'+p.block.kbId,deletedAt:null}}),access=await tx.agentAccess.findFirst({where:{tenantId:ids.tenant,agentId,accountId:user.accountId,scopeKey:user.accountId,enabled:true}}),agent=await tx.agent.findFirst({where:{id:agentId,tenantId:ids.tenant,type:'research'}});
+  if(!feature||!assignment||!session||!access||!agent)fail('CRF_METHOD_AUTHORIZATION_REVOKED','当前方法Skill、Agent或会话授权失效',403);
+ }
+ const where=(user,planId,collectionId)=>({tenantId:ids.tenant,studyGroupId:ids.group,researchProjectId:ids.project,accountId:user.accountId,agentId,skillKey:'research-data-quality',idempotencyKey:{startsWith:CRF_METHOD_PREFIX+user.accountId+':'},AND:[{inputSummary:{path:['localCrfMethod','marker'],equals:CRF_METHOD_MARKER}},{inputSummary:{path:['localCrfMethod','planId'],equals:planId}},{inputSummary:{path:['localCrfMethod','collectionId'],equals:collectionId}}]});
+ const packVersion=pack=>({collectionId:pack.a.id,versionId:pack.v.id,versionNo:pack.v.versionNo});
+ const fromPacket=pack=>checked(()=>buildCrfMethodInput(pack.b,pack.b.quality,packVersion(pack)));
+ const inflight=run=>['queued','validating','running'].includes(run.status);
+ const interrupted=run=>crfMethodInterrupted(run,instanceId,interruptedIds);
+ function current(p,state,pack){if(edc.currentState(p,state,pack.b)!=='current'||!syntheticQualityCurrent(pack.b))fail('CRF_METHOD_SOURCE_CHANGED','方案、数据或质控已变化，请先核对当前数据');}
+ async function ownRun(tx,user,planId,collectionId,id){
+  const run=await tx.researchMethodRun.findFirst({where:{...where(user,planId,collectionId),id}});if(!run)fail('CRF_METHOD_FORBIDDEN','无法访问该本人方法运行',403);
+  const s=run.inputSummary?.localCrfMethod;if(!s||edcDigest(run.inputSummary)!==run.inputHash||s.ownerAccountId!==user.accountId||s.binding?.sessionId!==run.sessionId||s.binding?.tenantId!==ids.tenant||s.binding?.studyGroupId!==ids.group||s.binding?.researchProjectId!==ids.project)fail('CRF_METHOD_CONTEXT_INVALID','运行快照完整性或真实归属无法核对');
+  const frozen=await edc.readPacket(tx,user,planId,collectionId,s.versionNo);if(frozen.v.id!==s.versionId||fromPacket(frozen).inputHash!==run.inputHash||run.executorName!=='research-data-quality-manifest'||run.executorVersion!=='t19-1'||run.artifactRefs?.crfResult&&edcDigest(run.artifactRefs.crfResult)!==run.artifactRefs.resultHash)fail('CRF_METHOD_CONTEXT_INVALID','运行不是所声明的真实冻结版本或结果');return run;
+ }
+ function present(p,state,pack,run){
+  if(state==='restricted')return{id:run.id,sourceStatus:'restricted',status:'restricted',message:'资料或授权受限，不交付输入或结果'};
+  const s=run.inputSummary.localCrfMethod,sourceStatus=edc.currentState(p,state,pack.b)==='current'&&edcDigest(s.binding)===edcDigest(pack.b.binding)&&edcDigest(s.dataBasis)===edcDigest(syntheticDataBasis(pack.b))&&syntheticQualityCurrent(pack.b)&&s.quality.id===pack.b.quality?.id&&s.quality.findingsHash===pack.b.quality?.findingsHash?'current':'stale';
+  return{id:run.id,ownerAccountId:run.accountId,collectionId:pack.a.id,runVersion:run.updatedAt.toISOString(),status:interrupted(run)?'interrupted':run.status,sourceStatus,reviewStatus:run.reviewStatus,inputHash:run.inputHash,input:{versionNo:s.versionNo,versionId:s.versionId,binding:s.binding,dataBasis:s.dataBasis,quality:s.quality,groups:s.groups},coverage:s.coverage,result:run.artifactRefs?.crfResult??null,resultHash:run.artifactRefs?.resultHash??null,createdAt:run.createdAt,error:run.errorCode?{code:run.errorCode,message:run.errorMessage}:null,actions:{canInterpret:false,canCreateReport:false}};
+ }
+ const withPacket=(user,p,c,permission,cb)=>{authorized(user);return edc.withCollection(user,p,c,permission,async(tx,parent,state,pack)=>{await guard(tx,user,parent,pack);return cb(tx,parent,state,pack);});};
+ const inRun=(tx,user,p,c,id,permission,cb)=>edc.inCollection(tx,user,p,c,permission,async(tx,parent,state,pack)=>{await guard(tx,user,parent,pack);const raw=await ownRun(tx,user,p,c,id);return cb(tx,parent,state,pack,present(parent,state,pack,raw),raw);});
+ const withRun=(user,p,c,id,permission,cb)=>withPacket(user,p,c,permission,async(tx,parent,state,pack)=>{const raw=await ownRun(tx,user,p,c,id);return cb(tx,parent,state,pack,present(parent,state,pack,raw),raw);});
+ async function preview(user,p,c,query){exact(query,[]);return withPacket(user,p,c,'artifact.read',async(_tx,parent,state,pack)=>{current(parent,state,pack);const{snapshot}=fromPacket(pack);return{collectionId:c,versionNo:pack.v.versionNo,dataBasis:snapshot.dataBasis,quality:snapshot.quality,groups:snapshot.groups,coverage:snapshot.coverage,status:'not_run'};});}
+ async function create(user,p,c,body){
+  exact(body,['baseVersionNo','qualityId','requestKey']);if(!Number.isSafeInteger(body.baseVersionNo)||body.baseVersionNo<1||typeof body.qualityId!=='string'||body.qualityId.length>160||typeof body.requestKey!=='string'||!/^[A-Za-z0-9_-]{8,128}$/.test(body.requestKey))fail('CRF_METHOD_INPUT_INVALID','版本、质控或请求标识无效',400);
+  let created=false;const result=await withPacket(user,p,c,'artifact.edit',async(tx,parent,state)=>{
+   // https://www.postgresql.org/docs/16/explicit-locking.html#ADVISORY-LOCKS
+   // Original authorization lock FIRST, packet lock SECOND; no parent version mutation.
+   const lockKey=BigInt.asIntN(64,BigInt('0x'+createHash('sha256').update(`rh-crf-method-create.v1/${ids.tenant}/${user.accountId}/${c}`).digest('hex').slice(0,16)));
+   await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey}::bigint)`;
+   const pack=await edc.readPacket(tx,user,p,c);await guard(tx,user,parent,pack);const hash=edcDigest({planId:p,collectionId:c,body}),key=CRF_METHOD_PREFIX+user.accountId+':'+body.requestKey;
+   const prior=await tx.researchMethodRun.findUnique({where:{tenantId_idempotencyKey:{tenantId:ids.tenant,idempotencyKey:key}}});
+   if(prior){const owned=await ownRun(tx,user,p,c,prior.id);if(owned.requestHash!==hash)fail('CRF_METHOD_KEY_CONFLICT','请求标识已用于其他输入');return{run:present(parent,state,pack,owned),operation:{id:body.requestKey,runId:owned.id}};}
+   current(parent,state,pack);if(pack.a.currentVersionNo!==body.baseVersionNo||pack.b.quality?.id!==body.qualityId)fail('CRF_METHOD_VERSION_CONFLICT','当前数据版或质控已变化');
+   const ownWhere=where(user,p,c),pending=await tx.researchMethodRun.findMany({where:{...ownWhere,status:{in:['queued','validating','running']},environment:{path:['instanceId'],equals:instanceId}},take:30});if(pending.some(r=>!interrupted(r)))fail('CRF_METHOD_PENDING','本包已有方法运行在途，请等待实际结果');
+   if(await tx.researchMethodRun.count({where:ownWhere})>=30)fail('CRF_METHOD_CAPACITY','本包方法运行达到30次上限',429);
+   const input=fromPacket(pack),run=await tx.researchMethodRun.create({data:{tenantId:ids.tenant,studyGroupId:ids.group,researchProjectId:ids.project,accountId:user.accountId,sessionId:parent.block.sessionId,agentId,skillKey:'research-data-quality',skillVersion:1,executorName:'research-data-quality-manifest',executorVersion:'t19-1',idempotencyKey:key,requestHash:hash,status:'queued',stage:'queued',reviewStatus:'pending_review',inputSummary:{localCrfMethod:input.snapshot},inputHash:input.inputHash,environment:{syntheticOnly:true,instanceId,hostPid:process.pid},dataSources:{collectionId:c,versionId:pack.v.id,versionNo:pack.v.versionNo,manifestHash:input.manifestHash}}});
+   await tx.auditLog.create({data:{tenantId:ids.tenant,studyGroupId:ids.group,researchProjectId:ids.project,accountId:user.accountId,action:'local_crf_method_create',target:run.id,meta:{requestKey:body.requestKey,collectionId:c,inputHash:input.inputHash,manifestHash:input.manifestHash}}});
+   await guard(tx,user,parent,pack);created=true;
+   return{run:present(parent,state,pack,run),operation:{id:body.requestKey,runId:run.id}};
+  });if(created)schedule(user,p,c,result.run.id);return result;
+ }
+ function claimWhere(run,token){return{id:run.id,tenantId:ids.tenant,studyGroupId:ids.group,researchProjectId:ids.project,accountId:run.accountId,agentId,skillKey:'research-data-quality',status:run.status,updatedAt:run.updatedAt,inputHash:run.inputHash,environment:{path:['executionToken'],equals:token}};}
+ async function execute(user,p,c,id){
+  const token=randomUUID();let claimed;
+  try{
+   claimed=await withRun(user,p,c,id,'artifact.edit',async(tx,parent,state,pack,view,run)=>{
+    if(run.status!=='queued'||interrupted(run))return null;current(parent,state,pack);if(view.sourceStatus!=='current')fail('CRF_METHOD_SOURCE_CHANGED','运行冻结来源已过期');
+    const first=await tx.researchMethodRun.updateMany({where:{id,tenantId:ids.tenant,accountId:user.accountId,status:'queued',updatedAt:run.updatedAt,inputHash:run.inputHash,environment:{path:['instanceId'],equals:instanceId}},data:{status:'validating',stage:'validating',environment:{...run.environment,executionToken:token}}});if(first.count!==1)return null;
+    const validating=await ownRun(tx,user,p,c,id),next=await tx.researchMethodRun.updateMany({where:claimWhere(validating,token),data:{status:'running',stage:'running',startedAt:new Date()}});if(next.count!==1)fail('CRF_METHOD_CLAIM_CHANGED','当前认领已变化');return ownRun(tx,user,p,c,id);
+   });if(!claimed)return;
+   await withRun(user,p,c,id,'artifact.edit',async(_tx,parent,state,pack,view,run)=>{current(parent,state,pack);if(view.sourceStatus!=='current'||run.status!=='running'||run.environment?.instanceId!==instanceId||run.environment?.executionToken!==token||run.updatedAt.getTime()!==claimed.updatedAt.getTime()||run.inputHash!==claimed.inputHash)fail('CRF_METHOD_EXECUTION_CHANGED','Worker前当前执行已失效');});
+   const snapshot=claimed.inputSummary.localCrfMethod,trace={runId:id,instanceId,executionToken:token,inputHash:claimed.inputHash,manifestHash:snapshot.manifestHash,startedAt:new Date().toISOString(),endpoint:'http://127.0.0.1:19505/v1/execute'};
+   const workerScope=root+'.tmp/researchhub-knowledge-local/quality-worker.json',stat=lstatSync(workerScope);assert(stat.isFile()&&!stat.isSymbolicLink()&&(stat.mode&0o077)===0);const{token:workerToken}=JSON.parse(readFileSync(workerScope));assert(typeof workerToken==='string'&&workerToken.length>=16);
+   const saveTrace=()=>writeFileSync(traceDir+id+'.json',JSON.stringify(trace,null,2),{mode:0o600});
+   const worker=new Worker({url:'http://127.0.0.1:19505',token:workerToken,fetchImpl:async(url,init)=>{
+    assert.equal(String(url),trace.endpoint);assert(Buffer.byteLength(init.body)<=65536);const body=JSON.parse(init.body);assert.equal(body.schemaVersion,'research-methods-worker.v1');assert.equal(body.executorKey,'research-data-quality');assert.equal(body.requestId,id);assert.equal(edcDigest(body.input),snapshot.manifestHash);trace.request=body;trace.requestHash=edcDigest(body);saveTrace();
+    const response=await nativeFetch(url,{...init,redirect:'error'}),text=await response.clone().text();assert(Buffer.byteLength(text)<=128*1024);trace.httpStatus=response.status;trace.response=JSON.parse(text);trace.responseHash=edcDigest(trace.response);trace.finishedAt=new Date().toISOString();saveTrace();return response;
+   }});
+   const response=await worker.execute('research-data-quality',snapshot.manifest,id),{result,resultHash}=projectCrfMethodResult(snapshot,response);
+   await withRun(user,p,c,id,'artifact.edit',async(tx,parent,state,pack,view,run)=>{
+    current(parent,state,pack);if(view.sourceStatus!=='current'||run.status!=='running'||run.environment?.instanceId!==instanceId||run.environment?.executionToken!==token||run.inputHash!==claimed.inputHash||run.updatedAt.getTime()!==claimed.updatedAt.getTime())fail('CRF_METHOD_EXECUTION_CHANGED','运行或当前来源已变化，结果未提交');
+    const published=await tx.researchMethodRun.updateMany({where:claimWhere(claimed,token),data:{status:'needs_review',stage:'needs_review',completedAt:new Date(),reviewStatus:'pending_review',artifactRefs:{crfResult:result,resultHash,trace:{requestHash:trace.requestHash,responseHash:trace.responseHash,finishedAt:trace.finishedAt}},numericEvidence:result.evidenceGroups.flatMap(g=>g.numericEvidence),warnings:[],limits:['仅本人合成包缺失与显式人工范围；未实施疗效分析或质量放行'],nextSteps:[]}});if(published.count!==1)fail('CRF_METHOD_EXECUTION_CHANGED','运行提交CAS已变化');
+    await tx.auditLog.create({data:{tenantId:ids.tenant,studyGroupId:ids.group,researchProjectId:ids.project,accountId:user.accountId,action:'local_crf_method_result',target:id,meta:{inputHash:claimed.inputHash,manifestHash:snapshot.manifestHash,resultHash,instanceId,approved:false}}});await guard(tx,user,parent,pack);
+   });
+  }catch(reason){
+   if(!claimed){interruptedIds.add(id);return;}
+   const raw=reason.getResponse?.()?.code??reason.code,code=typeof raw==='string'&&/^[A-Z0-9_]{1,80}$/.test(raw)?raw:'CRF_METHOD_EXECUTION_FAILED';
+   try{await withRun(user,p,c,id,'artifact.edit',async(tx,parent,state,pack,view,run)=>{
+    current(parent,state,pack);if(view.sourceStatus!=='current'||run.status!=='running'||run.environment?.instanceId!==instanceId||run.environment?.executionToken!==token||run.inputHash!==claimed.inputHash||run.updatedAt.getTime()!==claimed.updatedAt.getTime())fail('CRF_METHOD_EXECUTION_CHANGED','失败提交上下文已变化');
+    const changed=await tx.researchMethodRun.updateMany({where:claimWhere(claimed,token),data:{status:'failed',stage:'failed',completedAt:new Date(),errorCode:code,errorMessage:'本次方法未交付结果，请核对当前来源、授权或计算服务；不会自动重试。'}});if(changed.count!==1)fail('CRF_METHOD_EXECUTION_CHANGED','失败提交CAS已变化');
+    await tx.auditLog.create({data:{tenantId:ids.tenant,studyGroupId:ids.group,researchProjectId:ids.project,accountId:user.accountId,action:'local_crf_method_failed',target:id,meta:{code,inputHash:claimed.inputHash,instanceId}}});await guard(tx,user,parent,pack);
+   });}catch{interruptedIds.add(id);}
+  }
+ }
+ function schedule(user,p,c,id){if(active.has(id))return;active.add(id);setImmediate(()=>execute(user,p,c,id).catch(()=>interruptedIds.add(id)).finally(()=>active.delete(id)));}
+ async function read(user,p,c,id,query={}){if(Object.keys(query).some(k=>k!=='compareRunId')||query.compareRunId!==undefined&&(!/^[A-Za-z0-9_-]{1,160}$/.test(query.compareRunId)||query.compareRunId===id))fail('CRF_METHOD_INPUT_INVALID','比较目标参数无效',400);return withRun(user,p,c,id,'artifact.read',async(tx,parent,state,pack,view,raw)=>{let comparison;if(query.compareRunId){const other=await ownRun(tx,user,p,c,query.compareRunId);comparison=checked(()=>compareCrfMethodRuns(view,present(parent,state,pack,other)));}const av=state!=='restricted'&&ai?await ai.live(tx,user,parent,state,pack,view,raw):{},rv=state!=='restricted'&&reports?await reports.live(tx,user,view,raw):{};return{run:{...view,...av,...rv,actions:{...view.actions,...av.actions,...rv.actions}},...(comparison?{comparison}:{})};});}
+ async function list(user,p,c,query){if(Object.keys(query).some(k=>!['limit','cursor'].includes(k))||query.limit!==undefined&&!/^(?:[1-9]|1[0-9]|20)$/.test(query.limit)||query.cursor!==undefined&&!/^[A-Za-z0-9_-]{1,160}$/.test(query.cursor))fail('CRF_METHOD_INPUT_INVALID','分页参数无效',400);return withPacket(user,p,c,'artifact.read',async(tx,parent,state,pack)=>{if(state==='restricted')return{items:[],nextCursor:null,sourceStatus:'restricted',message:'资料或授权受限，不交付本人方法输入或结果'};if(query.cursor)await ownRun(tx,user,p,c,query.cursor);const limit=Number(query.limit??20),rows=await tx.researchMethodRun.findMany({where:where(user,p,c),orderBy:[{createdAt:'desc'},{id:'desc'}],take:limit+1,...(query.cursor?{cursor:{id:query.cursor},skip:1}:{})});const items=[];for(const row of rows.slice(0,limit)){const verified=await ownRun(tx,user,p,c,row.id);items.push(present(parent,state,pack,verified));}return{items,nextCursor:rows.length>limit?rows[limit-1].id:null};});}
+ class MethodsController{preview(req,p,c,q){return preview(req.user,p,c,q);}create(req,p,c,b){return create(req.user,p,c,b);}list(req,p,c,q){return list(req.user,p,c,q);}read(req,p,c,id,q){return read(req.user,p,c,id,q);}interpret(req,p,c,id,b){return ai.run(req.user,p,c,id,b);}reportCreate(req,p,c,id,b){return reports.create(req.user,p,c,id,b);}reportRead(req,p,c,id,r,q){exact(q,[]);return reports.read(req.user,p,c,id,r);}reportHistory(req,p,c,id,r,no,q){exact(q,[]);if(!/^(?:[1-9]|[12][0-9]|30)$/.test(no))fail('CRF_REPORT_INPUT_INVALID','报告版本必须1–30',400);return reports.read(req.user,p,c,id,r,Number(no));}reportSave(req,p,c,id,r,b){return reports.save(req.user,p,c,id,r,b);}}
+ Controller('research-plan-drafts/:planId/synthetic-collections/:collectionId')(MethodsController);RequireStudyGroup()(MethodsController);RequireResearchProject()(MethodsController);RequireStudyGroupMenu('artifacts')(MethodsController);RequireStudyGroupPermission('artifact.read')(MethodsController);
+ for(const[name,verb,path,last]of[['preview',Get,'method-preview','query'],['create',Post,'method-runs','body'],['list',Get,'method-runs','query'],['read',Get,'method-runs/:runId','run']]){verb(path)(MethodsController.prototype,name,Object.getOwnPropertyDescriptor(MethodsController.prototype,name));Req()(MethodsController.prototype,name,0);Param('planId')(MethodsController.prototype,name,1);Param('collectionId')(MethodsController.prototype,name,2);if(last==='run'){Param('runId')(MethodsController.prototype,name,3);Query()(MethodsController.prototype,name,4);}else(last==='body'?Body():Query())(MethodsController.prototype,name,3);}
+ Post('method-runs/:runId/interpretation-jobs')(MethodsController.prototype,'interpret',Object.getOwnPropertyDescriptor(MethodsController.prototype,'interpret'));Req()(MethodsController.prototype,'interpret',0);Param('planId')(MethodsController.prototype,'interpret',1);Param('collectionId')(MethodsController.prototype,'interpret',2);Param('runId')(MethodsController.prototype,'interpret',3);Body()(MethodsController.prototype,'interpret',4);
+ for(const[name,verb,path,params]of[['reportCreate',Post,'report-drafts',[Body()]],['reportRead',Get,'report-drafts/:reportId',[Param('reportId'),Query()]],['reportHistory',Get,'report-drafts/:reportId/versions/:version',[Param('reportId'),Param('version'),Query()]],['reportSave',Post,'report-drafts/:reportId/notes',[Param('reportId'),Body()]]]){verb('method-runs/:runId/'+path)(MethodsController.prototype,name,Object.getOwnPropertyDescriptor(MethodsController.prototype,name));Req()(MethodsController.prototype,name,0);Param('planId')(MethodsController.prototype,name,1);Param('collectionId')(MethodsController.prototype,name,2);Param('runId')(MethodsController.prototype,name,3);params.forEach((v,i)=>v(MethodsController.prototype,name,i+4));}
+ return{Controller:MethodsController,withRun,inRun,read,authorized,setAi:value=>{ai=value;},setReports:value=>{reports=value;}};
+}

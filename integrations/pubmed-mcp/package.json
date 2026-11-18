@@ -1,0 +1,10 @@
+{
+  "name": "@qiyan/pubmed-mcp-integration",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "dependencies": {
+    "@cyanheads/pubmed-mcp-server": "2.11.1",
+    "@modelcontextprotocol/sdk": "1.32.2"
+  }
+}

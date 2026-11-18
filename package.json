@@ -10,13 +10,30 @@
     "serve:dist": "node scripts/serve-dist.mjs"
   },
   "dependencies": {
+    "@tiptap/extension-image": "3.31.3",
+    "@tiptap/extension-link": "3.31.3",
+    "@tiptap/extension-placeholder": "3.31.3",
+    "@tiptap/extension-table": "3.31.3",
+    "@tiptap/extension-table-cell": "3.31.3",
+    "@tiptap/extension-table-header": "3.31.3",
+    "@tiptap/extension-table-row": "3.31.3",
+    "@tiptap/pm": "3.31.3",
+    "@tiptap/react": "3.31.3",
+    "@tiptap/starter-kit": "3.31.3",
     "lucide-react": "0.468.0",
+    "nodemailer": "9.0.5",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "recharts": "2.15.4"
+    "react-markdown": "10.1.0",
+    "recharts": "2.15.4",
+    "remark-gfm": "4.0.1",
+    "tiptap-markdown": "0.9.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "4.3.4",
+    "autoprefixer": "10.4.20",
+    "postcss": "8.4.49",
+    "tailwindcss": "3.4.17",
     "vite": "6.0.7"
   },
   "packageManager": "pnpm@11.19.0"

@@ -1,0 +1,7 @@
+.report-qa-quote { outline:2px solid var(--brand-primary); outline-offset:4px; background:var(--brand-soft); scroll-margin-block:120px; }
+.report-qa-workspace .composer form { display:grid; gap:8px; }
+.report-qa-workspace .composer textarea { width:100%; resize:vertical; font:inherit; min-height:88px; }
+.report-qa-workspace .report-qa-evidence article { margin-block:24px; min-width:0; }
+.report-qa-workspace .research-asset-reading { font-size:16px; line-height:28px; max-width:48rem; }
+.report-qa-workspace .research-asset-reading :is(p,td,th,li) { font-size:inherit; line-height:inherit; }
+.report-qa-workspace .research-asset-reading table { min-width:100%; }

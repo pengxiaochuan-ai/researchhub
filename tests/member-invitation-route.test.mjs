@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {isRealMembersPage,memberInvitationHeader} from '../src/member-invitation-route.js';
+test('real S11 never borrows sample study title or grants actions; demo stays explicitly separate',()=>{const base={title:'示例针刺研究',actions:[['审批']],nav:[['示例']],meta:'示例注册号'};assert.equal(isRealMembersPage('s11',true,false),true);const next=memberInvitationHeader(base,'s11',true,false);assert.equal(next.title,'Study成员与邀请');assert.deepEqual(next.actions,[]);assert.equal(next.nav,undefined);assert.equal(next.meta.includes('示例注册号'),false);assert.deepEqual(base.actions,[['审批']]);assert.equal(memberInvitationHeader(base,'s11',true,true),base);});

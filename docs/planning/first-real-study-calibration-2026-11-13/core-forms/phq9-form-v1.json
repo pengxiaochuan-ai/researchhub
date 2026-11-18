@@ -1,0 +1,435 @@
+{
+  "documentType": "source-frozen-form-content-and-contract-candidate",
+  "versionId": "phq9-zh-CN-09a8afdec154-content-v1",
+  "instrument": "PHQ-9",
+  "language": "Simplified Chinese for Mainland China",
+  "sourceFrozen": true,
+  "sourceSnapshotDate": "2026-11-13",
+  "sourceVersionNotInvented": true,
+  "sourceRef": "researchhub/docs/study/core-forms-2026-11-13/phq9/phq9-zh-CN-source-verbatim.json",
+  "sourcePdfSha256": "09a8afdec1546b54162850faae7b9bc43d53879e9cbe8b8e1263e67ff254b095",
+  "content": {
+    "title": "病人健康状况问卷  －  9 \n(PHQ-9)",
+    "recallPeriodPrompt": "在过去两周，您经常受到以下问题的困扰吗？",
+    "instruction": "（请用“✔”勾选您的答案）",
+    "scoredItems": [
+      {
+        "source_item_number": 1,
+        "source_pdf_page": 1,
+        "text": "做任何事都觉得沉闷或者根本不想做任何事",
+        "source_text_with_line_wraps": "做任何事都觉得沉闷或者根本不想做任何事",
+        "scored": true,
+        "value_domain": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "reverse_scored": false
+      },
+      {
+        "source_item_number": 2,
+        "source_pdf_page": 1,
+        "text": "情绪低落、抑郁或绝望",
+        "source_text_with_line_wraps": "情绪低落、抑郁或绝望",
+        "scored": true,
+        "value_domain": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "reverse_scored": false
+      },
+      {
+        "source_item_number": 3,
+        "source_pdf_page": 1,
+        "text": "难于入睡；半夜会醒，或相反，睡觉时间过多",
+        "source_text_with_line_wraps": "难于入睡；半夜会醒，或相反，睡觉时间过多",
+        "scored": true,
+        "value_domain": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "reverse_scored": false
+      },
+      {
+        "source_item_number": 4,
+        "source_pdf_page": 1,
+        "text": "觉得疲倦或沒有活力",
+        "source_text_with_line_wraps": "觉得疲倦或沒有活力",
+        "scored": true,
+        "value_domain": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "reverse_scored": false
+      },
+      {
+        "source_item_number": 5,
+        "source_pdf_page": 1,
+        "text": "胃口极差或饮食过量",
+        "source_text_with_line_wraps": "胃口极差或饮食过量",
+        "scored": true,
+        "value_domain": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "reverse_scored": false
+      },
+      {
+        "source_item_number": 6,
+        "source_pdf_page": 1,
+        "text": "不喜欢自己──觉得自己做得不好、对自己失望或有负家人期望",
+        "source_text_with_line_wraps": "不喜欢自己──觉得自己做得不好、对自己失望或有负家人\n期望",
+        "scored": true,
+        "value_domain": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "reverse_scored": false
+      },
+      {
+        "source_item_number": 7,
+        "source_pdf_page": 1,
+        "text": "难于集中精神做事，例如看报纸或看电视",
+        "source_text_with_line_wraps": "难于集中精神做事，例如看报纸或看电视",
+        "scored": true,
+        "value_domain": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "reverse_scored": false
+      },
+      {
+        "source_item_number": 8,
+        "source_pdf_page": 1,
+        "text": "其它人反映你行动或说话迟缓；或者相反，你比平常活动更多──坐立不安、停不下来",
+        "source_text_with_line_wraps": "其它人反映你行动或说话迟缓；或者相反，你比平常活动更\n多──坐立不安、停不下来",
+        "scored": true,
+        "value_domain": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "reverse_scored": false
+      },
+      {
+        "source_item_number": 9,
+        "source_pdf_page": 1,
+        "text": "想到自己最好去死或者自残",
+        "source_text_with_line_wraps": "想到自己最好去死或者自残",
+        "scored": true,
+        "value_domain": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "reverse_scored": false
+      }
+    ],
+    "answerOptions": [
+      {
+        "label": "从来沒有",
+        "value": 0,
+        "source_text_with_line_wraps": "从来沒有"
+      },
+      {
+        "label": "有几天",
+        "value": 1,
+        "source_text_with_line_wraps": "有几天"
+      },
+      {
+        "label": "刚超过一半天数",
+        "value": 2,
+        "source_text_with_line_wraps": "刚超过 \n一半 \n天数"
+      },
+      {
+        "label": "接近每天",
+        "value": 3,
+        "source_text_with_line_wraps": "接近 \n每天"
+      }
+    ],
+    "functionalDifficulty": {
+      "source_item_number": null,
+      "note": "原件未给功能困难附加题编号；不得将10误述为原件印刷编号。",
+      "source_pdf_page": 1,
+      "text": "如果你选出以上任何问题，这些问题对你的工作、处理家中事务或与人相处时来说造成多大困难？",
+      "options": [
+        {
+          "label": "完全沒有困难",
+          "source_order": 1
+        },
+        {
+          "label": "有一些困难",
+          "source_order": 2
+        },
+        {
+          "label": "非常困难",
+          "source_order": 3
+        },
+        {
+          "label": "极度困难",
+          "source_order": 4
+        }
+      ],
+      "scored": false,
+      "score": null,
+      "source_scoring_authority": {
+        "url": "https://www.phqscreeners.com/images/sites/g/files/g10016261/f/201412/instructions.pdf",
+        "pdf_page": 2,
+        "description": "The final patient-rated difficulty item is not used in calculating any PHQ score or diagnosis."
+      }
+    },
+    "permissionNotice": "本问卷由 Robert L. Spitzer 博士、Janet B.W. Williams 博士、Kurt Kroenke 博士和同事用 Pfizer Inc.提供的教育基金设计。无需准许即可复制、翻译、展示或分发。"
+  },
+  "formSchema": {
+    "schemaVersion": "form-schema.v1",
+    "fields": [
+      {
+        "key": "phq9_q1",
+        "label": "做任何事都觉得沉闷或者根本不想做任何事",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 3
+      },
+      {
+        "key": "phq9_q2",
+        "label": "情绪低落、抑郁或绝望",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 3
+      },
+      {
+        "key": "phq9_q3",
+        "label": "难于入睡；半夜会醒，或相反，睡觉时间过多",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 3
+      },
+      {
+        "key": "phq9_q4",
+        "label": "觉得疲倦或沒有活力",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 3
+      },
+      {
+        "key": "phq9_q5",
+        "label": "胃口极差或饮食过量",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 3
+      },
+      {
+        "key": "phq9_q6",
+        "label": "不喜欢自己──觉得自己做得不好、对自己失望或有负家人期望",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 3
+      },
+      {
+        "key": "phq9_q7",
+        "label": "难于集中精神做事，例如看报纸或看电视",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 3
+      },
+      {
+        "key": "phq9_q8",
+        "label": "其它人反映你行动或说话迟缓；或者相反，你比平常活动更多──坐立不安、停不下来",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 3
+      },
+      {
+        "key": "phq9_q9",
+        "label": "想到自己最好去死或者自残",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 3
+      },
+      {
+        "key": "functional_difficulty",
+        "label": "如果你选出以上任何问题，这些问题对你的工作、处理家中事务或与人相处时来说造成多大困难？",
+        "type": "select",
+        "required": false,
+        "score": false,
+        "options": [
+          {
+            "value": "difficulty_1",
+            "label": "完全沒有困难"
+          },
+          {
+            "value": "difficulty_2",
+            "label": "有一些困难"
+          },
+          {
+            "value": "difficulty_3",
+            "label": "非常困难"
+          },
+          {
+            "value": "difficulty_4",
+            "label": "极度困难"
+          }
+        ]
+      }
+    ]
+  },
+  "scoring": {
+    "algorithm": "numeric-sum-v1",
+    "scoredKeys": [
+      "phq9_q1",
+      "phq9_q2",
+      "phq9_q3",
+      "phq9_q4",
+      "phq9_q5",
+      "phq9_q6",
+      "phq9_q7",
+      "phq9_q8",
+      "phq9_q9"
+    ],
+    "totalMin": 0,
+    "totalMax": 27,
+    "reverseItems": [],
+    "sourcePages": [
+      3,
+      5,
+      6
+    ],
+    "sourceManual": "researchhub/docs/study/core-forms-2026-11-13/phq9/instructions.pdf"
+  },
+  "scaleVersionCandidate": {
+    "items": [
+      {
+        "itemNo": "1",
+        "minScore": 0,
+        "maxScore": 3,
+        "step": 1,
+        "reverse": false,
+        "subscaleKey": null
+      },
+      {
+        "itemNo": "2",
+        "minScore": 0,
+        "maxScore": 3,
+        "step": 1,
+        "reverse": false,
+        "subscaleKey": null
+      },
+      {
+        "itemNo": "3",
+        "minScore": 0,
+        "maxScore": 3,
+        "step": 1,
+        "reverse": false,
+        "subscaleKey": null
+      },
+      {
+        "itemNo": "4",
+        "minScore": 0,
+        "maxScore": 3,
+        "step": 1,
+        "reverse": false,
+        "subscaleKey": null
+      },
+      {
+        "itemNo": "5",
+        "minScore": 0,
+        "maxScore": 3,
+        "step": 1,
+        "reverse": false,
+        "subscaleKey": null
+      },
+      {
+        "itemNo": "6",
+        "minScore": 0,
+        "maxScore": 3,
+        "step": 1,
+        "reverse": false,
+        "subscaleKey": null
+      },
+      {
+        "itemNo": "7",
+        "minScore": 0,
+        "maxScore": 3,
+        "step": 1,
+        "reverse": false,
+        "subscaleKey": null
+      },
+      {
+        "itemNo": "8",
+        "minScore": 0,
+        "maxScore": 3,
+        "step": 1,
+        "reverse": false,
+        "subscaleKey": null
+      },
+      {
+        "itemNo": "9",
+        "minScore": 0,
+        "maxScore": 3,
+        "step": 1,
+        "reverse": false,
+        "subscaleKey": null
+      }
+    ],
+    "missingRule": "incomplete_invalid"
+  },
+  "projectPolicy": {
+    "missingScoredItems": "no_total_no_imputation_no_prorating",
+    "missingPolicyIsSourceRule": false,
+    "functionalDifficultyRequired": false,
+    "functionalDifficultyRequiredStatus": "candidate_pending_protocol_review",
+    "functionalStoredValueMeaning": "opaque_non_scoring_codes_not_source_points",
+    "clinicalDiagnosticCutoff": null,
+    "severityClassificationEnabled": false,
+    "syndromeLabelUse": false,
+    "safetyFollowupSOP": "pending_study_and_hospital_protocol_not_invented"
+  },
+  "presentationContract": {
+    "scoredItemControl": "four labeled source frequency choices; numeric storage only",
+    "optionsRef": "content.answerOptions",
+    "preserveSourceUnicode": true,
+    "renderingVerifiedInRuntime": false,
+    "currentGenericIntegerRendererNotAssumedToSupportLabels": true
+  },
+  "runtime": {
+    "published": false,
+    "fixedVersionId": null,
+    "studyId": null,
+    "captureAssigned": false,
+    "notificationsSent": false,
+    "businessAccepted": false
+  }
+}

@@ -1,0 +1,156 @@
+<!-- 本文件仅供方案分支生成飞书文档；正文按用户范围组织。表格缺失字段填 -，引用保留工具返回的原始 URL。本文件是可选章节组件库，不是固定目录。按用户问题和交付目标选择、合并、拆分、重排、重命名并重新编号；删除无关组件，正式创建前删除本注释。 -->
+<title>{{研究简称}}医学科研方案</title>
+
+<callout emoji="🧭" background-color="light-green">
+  <p><b>方案总结：</b>{{用一个完整段落概括研究问题、推荐设计、目标人群或实验系统、主要比较、主要终点、关键时间结构及本研究拟解决的核心问题，让读者不展开正文也能理解方案主线。未冻结的 A 级要素必须标明条件或待确认，不得写成已确定事实；必要时把全文定位为“初版方案”。}}</p>
+</callout>
+<callout emoji="⚠️" background-color="light-yellow">
+  <p><b>仍需确定的问题：</b>{{列出需要用户、统计师、伦理团队或研究团队进一步确认，且会影响设计、终点、样本量、安全或实施的关键问题；无实质内容则删除本块。}}</p>
+</callout>
+
+<h1>我先直接回答你最关心的问题</h1>
+<p>{{本部分紧接在上述两个高亮块之后。按用户明确提出的问题数量复制或删除下方“问题”小节；先逐项回答，不先铺陈背景。}}</p>
+<h2>{{问题一：用用户原问题的稳定简称作为小节标题}}</h2>
+<ul>
+  <li><p><b>直接结论：</b>{{用清楚、可执行的一至数句话直接回答该问题。}}</p></li>
+  <li><p><b>关键建议：</b>{{列出最重要的方法、选择、边界或下一步。}}</p></li>
+  <li><p><b>仍需确认：</b>{{仅列会改变本项答案的必要信息；没有则删除本条。}}</p></li>
+</ul>
+<p>更详细的设计和分析见下文。</p>
+
+<h1>一、版本与设计总览</h1>
+<table>
+  <thead>
+    <tr><th background-color="light-blue">项目</th><th background-color="light-blue">方案定义</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>版本与日期</td><td>{{版本；日期；修订状态}}</td></tr>
+    <tr><td>研究语境</td><td>{{临床与人群 / 人源样本转化 / 实验生物医学}}</td></tr>
+    <tr><td>主要问题与设计</td><td>{{问题家族；设计家族}}</td></tr>
+    <tr><td>独立研究单位</td><td>{{患者/受试者/中心/供者/动物/培养批次等}}</td></tr>
+    <tr><td>证据状态</td><td>{{用户材料 / 定向核验 / 证据支持；检索截止日期}}</td></tr>
+  </tbody>
+</table>
+
+<h1>二、背景、研究缺口与依据</h1>
+<p>{{围绕研究主题按类似论文引言的逻辑充分展开：说明问题的重要性和临床或科学背景，梳理国内外研究与实践现状、主要进展、共识和争议，概括现有证据的关键局限，并自然引出本研究拟解决的缺口、开展必要性和预期价值。根据用户问题、研究语境和已有材料自行决定内容层次、段落数量与详略；涉及外部事实时，把可点击的完整题名、稳定题名简称或与文末对应的方括号编号置于事实陈述后的中文全角括号内，句末标点放在右括号后。}}</p>
+
+<h1>三、相关研究调研</h1>
+<p>{{概括本轮调研覆盖的国内外研究、指南、专家共识和检索时间范围，并用一段话总结当前研究状态。若本轮只使用用户材料，明确说明未开展外部调研，不补造研究现状。}}</p>
+<h2>3.1 国内外研究现状</h2>
+<p>{{按研究发展脉络梳理国外与国内的主要研究方向、代表性发现、常用设计或技术路线、当前共识与争议；既说明已经解决了什么，也说明现阶段研究停留在哪里。国内或国外一侧缺少可靠证据时如实说明。}}</p>
+<h2>3.2 代表性研究</h2>
+<table>
+  <thead>
+    <tr><th background-color="light-blue">地区/范围</th><th background-color="light-blue">研究</th><th background-color="light-blue">期刊/机构</th><th background-color="light-blue">年份</th><th background-color="light-blue">期刊分区/级别（2025）</th><th background-color="light-blue">人群或模型与设计</th><th background-color="light-blue">主要发现</th><th background-color="light-blue">局限</th><th background-color="light-blue">对本研究的启示</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>{{国内/国外/多国}}</td><td><a href="{{已核验的原文、摘要或资料原始入口 URL}}">{{代表性研究题名}}</a></td><td>{{期刊或研究机构}}</td><td>{{发表年份}}</td><td>{{匹配成功的 2025 期刊分区/级别；非期刊或未匹配填 -}}</td><td>{{目标人群或模型、样本、设计和场景}}</td><td>{{与本研究主题直接相关的结果及不确定性}}</td><td>{{偏倚、样本、外推或测量限制}}</td><td>{{本研究借鉴、调整或拟进一步回答的内容}}</td></tr>
+  </tbody>
+</table>
+<h2>3.3 相关指南与专家共识</h2>
+<table>
+  <thead>
+    <tr><th background-color="light-blue">指南或专家共识</th><th background-color="light-blue">发布机构/期刊</th><th background-color="light-blue">国家/地区</th><th background-color="light-blue">年份</th><th background-color="light-blue">期刊分区/级别（2025）</th><th background-color="light-blue">与本研究相关的核心内容</th><th background-color="light-blue">对本方案的依据或影响</th><th background-color="light-blue">适用边界</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><a href="{{已核验的官方或原文入口}}">{{指南或专家共识完整题名}}</a></td><td>{{发布机构或发表期刊}}</td><td>{{国家/地区或国际组织}}</td><td>{{发布或更新年份}}</td><td>{{以期刊论文发表且可靠匹配时填写；否则留空}}</td><td>{{与研究对象、干预/暴露、终点、流程或安全相关的原文要点}}</td><td>{{本方案据此采用、调整或保留的设计内容}}</td><td>{{版本、人群、证据等级或地域适用限制}}</td></tr>
+  </tbody>
+</table>
+<h2>3.4 对本研究的启示与依据</h2>
+<p>{{综合国内外研究、指南和专家共识，说明本研究建立在哪些已有证据之上、准备解决什么尚未充分回答的问题，以及这些证据如何支持推荐设计、目标人群、比较、终点和实施路径；不再重复罗列文献。}}</p>
+
+<h1>四、目标、假设与目标参数</h1>
+<table>
+  <thead>
+    <tr><th background-color="light-blue">层级</th><th background-color="light-blue">内容</th><th background-color="light-blue">对应终点/参数</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>主要</td><td>{{主要目标与假设}}</td><td>{{estimand 或目标参数}}</td></tr>
+    <tr><td>次要/探索</td><td>{{按需填写}}</td><td>{{对应终点或明确探索性}}</td></tr>
+  </tbody>
+</table>
+
+<h1>五、研究设计、对象与资格</h1>
+<p>{{场景、中心、设计、目标/源人群或实验系统、招募/获取方式、time zero/实验起点和总体时间。}}</p>
+<table>
+  <thead>
+    <tr><th background-color="light-blue">时间对齐要素</th><th background-color="light-blue">操作定义</th><th background-color="light-blue">可用数据/记录</th><th background-color="light-blue">与 estimand 的关系</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>资格判定时点</td><td>{{时点与条件}}</td><td>{{医嘱/处方/配药/服药/实验记录}}</td><td>{{纳入哪个目标人群}}</td></tr>
+    <tr><td>策略分配或克隆时点</td><td>{{基线策略、CCW、landmark、时间变化暴露或不适用}}</td><td>{{在该时点真实可见的信息}}</td><td>{{目标参数}}</td></tr>
+    <tr><td>随访开始</td><td>{{time zero 或新的 landmark}}</td><td>{{结局捕获起点}}</td><td>{{早期结局是否纳入及原因}}</td></tr>
+    <tr><td>宽限期</td><td>{{无；或时长、方法、人工删失/权重}}</td><td>{{所需纵向数据}}</td><td>{{目标人群与 estimand 的变化}}</td></tr>
+  </tbody>
+</table>
+<table>
+  <thead>
+    <tr><th background-color="light-blue">类别</th><th background-color="light-blue">标准</th><th background-color="light-blue">操作化来源</th><th background-color="light-blue">理由</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>纳入/单位资格</td><td>{{标准}}</td><td>{{CRF/EHR/检测/实验记录}}</td><td>{{科学、伦理或安全理由}}</td></tr>
+    <tr><td>排除/不可评价</td><td>{{标准}}</td><td>{{来源与判定时点}}</td><td>{{理由及偏倚风险}}</td></tr>
+  </tbody>
+</table>
+
+<h1>六、干预、暴露、检测或实验处理</h1>
+<p>{{只保留适用内容：干预与对照、暴露策略、指标试验与参考标准、访谈/实施策略，或实验处理与对照。}}</p>
+
+<h1>七、终点与测量</h1>
+<table>
+  <thead>
+    <tr><th background-color="light-blue">终点</th><th background-color="light-blue">操作定义</th><th background-color="light-blue">时间窗</th><th background-color="light-blue">来源/确认</th><th background-color="light-blue">分析尺度</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>{{主要终点}}</td><td>{{事件或测量规则}}</td><td>{{相对起点}}</td><td>{{来源、盲法、裁决或失败处理}}</td><td>{{连续/二分类/时间至事件等}}</td></tr>
+  </tbody>
+</table>
+
+<h1>八、研究流程、数据与样本</h1>
+<whiteboard type="mermaid">
+flowchart LR
+    A[筛选或准备] --> B[入组/分配/处理]
+    B --> C[测量与随访]
+    C --> D[主要终点评估]
+    D --> E[分析与报告]
+</whiteboard>
+<p>{{访视/采样/实验时间表、变量与角色、患者—标本链、数据源、质量控制和失败处理；按路由删除不适用内容。}}</p>
+
+<h1>九、偏倚控制、样本量与统计框架</h1>
+<table>
+  <thead>
+    <tr><th background-color="light-blue">主要风险</th><th background-color="light-blue">设计阶段控制</th><th background-color="light-blue">分析/敏感性检查</th><th background-color="light-blue">剩余限制</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>{{偏倚或识别风险}}</td><td>{{随机、盲法、抽样、time zero、上板等}}</td><td>{{模型或敏感性分析}}</td><td>{{不能完全消除的影响}}</td></tr>
+  </tbody>
+</table>
+<p><b>样本量：</b>{{规划立场、输入来源、基准/保守/可行情景和正式计算状态。}}</p>
+<p><b>统计：</b>{{分析人群/单位、主要模型、效应尺度、缺失、多重性、诊断和敏感性分析。}}</p>
+
+<h1>十、安全、质量、伦理与数据治理</h1>
+<p>{{风险与监测、知情同意/授权、人源/动物材料治理、隐私与权限、数据质量、保存共享、注册和结果公开。}}</p>
+
+<h1>十一、可行性与实施安排</h1>
+<table>
+  <thead>
+    <tr><th background-color="light-blue">要素</th><th background-color="light-blue">当前已确认</th><th background-color="light-blue">缺口</th><th background-color="light-blue">应对</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>{{招募/数据/样本/平台/人员/时间}}</td><td>{{已确认事实}}</td><td>{{已知缺口；缺失字段填 -}}</td><td>{{先导、替代或停止条件}}</td></tr>
+  </tbody>
+</table>
+
+<h1>十二、待确认的其他问题</h1>
+<table>
+  <thead>
+    <tr><th background-color="light-blue">待确认问题</th><th background-color="light-blue">为什么需要确认</th><th background-color="light-blue">推荐方案</th><th background-color="light-blue">确认责任人与时点</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>{{尚未确定的具体问题}}</td><td>{{对设计、样本量、伦理或可行性的影响}}</td><td>{{基于当前证据和条件给出的推荐处理}}</td><td>{{待用户、统计师、伦理或实验团队在何时确认}}</td></tr>
+  </tbody>
+</table>
+
+<h1>十三、参考文献</h1>
+<p><a href="{{与正文和引用台账一致的原始URL}}">[{{按正文首次出现顺序的编号}}]</a> {{按现行GB/T 7714著录的作者、题名、文献类型、来源、年份及其他适用字段；根据实际题录填写，用户明确指定其他格式时调整。}}</p>

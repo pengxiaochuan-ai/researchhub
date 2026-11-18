@@ -1,0 +1,30 @@
+// Test-only in-transaction generic fixture. Caller must enforce fixture guard and rollback.
+import {normalizePolicySections} from '../research-execution/policy-input.mjs';
+import {requestHash} from '../research-studies/contract.mjs';
+export async function createT15AnalysisFixture(tx,prefix,count=3){
+ const id=Object.fromEntries(['tenant','group','project','account','protocol','policy','plan','requirement','template','form'].map(k=>[k,prefix+'_'+k])),scope={tenantId:id.tenant,studyGroupId:id.group,researchProjectId:id.project};
+ await tx.tenant.create({data:{id:id.tenant,slug:id.tenant,name:'通用合成软件验收'}});await tx.studyGroup.create({data:{id:id.group,tenantId:id.tenant,slug:'synthetic',name:'合成课题组'}});await tx.researchProject.create({data:{id:id.project,tenantId:id.tenant,studyGroupId:id.group,code:'SYNTHETIC',name:'合成研究'}});
+ const account=await tx.account.create({data:{id:id.account,tenantId:id.tenant,username:'synthetic',displayName:'合成管理员',passwordHash:'synthetic-test-only',role:'tenant_admin',isTenantAdmin:true}});await tx.tenantFeatureEntitlement.create({data:{tenantId:id.tenant,featureKey:'study_operations',enabled:true}});
+ await tx.studyProtocolVersion.create({data:{id:id.protocol,...scope,versionNumber:1,status:'draft',title:'合成方案',purpose:'仅通用软件验证',primaryOutcomes:[]}});
+ const base={status:'not_applicable',source:'通用合成软件验收',reason:'无真实临床规则'},input=Object.fromEntries(['ethics','screening','researchConsent','dataUse','withdrawal','safety','blinding'].map(k=>[k,base]));input.site={...base,status:'configured',mode:'study_wide'};input.captureReview={...base,status:'configured',rules:{correction:'保留修订',locking:'审阅后锁定',unlocking:'有原因解锁',reviewResponsibility:'合成管理员',reviewIndependence:'not_required'}};
+ input.screening={...base,status:'configured',rules:{criteria:'Explicit synthetic example',decisionMethod:'manual'}};
+ input.researchConsent={...base,status:'configured',rules:{textVersion:'synthetic-v1',evidenceRequirement:'Explicit synthetic evidence'}};
+ input.dataUse={...base,status:'configured',rules:{purposes:'Descriptive synthetic demonstration',scope:'synthetic-research-only'}};
+ input.withdrawal={...base,status:'configured',rules:{effectiveRule:'Stop future use',retentionRule:'Keep immutable history',futureUseRule:'Current grant required'}};
+ const sections=normalizePolicySections(input,id.account,new Date()),hash=requestHash(sections);
+ await tx.$executeRaw`INSERT INTO public.study_execution_policy_version (id,"tenantId","studyGroupId","researchProjectId","protocolVersionId","versionNumber",status,sections,"contentHash","createdBy","reviewedBy","reviewedAt") VALUES (${id.policy},${id.tenant},${id.group},${id.project},${id.protocol},1,'approved',${JSON.stringify(sections)}::jsonb,${hash},${id.account},${id.account},now())`;
+ await tx.studyProtocolVersion.update({where:{id:id.protocol},data:{status:'executing',approvedPolicyVersionId:id.policy,approvedPolicyHash:hash}});
+ await tx.visitPlan.create({data:{id:id.plan,...scope,protocolVersionId:id.protocol,code:'BASELINE',name:'合成基线访视',sequence:1}});await tx.formTemplate.create({data:{id:id.template,...scope,key:'synthetic',name:'合成通用观察表'}});
+ const schema={schemaVersion:'form-schema.v1',fields:[{key:'value',label:'观察值',type:'number',required:true,min:0,max:4},{key:'optional_value',label:'可选观察值',type:'number',required:false},{key:'completed',label:'是否完成',type:'boolean',required:true}]};await tx.formVersion.create({data:{id:id.form,...scope,templateId:id.template,versionNumber:1,status:'published',lockedAt:new Date(),schema}});await tx.visitRequirement.create({data:{id:id.requirement,...scope,visitPlanId:id.plan,kind:'form_response',code:'FORM',name:'合成观察记录',required:true,config:{formVersionId:id.form}}});
+ const subjects=[];
+ for(let n=1;n<=count;n++){
+  const subjectId=prefix+'_subject_'+n,enrollmentId=prefix+'_enrollment_'+n,visitId=prefix+'_visit_'+n,subjectCode='SYNTHETIC-'+n;
+  await tx.subject.create({data:{id:subjectId,...scope,subjectId:subjectCode}});await tx.studyEnrollment.create({data:{id:enrollmentId,...scope,subjectId,protocolVersionId:id.protocol,status:'enrolled',enrolledAt:new Date()}});
+  for(const [sequence,kind]of [[1,'screening'],[2,'research_consent'],[3,'data_use_consent']])await tx.$executeRaw`INSERT INTO public.study_participation_event(id,"tenantId","studyGroupId","researchProjectId","subjectId","enrollmentId","protocolVersionId","policyVersionId","policyHash",sequence,kind,decision,method,signer,"textVersion",scope,evidence,reason,"effectiveAt","recordedBy") VALUES(${prefix+'_'+n+'_'+kind},${id.tenant},${id.group},${id.project},${subjectId},${enrollmentId},${id.protocol},${id.policy},${hash},${sequence},${kind},${kind==='screening'?'passed':'granted'},${kind==='screening'?'manual':null},${kind==='screening'?null:'synthetic signer'},${kind==='research_consent'?'synthetic-v1':null},${kind==='data_use_consent'?'synthetic-research-only':null},'synthetic','synthetic',now(),${id.account})`;
+  await tx.subjectVisit.create({data:{id:visitId,...scope,subjectId,enrollmentId,visitPlanId:id.plan,protocolVersionId:id.protocol,status:'planned',scheduleState:'scheduled',anchorAt:new Date(),targetDate:new Date(),windowStart:new Date(),windowEnd:new Date()}});subjects.push({subjectId,enrollmentId,visitId,subjectCode});
+ }
+ const intentId=prefix+'_intent',studyId=prefix+'_study';
+ await tx.$executeRaw`INSERT INTO rh_research.project_intent(id,tenant_id,owner_id,title) VALUES(${intentId},${id.tenant},${id.account},'Synthetic analysis fixture')`;
+ await tx.$executeRaw`INSERT INTO rh_research.study_binding(id,tenant_id,project_intent_id,execution_project_id,study_group_id,is_default) VALUES(${studyId},${id.tenant},${intentId},${id.project},${id.group},true)`;
+ return {id,scope,subjects,schema,studyId,user:{accountId:id.account,tenantId:id.tenant,role:'tenant_admin',isTenantAdmin:true,authVersion:account.authVersion,studyGroupId:id.group,researchProjectId:id.project}};
+}

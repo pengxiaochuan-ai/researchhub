@@ -11,6 +11,9 @@ function updateUser(header, user = getPlatformUser()) {
   header.querySelector('[data-user-name]').textContent = user.displayName || '未登录';
   header.querySelector('[data-user-role]').textContent = user.roleName || '登录后访问';
   header.querySelector('[data-user-trigger]').dataset.authenticated = String(Boolean(user.authenticated));
+  const identity=(user.displayName||'未登录')+' · '+(user.roleName||'登录后访问');
+  header.querySelector('[data-user-trigger]').title=identity;
+  header.querySelector('[data-user-trigger]').setAttribute('aria-description',identity+'。打开用户菜单查看完整身份。');
 }
 
 function createPlatformHeader() {
@@ -76,7 +79,9 @@ export function mountPlatformHeader(pageId) {
   const header = createPlatformHeader();
   const existing = findExistingHeader();
   if (existing) {
-    existing.replaceWith(header);
+    // React owns the empty container; this module owns only its contents.
+    if (existing.dataset.platformReactSlot === 'true') existing.append(header);
+    else existing.replaceWith(header);
   } else {
     const host = document.querySelector('#root > .platform-app') || document.getElementById('root');
     host?.prepend(header);

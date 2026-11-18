@@ -1,0 +1,20 @@
+// Owned local reload pre/post inspection. Never launches a worker or mutates queues.
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {readFileSync} from 'node:fs';
+import {openWF04Context,wf04Private,wf04Evidence,verifyWF04Freeze} from './study-workflow-wf04-root-context.mjs';
+import {requireWF04Window} from './study-workflow-wf04-preserve.mjs';
+import {json,save,bodyHash} from './study-workflow-wf01-qa.mjs';
+requireWF04Window();const [flag,mode]=process.argv.slice(2);assert.equal(flag,'--local-synthetic');assert(['before','after'].includes(mode));verifyWF04Freeze(wf04Evidence+'implementation-freeze-v2.json');
+const out=wf04Evidence+'root/assembly-'+mode+'-'+new Date().toISOString().replace(/[:.]/g,'-')+'-'+randomUUID().slice(0,5)+'/';let root;
+try{
+ root=await openWF04Context();const queues=await root.h.read(async tx=>({knowledge:await tx.knowledgeChatJob.findMany({where:{tenantId:root.h.runtime.ids.tenant,status:{in:['queued','running','processing']}},select:{id:true,status:true,workerOwner:true,leaseExpiresAt:true}}),imports:await tx.knowledgeImportTask.findMany({where:{tenantId:root.h.runtime.ids.tenant,status:{in:['queued','running','processing']}},select:{id:true,status:true}}),exports:await tx.researchArtifactExportJob.findMany({where:{tenantId:root.h.runtime.ids.tenant,status:{in:['queued','running','processing']}},select:{id:true,status:true,workerOwner:true,leaseExpiresAt:true}}),media:await tx.$queryRaw`SELECT r.id FROM rh_ai.session_media_content_runs r WHERE r.tenant_id=${root.h.runtime.ids.tenant} AND NOT EXISTS(SELECT 1 FROM rh_ai.session_media_content_runs n WHERE n.root_id=r.root_id AND n.attempt_no>r.attempt_no) AND (r.channels->'audio'->>'state' IN('queued','running') OR r.channels->'visual'->>'state' IN('queued','running'))`}));
+ for(const r of queues.knowledge)assert(r.status==='queued'&&!r.workerOwner&&!r.leaseExpiresAt);for(const [k,rows]of Object.entries(queues))if(k!=='knowledge')assert.equal(rows.length,0);
+ const jobs=await root.h.read(tx=>tx.$queryRaw`SELECT id,md5(row_to_json(t)::text) AS hash FROM public.knowledge_chat_job t WHERE "tenantId"=${root.h.runtime.ids.tenant} ORDER BY id`);
+ assert.deepEqual(jobs,json(wf04Private.replace('/wf04/','/wf03/')+'dormant-knowledge-before-reload.json'));
+ // The actual local composition only constructs this queue; no lifecycle callback invocation.
+ const startup=readFileSync('scripts/local-knowledge-ai.mjs','utf8');assert(startup.includes('new Queue(')||startup.includes('new KnowledgeChatQueueService('));assert(!/\.onModuleInit\s*\(/.test(startup));
+ const beforePath=wf04Private+'reload-before-v2.json';
+ if(mode==='before')save(beforePath,{runtimePid:root.h.runtime.pid,jobs},{exclusive:true});else{const before=json(beforePath);assert.notEqual(root.h.runtime.pid,before.runtimePid);assert.deepEqual(jobs,before.jobs);const c=root.cases.A,rows=await root.h.get('/research-studies/'+c.studyId+'/subjects?limit=20');assert(rows.items.length>0);const subject=rows.items[0];const strict=await root.h.request('/research-studies/'+c.studyId+'/subjects/'+subject.id+'/participation/receipts/'+randomUUID()+'?action=record&requestHash='+'0'.repeat(64),{status:404});assert.equal(strict.value.code,'RESEARCH_RECEIPT_NOT_FOUND');save(out+'strict-route-readonly.json',{nativeStatus:404,code:strict.value.code,subjectId:subject.id,bodyWrites:0});}
+ save(out+'inspection.json',{at:new Date().toISOString(),mode,runtimePid:root.h.runtime.pid,queues,dormantFullRows:jobs.length,dormantHash:bodyHash(jobs),noQueueRecovery:true,protection:await root.protect('assembly-'+mode)});save(out+'root-result.json',{passed:true,mode,businessWrites:0,runtimePid:root.h.runtime.pid});process.stdout.write(JSON.stringify({passed:true,mode,businessWrites:0,runtimePid:root.h.runtime.pid,evidence:out})+'\n');
+}catch(e){save(out+'root-result.json',{passed:false,mode,errorName:e.name,message:e.name==='AssertionError'?e.message.slice(0,200):undefined});process.stderr.write(JSON.stringify({passed:false,mode,errorName:e.name,evidence:out})+'\n');process.exitCode=1;}finally{if(root)await root.close();}

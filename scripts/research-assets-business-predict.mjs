@@ -1,0 +1,32 @@
+// Approved eight synthetic drafts, rollback-only. No persistent DDL or fixtures.
+import assert from'node:assert/strict';import{createHash}from'node:crypto';import{readFileSync,writeFileSync}from'node:fs';
+import{loadCatalogTarget,bindCatalogContext}from'./research-assets-catalog-schema.mjs';import{assertFixtureTarget,withFixtureTransaction}from'../../app/server/scripts/wp01/fixture-guard.mjs';import{readBusinessAssetAdmission}from'./research-assets-business-preflight.mjs';import{businessMigrationStatements}from'../server/research-assets/business-migration.mjs';import{authorizeBusinessAssetStudy}from'../server/research-assets/business-access.mjs';import{businessAssetKey}from'../server/research-assets/business-family.mjs';import{writeAssetVersion,appendCatalogEvent}from'./local-research-assets-registration.mjs';import{assetDigest}from'./research-assets-registration-contract.mjs';
+assert.deepEqual(process.argv.slice(2),['--rollback-only']);const{env,ids}=loadCatalogTarget();assert.equal((await assertFixtureTarget(env)).databaseName,'wp01_test_full_baseline');
+const out=new URL('../docs/planning/research-assets-completion-2026-11-16/evidence/',import.meta.url),before=JSON.parse(readFileSync(new URL('business-preflight.json',out))),statements=businessMigrationStatements(before),stop=Error('BUSINESS_PREDICTION_ROLLBACK');const rows=[],checks=[];let complete=false,afterDdlFingerprint;
+const snapshot=()=>withFixtureTransaction(env,'direct',async tx=>{await bindCatalogContext(tx,ids,ids.admin);return readBusinessAssetAdmission(tx,ids);},{readOnly:true});
+assert.equal((await snapshot()).protectionHash,before.protectionHash);assert.equal((await snapshot()).ddlFingerprint,before.ddlFingerprint);
+try{await withFixtureTransaction(env,'direct',async tx=>{
+ await bindCatalogContext(tx,ids,ids.admin);await tx.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext('rh_asset_business_migration'))");
+ for(const sql of statements)await tx.$executeRawUnsafe(sql);afterDdlFingerprint=(await readBusinessAssetAdmission(tx,ids)).ddlFingerprint;
+ const accounts=await tx.account.findMany({where:{tenantId:ids.tenant,id:{in:[ids.owner,ids.admin]}},select:{id:true,role:true,authVersion:true}});
+ await tx.$executeRawUnsafe('SET LOCAL ROLE aisci_app');
+ for(const actor of['owner','admin'])for(const project of[ids.project,'rh-asset-detail-20261113-study-b'])for(const slot of[1,2]){
+  const account=accounts.find(a=>a.id===ids[actor]);await bindCatalogContext(tx,ids,account.id);await tx.$executeRawUnsafe("SELECT set_config('app.research_project_id',$1,true)",project);
+  const p=await authorizeBusinessAssetStudy({tx,user:{tenantId:ids.tenant,accountId:account.id,role:account.role,authVersion:account.authVersion},scope:{tenantId:ids.tenant,studyGroupId:ids.group,researchProjectId:project},permission:'artifact.create'});
+  const h=createHash('sha256').update(actor+project+slot).digest('hex'),id='rhab-'+h.slice(0,8)+'-'+h.slice(8,12)+'-4'+h.slice(13,16)+'-8'+h.slice(17,20)+'-'+h.slice(20,32);
+  const value={kind:'protocol',metadata:{title:'C1具名合成方案 '+actor+' '+(project===ids.project?'A':'B')+' '+slot,summary:'合成登记回滚验证',purpose:'验证正常授权研究内多份同类草稿',limitations:'非临床材料，不共享或发布',author:'合成研究者',domains:[]},sourceKind:'author',sourceBindings:[],policy:{rightsEvidence:'本轮获准具名合成材料，仅本机回滚验证',discoveryRecipients:[]},contentMd:'# 合成方案\n\n仅验证资产登记，不含临床数据。',requestKey:'business-c1-'+actor+'-'+(project===ids.project?'a':'b')+'-'+slot};
+  const requestHash=assetDigest(value),scope={tenantId:p.tenantId,studyGroupId:p.studyGroupId,researchProjectId:p.researchProjectId};
+  await tx.researchArtifact.create({data:{id,...scope,typeKey:'research_report',title:value.metadata.title,status:'draft',ownerAccountId:p.accountId,createdBy:p.accountId,idempotencyKey:businessAssetKey(id),creationRequestHash:requestHash}});
+  const r={assetId:id,...scope,ownerAccountId:p.accountId,kind:'protocol',revision:1,workingVersionNo:1};
+  await tx.$executeRawUnsafe('INSERT INTO rh_asset.asset_registry(asset_id,tenant_id,study_group_id,research_project_id,owner_account_id,asset_kind) VALUES($1,$2,$3,$4,$5,$6)',id,p.tenantId,p.studyGroupId,p.researchProjectId,p.accountId,r.kind);
+  await writeAssetVersion(tx,p,r,value);await appendCatalogEvent(tx,p,{registry:r,version:1,type:'created',requestKey:value.requestKey,requestHash,receipt:{assetId:id,version:1,revision:1,operation:'created',status:'committed'}});rows.push({id,actor,project});
+ }
+ await tx.$executeRawUnsafe('SET CONSTRAINTS ALL IMMEDIATE');checks.push('eight real app-role draft registrations, original A and independent B, two same-kind per actor and Study');
+ const [count]=await tx.$queryRawUnsafe("SELECT count(*)::int AS n FROM rh_asset.asset_registry WHERE asset_id LIKE 'rhab-%'");assert.equal(count.n,4);checks.push('current admin B scope reads its four business rows');
+ await tx.$executeRawUnsafe("SELECT set_config('app.auth_version','-1',true)");const[stale]=await tx.$queryRawUnsafe("SELECT count(*)::int AS n FROM rh_asset.asset_registry WHERE asset_id LIKE 'rhab-%'");assert.equal(stale.n,0);checks.push('stale authorization version cannot read business rows under real RLS');
+ const a=accounts.find(a=>a.id===ids.admin);await bindCatalogContext(tx,ids,a.id);await tx.$executeRawUnsafe("SELECT set_config('app.research_project_id',$1,true)",'rh-asset-detail-20261113-study-b');
+ await tx.$executeRawUnsafe('SAVEPOINT business_wrong_parent');let denied=false;try{await tx.$executeRawUnsafe('UPDATE rh_asset.asset_registry SET research_project_id=$1,revision=revision+1 WHERE asset_id=$2',ids.project,rows.at(-1).id);}catch{denied=true;}assert(denied);await tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT business_wrong_parent');checks.push('real parent cannot be changed by the existing admin');
+ complete=true;throw stop;
+ });}catch(e){if(e!==stop)throw e;}
+assert(complete);const after=await snapshot();assert.equal(after.protectionHash,before.protectionHash);assert.equal(after.ddlFingerprint,before.ddlFingerprint);
+writeFileSync(new URL('business-prediction.json',out),JSON.stringify({passed:true,mode:'rollback-only',migrationHash:assetDigest(statements),afterDdlFingerprint,at:new Date().toISOString(),checks,predictedAssets:rows,persistentAssets:0,persistentEvents:0,protectedHash:after.protectionHash,ddlFingerprint:after.ddlFingerprint,oldFactsAndDefinitionsRestored:true,roleChanges:0,modelCalls:0},null,2));console.log(JSON.stringify({passed:true,checks,predictedAssets:rows.length,persistentAssets:0,oldFactsAndDefinitionsRestored:true}));

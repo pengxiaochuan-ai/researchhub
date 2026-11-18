@@ -1,0 +1,4 @@
+.private-material-sources { margin-top:16px; font-size:var(--text-body-size,14px); line-height:var(--text-body-line,22px); }
+.private-material-sources summary { cursor:pointer; }
+.private-material-sources section { margin-top:12px; }
+.private-material-sources pre { margin:8px 0 12px; padding:12px; border-left:3px solid var(--border-default,#dce3e9); font:inherit; font-size:16px; line-height:28px; white-space:pre-wrap; overflow-wrap:anywhere; }

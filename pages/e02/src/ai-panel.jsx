@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Shield, ShieldCheck, Sparkles, Users, X } from 'lucide-react';
+import { Button } from '../../shared/Components.jsx';
 
 const TABS = ['核心解读', '临床启示', '方法学评价', '与其他研究比较', '研究局限', '未来研究方向'];
 const METRICS = [
@@ -57,49 +58,78 @@ export function AiPanel({ onClose }) {
   const [tab, setTab] = useState(TABS[0]);
   const [copied, setCopied] = useState(false);
   const [summary, setSummary] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const [copyError, setCopyError] = useState('');
+  const [manualText, setManualText] = useState('');
+  const panelRef = useRef(null);
 
   useEffect(() => {
-    const onKey = (event) => { if (event.key === 'Escape') onClose(); };
+    const previousFocus = document.activeElement;
+    const background = [...document.body.children].filter(el => !el.contains(panelRef.current));
+    const previousInert = background.map(el => el.inert);
+    background.forEach(el => { el.inert = true; });
+    const focusables = () => [...panelRef.current.querySelectorAll('button:not(:disabled), [href], textarea, [tabindex="0"]')].filter(el => el.getClientRects().length);
+    const onKey = (event) => {
+      if (event.key === 'Escape') { event.preventDefault(); onClose(); }
+      if (event.key === 'Tab') {
+        const items = focusables();
+        const first = items[0]; const last = items.at(-1);
+        if (event.shiftKey && (document.activeElement === first || !panelRef.current.contains(document.activeElement))) {
+          event.preventDefault(); last?.focus();
+        } else if (!event.shiftKey && (document.activeElement === last || !panelRef.current.contains(document.activeElement))) {
+          event.preventDefault(); first?.focus();
+        }
+      }
+    };
     document.addEventListener('keydown', onKey);
     document.body.classList.add('ai-open');
+    focusables()[0]?.focus();
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.classList.remove('ai-open');
+      background.forEach((el, index) => { el.inert = previousInert[index]; });
+      if (previousFocus?.isConnected) previousFocus.focus();
     };
   }, [onClose]);
 
   const copy = async () => {
-    const text = '这项系统综述与 Meta 分析纳入 68 项 RCT 研究表明，针灸在改善抑郁症状方面具有中等强度的证据支持，整体安全性良好，但仍需更多高质量、多中心、长期随访的研究进一步验证。';
-    try { await navigator.clipboard.writeText(text); } catch { /* 页面内仍给出已复制 */ }
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1200);
+    if (copying) return;
+    const text = `【固定演示，未核验，未调用AI】${tab}\n${panelRef.current.querySelector('.ai-output').innerText}`;
+    setCopying(true); setCopied(false); setCopyError(''); setManualText('');
+    try { await navigator.clipboard.writeText(text); setCopied(true); }
+    catch { setCopyError('复制失败：剪贴板不可用，请手动选择下方完整文本复制。'); setManualText(text); }
+    finally { setCopying(false); }
   };
 
   return createPortal(
     <div className="ai-layer" role="presentation">
-      <button type="button" className="ai-scrim" aria-label="关闭解读" onClick={onClose} />
-      <aside className="ai-panel" role="dialog" aria-modal="true" aria-labelledby="ai-title">
+      <button type="button" tabIndex={-1} className="ai-scrim" aria-label="关闭解读" onClick={onClose} />
+      <aside ref={panelRef} className="ai-panel" role="dialog" aria-modal="true" aria-labelledby="ai-title" aria-describedby="ai-demo-note">
         <header>
-          <div><b id="ai-title"><Sparkles size={16} />岐研 AI 解读</b><small>基于当前证据，提供更深入的分析、解读与启示</small></div>
+          <div><b id="ai-title"><Sparkles size={16} />岐研 AI 解读</b><small id="ai-demo-note">固定演示解读，未调用 AI；文献与数值未核验，不是研究结论。</small></div>
           <button type="button" aria-label="关闭" onClick={onClose}><X size={16} /></button>
         </header>
         <div className="ai-tabs">
-          {TABS.map((item) => <button key={item} type="button" className={tab === item ? 'on' : ''} onClick={() => setTab(item)}>{item}</button>)}
+          {TABS.map((item) => <button key={item} type="button" disabled={copying} aria-pressed={tab === item} className={tab === item ? 'on' : ''} onClick={() => { setTab(item); setCopied(false); setCopyError(''); setManualText(''); }}>{item}</button>)}
         </div>
         <div className="ai-body">
-          {tab === '核心解读' ? <Core summary={summary} onSummary={() => setSummary(true)} /> : (
+          <div className="ai-output">
+          {tab === '核心解读' ? <Core summary={summary} onSummary={() => setSummary(value => !value)} /> : (
             <section className="ai-card">
               <h3>{tab}</h3>
               <ul>{MORE[tab].map((item) => <li key={item}>{item}</li>)}</ul>
             </section>
           )}
+          </div>
+          {copyError && <section className="ai-card ai-copy-error"><p role="alert">{copyError}</p><label htmlFor="ai-manual-copy">手动复制解读内容</label><textarea id="ai-manual-copy" readOnly value={manualText} /></section>}
         </div>
         <footer>
-          <small>以上内容由岐研 AI 基于文献内容生成，仅供参考，不替代专业判断。</small>
+          <small>仅供交互演示。报告导出服务暂不可用；不用于临床或科研判断。</small>
           <div>
-            <button type="button" onClick={copy}>{copied ? '已复制' : '复制内容'}</button>
-            <button type="button">导出报告</button>
+            <Button onClick={copy} loading={copying}>复制内容</Button>
+            <Button disabled aria-describedby="ai-demo-note">导出报告</Button>
           </div>
+          {copied && <span role="status">当前页签的演示内容已复制</span>}
         </footer>
       </aside>
     </div>,
@@ -111,8 +141,9 @@ function Core({ summary, onSummary }) {
   return (
     <>
       <section className="ai-card">
-        <header><b>一页核心结论</b><button type="button" onClick={onSummary}>{summary ? '已生成摘要' : '生成结果摘要'}</button></header>
+        <header><b>一页核心结论（示例）</b><button type="button" aria-expanded={summary} aria-controls="ai-example-summary" onClick={onSummary}>{summary ? '收起示例摘要' : '展开示例摘要'}</button></header>
         <p>这项系统综述与 Meta 分析纳入 68 项 RCT 研究表明，针灸在改善抑郁症状方面具有中等强度的证据支持，整体安全性良好，但仍需更多高质量、多中心、长期随访的研究进一步验证。</p>
+        {summary && <p id="ai-example-summary">固定摘要示例：阅读时应核对原文、证据局限及适用范围；当前页面没有执行检索、分析或生成任务。</p>}
       </section>
       <div className="ai-metrics">
         {METRICS.map(([title, value, note, Icon]) => (

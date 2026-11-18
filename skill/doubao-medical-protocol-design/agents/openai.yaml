@@ -1,0 +1,6 @@
+interface:
+  display_name: "医学科研助手"
+  short_description: "支持医学选题与方案设计、论文写作润色修改及科研报告"
+  brand_color: "#1D4ED8"
+  default_prompt: >-
+    使用 $doubao-medical-protocol-design 帮我推进医学科研：明确目标与已有材料，按需开展科研基金、论文写作与审稿、方案设计或专利辅助；正式文档使用 Word，独立表格使用 Sheet。

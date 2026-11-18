@@ -1,0 +1,109 @@
+{
+  "schema_version": "1.2",
+  "protocol_id": "{{protocol_id}}",
+  "title": "{{研究题目}}",
+  "created_at": "{{ISO-8601 时间}}",
+  "service_mode": "{{design_fit/focused_component/full_protocol/review_existing}}",
+  "research_context": "{{clinical_population/translational_human/experimental_biomedicine}}",
+  "question_family": "{{按本轮主要研究问题记录}}",
+  "design_family": "{{按本轮首选设计记录}}",
+  "design_status": "{{concept/draft/under_review/final_candidate}}",
+  "evidence_mode": "{{user_material_only/targeted_verification/evidence_informed}}",
+  "primary_question": "{{主要研究问题}}",
+  "primary_objective": "{{主要研究目的}}",
+  "target_population": "{{目标人群或实验系统}}",
+  "analysis_unit": "{{独立研究/分析单位}}",
+  "time_anchor": "{{time zero、预测时点或实验起点}}",
+  "time_alignment": {
+    "method": "{{baseline_strategy/clone_censor_weight/landmark/time_varying_exposure/not_applicable}}",
+    "eligibility_time": "{{资格判定时点}}",
+    "strategy_assignment_time": "{{策略分配、克隆创建、landmark 分组或动态更新时点}}",
+    "followup_start": "{{随访开始时点}}",
+    "grace_period_days": 0,
+    "early_outcome_handling": "{{included_from_time_zero/excluded_by_landmark_estimand/not_applicable}}",
+    "estimand_scope": "{{该时间结构对应的目标人群与目标参数}}",
+    "deviation_censoring": "{{CCW 的偏离策略人工删失规则；不适用写 not_applicable}}",
+    "weighting_plan": "{{CCW/时间变化方法的权重计划；不适用写 not_applicable}}"
+  },
+  "primary_outcome": "{{主要终点/读数及时间窗}}",
+  "treatment_strategy_comparison": false,
+  "clinical_claim_level": "{{human_interventional/human_observational/translational/preclinical_only}}",
+  "translational_claim_type": "not_applicable",
+  "assay_treatment_alignment": "not_applicable",
+  "treatment_interaction_plan": "not_applicable",
+  "independent_validation_plan": "not_applicable",
+  "evaluation_sets": {
+    "enrolled": "not_applicable",
+    "specimen_available": "not_applicable",
+    "assay_evaluable": "not_applicable",
+    "clinical_evaluable": "not_applicable"
+  },
+  "missing_assay_policy": "not_applicable",
+  "human_biospecimen_overlay": false,
+  "modules_loaded": [
+    "{{按主设计与叠加层填写模块名}}"
+  ],
+  "assumptions": [],
+  "unresolved_decisions": [],
+  "related_research": {
+    "status": "{{populated/no_eligible_study/not_searched_user_material_only}}",
+    "search_cutoff": "{{YYYY-MM-DD；未检索时写 not_applicable}}",
+    "journal_rank_index_year": 2025,
+    "journal_rank_lookup_status": "{{completed/partial/not_run/not_applicable/journal_rank_index_unavailable}}",
+    "reference_ids": [
+      "{{本章实际采用的 source_id；无则留空数组}}"
+    ]
+  },
+  "reference_register": [
+    {
+      "source_id": "{{R1}}",
+      "citation_order": "{{按正文首次出现顺序填写 1、2、3……}}",
+      "title": "{{已核验的完整题名}}",
+      "anchor_text": "{{正文使用的题名或稳定简称}}",
+      "aliases": [],
+      "url": "{{与文献CSV及正文一致的完整原始URL}}",
+      "source": "{{期刊或机构}}",
+      "year": "{{年份}}",
+      "source_type": "{{guideline/consensus/systematic_review/primary_study/registry/regulatory/methods/tool_document/other}}",
+      "publication_medium": "{{journal_article/non_journal}}",
+      "journal_rank_2025": "{{匹配成功的期刊分区/级别；非期刊、未匹配或索引不可用时为空字符串}}",
+      "journal_rank_match_status": "{{exact/alias/fuzzy_verified/ambiguous/not_found/not_applicable/journal_rank_index_unavailable}}",
+      "journal_rank_matched_title": "{{已核对的 matchedJournal；无可靠匹配时为空字符串}}",
+      "journal_rank_confidence": "{{脚本返回的 0–1 匹配置信度；只用于核对候选，不代表证据质量}}",
+      "identifier": "{{PMID/DOI/注册号/官方页面；无法核验写未核验}}",
+      "claim_support": "{{从该来源实际采用的事实、参数或规范用途}}",
+      "decision_use": "{{本方案采用位置或参数用途}}",
+      "used_in_sections": [
+        "{{实际出现的一级章节完整标题}}"
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "path": "{{真实方案文件路径或飞书 URL}}",
+      "role": "protocol",
+      "location_type": "{{local_file/online_url}}",
+      "validation_status": "{{passed/not_run/failed}}",
+      "validation_method": "{{file_opened/content_readback/static_review}}"
+    }
+  ],
+  "quality_checks": {
+    "internal_consistency": "{{passed/not_run/failed}}",
+    "source_traceability": "{{passed/not_run/not_applicable/failed}}",
+    "inline_citations": "{{passed/not_run/not_applicable/failed}}",
+    "reference_completeness": "{{passed/not_run/not_applicable/failed}}",
+    "reference_target_verification": "{{passed/not_run/not_applicable/failed}}",
+    "related_research_review": "{{passed/not_run/not_applicable/failed}}",
+    "journal_rank_lookup": "{{passed/not_run/not_applicable/failed}}",
+    "link_readback": "{{passed/not_run/not_applicable/failed}}",
+    "feasibility_review": "{{passed/not_run/failed}}",
+    "document_readback": "{{passed/not_applicable/not_run/failed}}"
+  },
+  "final_response": {
+    "research_topic": "{{医生可识别的本轮研究主题}}",
+    "document_created": "{{true/false}}",
+    "summary": "{{本轮设计结论或改动}}",
+    "pending_items": [],
+    "next_step": "{{按本轮目标填写可选下一步，无需固定追问}}"
+  }
+}

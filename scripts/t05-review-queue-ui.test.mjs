@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {parseReviewPage} from '../src/protocol-review-queue.js';
+test('empty scan page with cursor remains pending and can continue',()=>{assert.deepEqual(parseReviewPage({items:[],nextCursor:'next'},null),{items:[],nextCursor:'next'});});
+test('review rows use local validated study and protocol links',()=>{const x=parseReviewPage({items:[{studyId:'s1',studyTitle:'研究',protocol:{id:'p1',title:'方案',versionNumber:1,status:'pending_review',updatedAt:'2026-11-11T00:00:00Z'},href:'https://untrusted.example/'}],nextCursor:null},null);assert.equal(x.items[0].href,'/pages/s07/?formalPreparation=1&studyId=s1&protocolId=p1');});
+test('repeated cursor and malformed item fail closed',()=>{assert.throws(()=>parseReviewPage({items:[],nextCursor:'same'},'same'));assert.throws(()=>parseReviewPage({items:[{studyId:'s1',protocol:{id:'p1',status:'draft'}}],nextCursor:null},null));});

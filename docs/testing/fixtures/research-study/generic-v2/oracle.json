@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "generic-workflow-oracle-v2",
+  "syntheticOnly": true,
+  "acceptancePerformed": false,
+  "clinicalAcceptance": false,
+  "reason": "Real recipient chose different valid synthetic values. Preserve them; do not overwrite to fit v1.",
+  "h5Evidence": "generic-v2/h5-source.json",
+  "originalEvidence": "research-t12-2026-11-12/real-email-attempt.json",
+  "h5EvidenceSha256": "87b0ede614a7821a07967b399ed7445b16b5e8e2dd8dbe382f95f8cc3aa0dbb3",
+  "source": "Independent saved Python standard library oracle; calculated before the main analysis, no LLM numeric computation",
+  "missingRule": "Absent optional field is missing; zero/false remain observed",
+  "unit": "one current approved response per subject at BASELINE",
+  "rows": [
+    {
+      "case": "onsite",
+      "source": "researcher",
+      "visitCode": "BASELINE",
+      "answers": {
+        "value": 0,
+        "optional_value": 0,
+        "completed": false
+      }
+    },
+    {
+      "case": "h5",
+      "source": "patient_h5",
+      "visitCode": "BASELINE",
+      "answers": {
+        "value": 1.5,
+        "completed": true,
+        "optional_value": 2
+      }
+    },
+    {
+      "case": "csv",
+      "source": "import",
+      "visitCode": "BASELINE",
+      "answers": {
+        "value": 4,
+        "completed": true
+      }
+    }
+  ],
+  "expected": {
+    "value": {
+      "totalRows": 3,
+      "observed": 3,
+      "missing": 0,
+      "sum": 5.5,
+      "mean": 1.8333333333333333,
+      "median": 1.5,
+      "sampleStandardDeviation": 2.0207259421636903,
+      "min": 0,
+      "max": 4
+    },
+    "optional_value": {
+      "totalRows": 3,
+      "observed": 2,
+      "missing": 1,
+      "sum": 2,
+      "mean": 1,
+      "median": 1.0,
+      "sampleStandardDeviation": 1.4142135623730951,
+      "min": 0,
+      "max": 2
+    },
+    "completed": {
+      "true": 2,
+      "false": 1,
+      "missing": 0
+    }
+  },
+  "correction": {
+    "case": "onsite",
+    "field": "value",
+    "oldValue": 0,
+    "newValue": 1,
+    "expected": {
+      "value": {
+        "totalRows": 3,
+        "observed": 3,
+        "missing": 0,
+        "sum": 6.5,
+        "mean": 2.1666666666666665,
+        "median": 1.5,
+        "sampleStandardDeviation": 1.6072751268321592,
+        "min": 1,
+        "max": 4
+      },
+      "optional_value": {
+        "totalRows": 3,
+        "observed": 2,
+        "missing": 1,
+        "sum": 2,
+        "mean": 1,
+        "median": 1.0,
+        "sampleStandardDeviation": 1.4142135623730951,
+        "min": 0,
+        "max": 2
+      },
+      "completed": {
+        "true": 2,
+        "false": 1,
+        "missing": 0
+      }
+    }
+  }
+}

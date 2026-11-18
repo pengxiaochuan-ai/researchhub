@@ -1,0 +1,96 @@
+@media (max-width: 900px) {
+  html[data-page="g02"], html[data-page="g02"] body, html[data-page="g02"] #root,
+  html[data-page="g02"] .platform-app, html[data-page="g02"] .platform-main,
+  html[data-page="g01"], html[data-page="g01"] body, html[data-page="g01"] #root,
+  html[data-page="g01"] .platform-app, html[data-page="g01"] .platform-main,
+  html[data-page="g04"], html[data-page="g04"] body, html[data-page="g04"] #root,
+  html[data-page="g04"] .platform-app, html[data-page="g04"] .platform-main {
+    min-width: 0 !important; width: 100% !important;
+  }
+  body[data-hub-source-real="true"] .qiyan-platform-sidebar,
+  body[data-hub-source-real="true"] .platform-side { display: none !important; }
+  body[data-hub-source-real="true"][data-platform-header="true"] main { margin-left: 0 !important; }
+  body[data-hub-source-real="true"] .qiyan-page-context { min-width: 0; }
+  body[data-hub-source-real="true"] .qiyan-page-context:is([data-page-context="h01"], [data-page-context="c01"], [data-page-context="c03"], [data-page-context="h06"], [data-page-context="e01"], [data-page-context="e02"], [data-page-context="t01"], [data-page-context="t02"], [data-page-context="r01"], [data-page-context="r02"], [data-page-context="g03"], [data-page-context="g04"], [data-page-context="g01"]) .qiyan-context-nav {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    padding-inline: 16px;
+  }
+  body[data-hub-source-real="true"] .qiyan-page-context:is([data-page-context="h01"], [data-page-context="c01"], [data-page-context="c03"], [data-page-context="h06"], [data-page-context="e01"], [data-page-context="e02"], [data-page-context="t01"], [data-page-context="t02"], [data-page-context="r01"], [data-page-context="r02"], [data-page-context="g03"], [data-page-context="g04"], [data-page-context="g01"]) .qiyan-context-nav > button {
+    flex: none;
+    min-width: max-content;
+    padding-inline: 12px;
+  }
+  body[data-hub-source-real="true"] .qiyan-context-breadcrumb { padding-inline: 16px; }
+  body[data-hub-source-real="true"] .qiyan-page-heading { margin-inline: 16px; padding: 12px; }
+  body[data-hub-source-real="true"] .qiyan-page-title-row h1 { font-size: 22px; line-height: 30px; }
+  body[data-hub-source-real="true"] header.global-platform-header .qiyan-header-brand { width: auto !important; padding-left: 16px !important; }
+  body[data-hub-source-real="true"] header.global-platform-header .qiyan-header-logo { width: 32px; height: 32px; }
+  body[data-hub-source-real="true"] header.global-platform-header .qiyan-header-word b { font-size: 18px; }
+  body[data-hub-source-real="true"] header.global-platform-header .qiyan-header-search,
+  body[data-hub-source-real="true"] header.global-platform-header .qiyan-header-subtitle,
+  body[data-hub-source-real="true"] header.global-platform-header .qiyan-brand-separator,
+  body[data-hub-source-real="true"] header.global-platform-header .qiyan-header-notification,
+  body[data-hub-source-real="true"] header.global-platform-header .qiyan-header-separator,
+  body[data-hub-source-real="true"] header.global-platform-header .qiyan-user-copy { display: none !important; }
+  body[data-hub-source-real="true"] header.global-platform-header .qiyan-user-trigger {
+    right: 12px; grid-template-columns: 38px 18px; gap: 4px; width: auto;
+  }
+  body[data-hub-source-real="true"] .qiyan-demo-capability { margin: 12px 16px; }
+  body[data-hub-source-real="true"]:is([data-platform-page="h01"], [data-platform-page="h05"], [data-platform-page="c01"], [data-platform-page="c03"], [data-platform-page="h06"], [data-platform-page="t01"], [data-platform-page="t02"], [data-platform-page="r01"], [data-platform-page="r02"], [data-platform-page="g03"], [data-platform-page="g04"], [data-platform-page="g01"]) .qiyan-platform-sidebar {
+    display: flex !important;
+    transform: translateX(-100%);
+    transition: transform .2s ease;
+  }
+  body[data-hub-source-real="true"].qiyan-hub-mobile-menu-open:is([data-platform-page="h01"], [data-platform-page="h05"], [data-platform-page="c01"], [data-platform-page="c03"], [data-platform-page="h06"], [data-platform-page="t01"], [data-platform-page="t02"], [data-platform-page="r01"], [data-platform-page="r02"], [data-platform-page="g03"], [data-platform-page="g04"], [data-platform-page="g01"]) .qiyan-platform-sidebar {
+    transform: none;
+    box-shadow: 0 8px 24px #17284533;
+  }
+  body[data-hub-source-real="true"]:is([data-platform-page="h01"], [data-platform-page="h05"], [data-platform-page="c01"], [data-platform-page="c03"], [data-platform-page="h06"], [data-platform-page="t01"], [data-platform-page="t02"], [data-platform-page="r01"], [data-platform-page="r02"], [data-platform-page="g03"], [data-platform-page="g04"], [data-platform-page="g01"]) .qiyan-hub-nav-toggle {
+    box-sizing: border-box;
+    position: fixed;
+    z-index: 110;
+    bottom: 16px;
+    left: 16px;
+    display: block;
+    min-height: 44px;
+    padding: 10px 16px;
+    border: 0;
+    border-radius: var(--radius-button);
+    color: #fff;
+    background: var(--brand-primary);
+    font: 500 14px/22px var(--font-zh);
+    box-shadow: 0 4px 12px #17284526;
+    cursor: pointer;
+  }
+  body[data-hub-source-real="true"]:is([data-platform-page="h01"], [data-platform-page="h05"], [data-platform-page="c01"], [data-platform-page="c03"], [data-platform-page="h06"], [data-platform-page="t01"], [data-platform-page="t02"], [data-platform-page="r01"], [data-platform-page="r02"], [data-platform-page="g03"], [data-platform-page="g04"], [data-platform-page="g01"]) .qiyan-hub-nav-backdrop {
+    position: fixed;
+    z-index: 80;
+    inset: 64px 0 0;
+    width: 100%;
+    border: 0;
+    background: #17284566;
+    cursor: pointer;
+  }
+  body[data-hub-source-real="true"] .qiyan-hub-nav-toggle:focus-visible,
+  body[data-hub-source-real="true"] .qiyan-platform-sidebar .qiyan-nav-item:focus-visible {
+    outline: 3px solid #5746f5;
+    outline-offset: 3px;
+  }
+  body[data-hub-source-real="true"]:is([data-platform-page="h01"], [data-platform-page="h05"], [data-platform-page="c01"], [data-platform-page="c03"], [data-platform-page="h06"], [data-platform-page="t01"], [data-platform-page="t02"], [data-platform-page="r01"], [data-platform-page="r02"], [data-platform-page="g03"], [data-platform-page="g04"], [data-platform-page="g01"]) .platform-main {
+    padding-bottom: 72px !important;
+  }
+  body[data-hub-source-real="true"]:is([data-platform-page="h01"], [data-platform-page="c01"], [data-platform-page="c03"], [data-platform-page="h06"], [data-platform-page="t01"], [data-platform-page="t02"], [data-platform-page="r01"], [data-platform-page="r02"], [data-platform-page="g03"], [data-platform-page="g04"], [data-platform-page="g01"]) #root > .platform-main {
+    height: calc(100vh - 72px) !important;
+    height: calc(100dvh - 72px) !important;
+    padding-bottom: 16px !important;
+  }
+}
+.qiyan-hub-nav-toggle,
+.qiyan-hub-nav-backdrop,
+.qiyan-hub-nav-backdrop[hidden] { display: none !important; }
+@media (max-width: 900px) {
+  body[data-hub-source-real="true"]:is([data-platform-page="h01"], [data-platform-page="h05"], [data-platform-page="c01"], [data-platform-page="c03"], [data-platform-page="h06"], [data-platform-page="t01"], [data-platform-page="t02"], [data-platform-page="r01"], [data-platform-page="r02"], [data-platform-page="g03"], [data-platform-page="g04"], [data-platform-page="g01"]) .qiyan-hub-nav-toggle,
+  body[data-hub-source-real="true"].qiyan-hub-mobile-menu-open:is([data-platform-page="h01"], [data-platform-page="h05"], [data-platform-page="c01"], [data-platform-page="c03"], [data-platform-page="h06"], [data-platform-page="t01"], [data-platform-page="t02"], [data-platform-page="r01"], [data-platform-page="r02"], [data-platform-page="g03"], [data-platform-page="g04"], [data-platform-page="g01"]) .qiyan-hub-nav-backdrop:not([hidden]) { display: block !important; }
+}

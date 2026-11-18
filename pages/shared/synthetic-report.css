@@ -1,0 +1,11 @@
+.synthetic-report { border-top:1px solid var(--border); margin-top:var(--space-6); padding-top:var(--space-4); min-width:0; }
+.research-plan-flow .synthetic-report p,.synthetic-report label,.synthetic-report select { font-size:var(--text-body-size); line-height:var(--text-body-line); }
+.research-plan-flow .synthetic-report .report-intro,.research-plan-flow .synthetic-report .report-reading,.research-plan-flow .synthetic-report .report-reading p,.research-plan-flow .synthetic-report .report-reading li { font-size:var(--text-reading-size); line-height:var(--text-reading-line); max-width:48rem; overflow-wrap:anywhere; }
+.research-plan-flow .synthetic-report .plan-meta { font-size:var(--text-caption-size); line-height:var(--text-caption-line); overflow-wrap:anywhere; }
+.synthetic-report .report-reading table { font-size:var(--text-body-size); line-height:var(--text-body-line); }
+.synthetic-report .report-reading { margin:var(--space-4) 0; }
+.synthetic-report .report-reading > div { min-width:0; }
+.synthetic-report .report-reading table { width:100%; }
+.synthetic-report .report-reading div:has(>table) { overflow:auto; max-width:100%; }
+.synthetic-report h4 { font-size:var(--text-body-size); line-height:var(--text-body-line); }
+.synthetic-report textarea { width:100%; resize:vertical; }

@@ -5,6 +5,8 @@ import {
   KeyRound, Lightbulb, Link2, Sparkles, Users,
 } from 'lucide-react';
 import './style.css';
+import { isHubSourceRealMode } from '../../../src/hub-source-api.js';
+import { RealClinicalRegistryDetail } from './RealClinicalRegistryDetail.jsx';
 
 const TABS = ['概览', '研究设计', '干预措施', '研究结果', '招募与进展', '研究者与机构', '相关资源'];
 const AI_TABS = ['核心解读', '方法学评价', '与其他研究比较', '临床启示', '未来研究方向'];
@@ -249,4 +251,4 @@ function PeopleTable() {
   );
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(isHubSourceRealMode() ? <RealClinicalRegistryDetail /> : <App />);

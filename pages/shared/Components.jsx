@@ -1,12 +1,30 @@
 import React, { useState } from 'react';
+import './button.css';
 import {
   AlertTriangle, ArrowRight, Check, CheckCircle2, ChevronDown, Circle,
   Clock3, Database, Download, FileText, Filter, MoreHorizontal, Search,
   ShieldCheck, Sparkles, Star, TrendingUp, Upload, UsersRound,
 } from 'lucide-react';
 
-export function Button({ children, primary, danger, onClick, className = '' }) {
-  return <button className={`ui-button ${primary ? 'primary' : ''} ${danger ? 'danger' : ''} ${className}`} onClick={onClick}>{children}</button>;
+export function Button({
+  children, primary, danger, onClick, className = '', type = 'button',
+  disabled = false, loading = false, busyLabel = '处理中…', ...buttonProps
+}) {
+  const blocked = disabled || loading;
+  const handleClick = (event) => {
+    if (blocked) {
+      event.preventDefault();
+      return;
+    }
+    onClick?.(event);
+  };
+
+  return <button {...buttonProps} type={type}
+    className={`ui-button ${primary ? 'primary' : ''} ${danger ? 'danger' : ''} ${className}`}
+    disabled={blocked} aria-busy={loading || buttonProps['aria-busy']} onClick={handleClick}>
+    {children}
+    {loading && <span className="ui-button-busy" aria-hidden="true">{busyLabel}</span>}
+  </button>;
 }
 
 export function Tabs({ items, initial = 0, onChange }) {
@@ -14,9 +32,9 @@ export function Tabs({ items, initial = 0, onChange }) {
   return <div className="ui-tabs">{items.map((item, i) => <button key={item} className={i === active ? 'active' : ''} onClick={() => { setActive(i); onChange?.(i); }}>{item}</button>)}</div>;
 }
 
-export function Card({ title, action, children, className = '' }) {
+export function Card({ title, action, actionDisabled = false, onAction, children, className = '' }) {
   return <section className={`ui-card ${className}`}>
-    {title && <header className="card-head"><h2>{title}</h2>{action && <button>{action} <ArrowRight/></button>}</header>}
+    {title && <header className="card-head"><h2>{title}</h2>{action && <button disabled={actionDisabled} onClick={onAction}>{action} <ArrowRight/></button>}</header>}
     {children}
   </section>;
 }
@@ -73,10 +91,10 @@ export function SimpleLine({ lines = 3, bars = false }) {
   </svg>;
 }
 
-export function AIPanel({ title = '岐研 AI 助手', children, action = '查看详细分析' }) {
+export function AIPanel({ title = '岐研 AI 助手', children, action = '查看详细分析', actionDisabled = false, onAction }) {
   return <Card className="ai-panel" title={<><Sparkles/> {title} <em>Beta</em></>}>
     <div className="ai-content">{children}</div>
-    <button className="ai-link">{action} <ArrowRight/></button>
+    <button className="ai-link" disabled={actionDisabled} onClick={onAction}>{action} <ArrowRight/></button>
   </Card>;
 }
 

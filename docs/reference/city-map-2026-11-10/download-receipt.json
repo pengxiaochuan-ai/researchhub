@@ -1,0 +1,55 @@
+{
+  "retrievedAt": "2026-11-10T07:32:56.402Z",
+  "license": "CC0-1.0",
+  "licenseUrl": "https://www.wikidata.org/wiki/Wikidata:Copyright",
+  "entries": [
+    {
+      "id": "Q956",
+      "revision": 2565775546,
+      "name": "北京市",
+      "sourceUrl": "https://www.wikidata.org/wiki/Special:EntityData/Q956.json?revision=2565775546",
+      "sourceSha256": "800512ef61c6b39882493cb3d44111fa5ee29c715b7d84285d04842600ef200f",
+      "statementId": "Q956$4E8B7883-1595-4CD1-9590-44D9D767F7B0",
+      "point": {
+        "latitude": 39.90403,
+        "longitude": 116.407526,
+        "altitude": null,
+        "precision": 0.00001,
+        "globe": "http://www.wikidata.org/entity/Q2"
+      },
+      "referenceCount": 1
+    },
+    {
+      "id": "Q8686",
+      "revision": 2554225580,
+      "name": "上海市",
+      "sourceUrl": "https://www.wikidata.org/wiki/Special:EntityData/Q8686.json?revision=2554225580",
+      "sourceSha256": "e092be552fc0c953857cee7fd929dca4653e50156d7d6ad6c990541b54726c81",
+      "statementId": "q8686$3E38F89C-284B-4C4B-9C69-C0580486CA19",
+      "point": {
+        "latitude": 31.2325,
+        "longitude": 121.46916666666667,
+        "altitude": null,
+        "precision": 0.0002777777777777778,
+        "globe": "http://www.wikidata.org/entity/Q2"
+      },
+      "referenceCount": 1
+    },
+    {
+      "id": "Q74881",
+      "revision": 2548806680,
+      "name": "大连市",
+      "sourceUrl": "https://www.wikidata.org/wiki/Special:EntityData/Q74881.json?revision=2548806680",
+      "sourceSha256": "b2ca4caaf32bcbf6f9fe6fd5c404a5b616cf24b39b826e805af61ae5baaae935",
+      "statementId": "q74881$F18011A9-3606-4981-BF43-43B6BB7F48F5",
+      "point": {
+        "latitude": 38.9,
+        "longitude": 121.6,
+        "altitude": null,
+        "precision": 0.016666666666666666,
+        "globe": "http://www.wikidata.org/entity/Q2"
+      },
+      "referenceCount": 0
+    }
+  ]
+}

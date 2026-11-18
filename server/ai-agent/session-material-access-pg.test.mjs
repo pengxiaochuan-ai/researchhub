@@ -1,0 +1,50 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID,createHash} from 'node:crypto';
+import {readFileSync} from 'node:fs';
+import {loadFixtureInput} from '../../../app/server/scripts/wp01/local-config.mjs';
+import {withFixtureTransaction} from '../../../app/server/scripts/wp01/fixture-guard.mjs';
+const access=await import('../../scripts/ai-session-material-access.mjs').catch(e=>{if(e.code==='ERR_MODULE_NOT_FOUND')return null;throw e;});
+const {env}=loadFixtureInput(new URL('../../../.superpowers/sdd/implementation-plan/wp01-full-baseline-target.json',import.meta.url).pathname);
+const {ids}=JSON.parse(readFileSync(new URL('../../../.tmp/researchhub-knowledge-local/runtime.json',import.meta.url),'utf8'));
+const rollback=Symbol('material-access-rollback');
+test('approved narrow access and native config versioning are atomic, idempotent and enforce real application RLS',async t=>{
+  assert.ok(access,'narrow material access implementation is missing');
+  await assert.rejects(withFixtureTransaction(env,'direct',async tx=>{
+    const before=await tx.agentConfig.findFirst({where:{agentId:ids.tenant+'-kb-research',active:true,archivedAt:null}});
+    const roleBefore=await tx.permissionRole.findMany({where:{tenantId:ids.tenant},orderBy:{id:'asc'}});
+    await access.applyMaterialAccessInTransaction(tx,env);
+    assert.equal((await access.applyMaterialAccessInTransaction(tx,env)).changed,false);
+    const enabled=await access.enableNamedMaterialFileReadInTransaction(tx,ids);
+    assert.equal((await access.enableNamedMaterialFileReadInTransaction(tx,ids)).changed,false);
+    const after=await tx.agentConfig.findFirst({where:{agentId:ids.tenant+'-kb-research',active:true,archivedAt:null}});
+    assert.deepEqual(after.tools,['knowledge.search','file.read']);
+    for(const key of ['identity','model','env','skillsEnabled'])assert.deepEqual(after[key],before[key]);
+    assert.equal(after.version,before.tools.includes('file.read')?before.version:before.version+1);
+    assert.deepEqual(await tx.permissionRole.findMany({where:{tenantId:ids.tenant},orderBy:{id:'asc'}}),roleBefore);
+    assert.equal(typeof enabled.changed,'boolean');
+    const suffix=randomUUID(),session='rh-material-access-session-'+suffix,material='rh-material-access-'+suffix;
+    await tx.$executeRawUnsafe(`INSERT INTO public.session(id,"tenantId","studyGroupId","researchProjectId","accountId","agentId",title,"updatedAt") SELECT $1,"tenantId","studyGroupId","researchProjectId","accountId","agentId",'合成材料隔离验证',now() FROM public.session WHERE "tenantId"=$2 AND "studyGroupId"=$3 AND "researchProjectId"=$4 AND "accountId"=$5 AND "deletedAt" IS NULL LIMIT 1`,session,ids.tenant,ids.group,ids.project,ids.owner);
+    await tx.$executeRawUnsafe('SET LOCAL ROLE aisci_app');
+    const context=async (values={})=>{
+      const {tenant=ids.tenant,group=ids.group,project=ids.project,account=ids.owner}=values;
+      await tx.$queryRawUnsafe(`SELECT set_config('app.tenant_id',$1,true),set_config('app.study_group_id',$2,true),set_config('app.research_project_id',$3,true),set_config('app.account_id',$4,true)`,tenant,group,project,account);
+    };
+    await context();
+    const rights=(await access.readMaterialAccess(tx))[0];
+    assert.deepEqual(rights,{usage:true,select:true,insert:true,update:true,delete:false,truncate:false,references:false,trigger:false,create:false,function_execute:false});
+    const sha=createHash('sha256').update('Synthetic material access').digest('hex');
+    await tx.$executeRawUnsafe(`INSERT INTO rh_ai.session_materials(id,tenant_id,study_group_id,research_project_id,account_id,session_id,request_key,request_fingerprint,source_sha256) VALUES($1,$2,$3,$4,$5,$6,$1,$7,$7)`,material,ids.tenant,ids.group,ids.project,ids.owner,session,sha);
+    assert.equal((await tx.$queryRawUnsafe('SELECT id FROM rh_ai.session_materials WHERE id=$1',material)).length,1);
+    for(const [name,values] of [['missing account',{account:''}],['admin is not owner',{account:ids.admin}],['other tenant',{tenant:'no-such-tenant'}],['other project',{project:'no-such-project'}],['other group',{group:'no-such-group'}]])await t.test(name,async()=>{
+      await context(values);
+      assert.equal((await tx.$queryRawUnsafe('SELECT id FROM rh_ai.session_materials WHERE id=$1',material)).length,0);
+      assert.equal(await tx.$executeRawUnsafe('UPDATE rh_ai.session_materials SET version=version+1 WHERE id=$1',material),0);
+    });
+    await context();
+    await tx.$executeRawUnsafe('UPDATE rh_ai.session_materials SET state=\'failed\',version=version+1 WHERE id=$1',material);
+    assert.equal((await tx.$queryRawUnsafe('SELECT version FROM rh_ai.session_materials WHERE id=$1',material))[0].version,2);
+    await tx.$executeRawUnsafe('RESET ROLE');
+    throw rollback;
+  }),e=>e===rollback);
+});

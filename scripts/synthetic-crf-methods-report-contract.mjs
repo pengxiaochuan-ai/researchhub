@@ -1,0 +1,30 @@
+import assert from'node:assert/strict';
+import{edcDigest,exactEdcFields,syntheticDataBasis,syntheticQualityCurrent}from'./synthetic-edc-contract.mjs';
+export const CRF_REPORT_MARKER='rh-synthetic-crf-method-report.v1';
+const check=(v,code='CRF_REPORT_CONTEXT_INVALID')=>assert.ok(v,code);
+export function buildCrfMethodReportFacts({run,snapshot,packet,packetVersion,pico,sources,ai}){
+ check(run.status==='needs_review'&&run.sourceStatus==='current'&&run.result&&run.resultHash===edcDigest(run.result));check(run.inputHash===edcDigest({localCrfMethod:snapshot})&&snapshot.manifestHash===edcDigest(snapshot.manifest));
+ const{seal,...unsigned}=packet;check(seal===edcDigest(unsigned)&&syntheticQualityCurrent(packet));check(snapshot.collectionId===run.collectionId&&snapshot.versionId===packetVersion.versionId&&snapshot.versionNo===packetVersion.versionNo&&snapshot.collectionId===packetVersion.collectionId);check(edcDigest(snapshot.binding)===edcDigest(packet.binding)&&edcDigest(snapshot.dataBasis)===edcDigest(syntheticDataBasis(packet)));check(snapshot.quality.id===packet.quality.id&&snapshot.quality.findingsHash===packet.quality.findingsHash&&run.result.manifestHash===snapshot.manifestHash);
+ const e=ai?.selected;if(e)check(e.status==='current'&&e.resultMessageId&&e.binding.runId===run.id&&e.binding.inputHash===run.inputHash&&e.binding.resultHash===run.resultHash&&Array.isArray(e.items)&&e.items.length>0);
+ const status=e?'current':ai?.aiStatus==='restricted'?'unavailable':ai?.explanation?.status==='stale'?'stale':['queued','processing'].includes(ai?.job?.status)?'pending':ai?.job?.status==='failed'?'failed':ai?.job?'not_selected':'not_requested';
+ const facts={schema:CRF_REPORT_MARKER,syntheticOnly:true,reviewRequired:true,packet:{id:run.collectionId,versionId:packetVersion.versionId,versionNo:packetVersion.versionNo},binding:packet.binding,pico,config:packet.config,basis:syntheticDataBasis(packet),quality:snapshot.quality,recordVersions:packet.records.map(({recordId,syntheticSubjectKey,visitKey,formKey,status,responseRevision})=>({recordId,syntheticSubjectKey,visitKey,formKey,status,responseRevision})),method:{runId:run.id,runVersion:run.runVersion,inputHash:run.inputHash,resultHash:run.resultHash,manifestHash:snapshot.manifestHash,executor:run.result.executor,workerVersion:run.result.workerVersion,adapterVersion:run.result.adapterVersion},coverage:snapshot.coverage,result:run.result,sources,ai:{status,...(e?{resultMessageId:e.resultMessageId,sessionId:e.sessionId,binding:e.binding,items:e.items,sources:e.sources,methodRefs:e.methodRefs}:{})}};
+ check(Buffer.byteLength(JSON.stringify(facts))<=240000,'CRF_REPORT_CAPACITY');return structuredClone(facts);
+}
+export function crfReportCurrent(facts,run){return facts.schema===CRF_REPORT_MARKER&&run.sourceStatus==='current'&&run.status==='needs_review'&&facts.method.runId===run.id&&facts.method.inputHash===run.inputHash&&facts.method.resultHash===run.resultHash;}
+export function crfReportNotesOperation(state,body){
+ exactEdcFields(body,['baseVersionNo','notes','requestKey']);check(Number.isSafeInteger(body.baseVersionNo)&&body.baseVersionNo>0&&typeof body.notes==='string'&&body.notes.length<=6000&&typeof body.requestKey==='string'&&/^[A-Za-z0-9_-]{8,128}$/.test(body.requestKey),'CRF_REPORT_INPUT_INVALID');
+ const hash=edcDigest(body),prior=state.operations.find(o=>o.key===body.requestKey);if(prior){check(prior.hash===hash,'CRF_REPORT_KEY_CONFLICT');return{idempotent:true,operation:prior,notes:state.notes};}
+ check(state.versionNo===body.baseVersionNo,'CRF_REPORT_VERSION_CONFLICT');check(state.notes!==body.notes,'CRF_REPORT_NO_CHANGE');check(state.versionNo<30,'CRF_REPORT_CAPACITY');return{idempotent:false,notes:body.notes,operation:{key:body.requestKey,hash,versionNo:state.versionNo+1}};
+}
+const text=v=>String(v??'未提供').replace(/[\\`*_{}\[\]<>|#~]/g,'\\$&').replace(/\r?\n/g,' ');
+export function renderCrfMethodReport(facts,notes){
+ check(facts.schema===CRF_REPORT_MARKER);check(typeof notes==='string'&&notes.length<=6000);const m=facts.method;
+ return['### 合成科研方法报告草稿 · 待本人核对','仅本人合成记录包的缺失与显式人工范围检查，不是正式采集、临床疗效、推断统计或分析放行。不开放审批、锁库、共享、发布或导出。',
+ '#### 实际输入与执行血缘',`记录包 ${text(facts.packet.id)} v${facts.packet.versionNo} · 版本 ${text(facts.packet.versionId)}`,`方案 ${text(facts.binding.planId)} v${facts.binding.parentRootVersionNo} · 数据修订 d${facts.basis.dataRevision}`,`数据 SHA256 ${facts.basis.dataHash} · 配置 SHA256 ${facts.basis.configHash}`,`DQ ${text(facts.quality.id)} · ${text(facts.quality.findingsHash)}`,`实际方法 ${text(m.runId)} · ${text(m.executor)} / ${text(m.workerVersion)} / ${text(m.adapterVersion)}`,`输入 ${m.inputHash} · manifest ${m.manifestHash} · 结果 ${m.resultHash}`,
+ '#### 确定性结果（非AI计算）',`合成编号 ${facts.result.packetCounts.syntheticSubjects} · 合成访视记录 ${facts.result.packetCounts.syntheticVisitRecords}；每访视单独分母。`,...facts.result.evidenceGroups.flatMap(g=>[`- ${text(g.visitLabel)} / ${text(g.fieldLabel)} · ${text(g.evidenceId)}：记录 ${g.n}，缺失 ${g.nMissing}，比例 ${g.missingRate}；分类 ${text(JSON.stringify(g.missingStates))}`,g.rangeSource==='explicit_manual_config'?(g.nMissing===g.n?'全缺失，未检查范围。':g.rangeObservations.length?g.rangeObservations.map(o=>`观察 ${text(o.side)}=${o.value}，人工范围界 ${o.configuredBound}。`).join(' '):'仅已观测值未超人工范围，不代表整体合格。'):'未配置数值范围，不进行范围判定。']),
+ '#### 覆盖与未检查范围',`覆盖：${text(facts.coverage.included.join('、'))}`,`未检查：${text(facts.coverage.notExamined.join('、'))}；不把协议占位零当真实结果。`,
+ '#### 不可变记录版本',...facts.recordVersions.map(r=>`- ${text(r.recordId)} · ${text(r.syntheticSubjectKey)} / ${text(r.visitKey)} · ${text(r.status)} · 答案 r${r.responseRevision}`),
+ '#### AI解释选择与局限',`实际AI状态：${text(facts.ai.status)}。未选用或未交付不等于已解释。`,...(facts.ai.items??[]).flatMap(i=>[text(i.explanation),...(i.question?[text(i.question)]:[])]),...(facts.ai.resultMessageId?[`真实消息 ${text(facts.ai.resultMessageId)} · 会话 ${text(facts.ai.sessionId)}`]:['本报告未选用当前可交付的真实AI解释，不使用固定示例。']),
+ '#### 已审核资料快照',...facts.sources.map((s,i)=>`- 来源 [${i+1}] ${text(s.docTitle)} · ${text(s.docId)} · ${text(s.chunkId)}\n\n${text(s.quote)}`),
+ '#### 本人说明（不改写机器事实）',notes.trim()?text(notes):'尚无本人说明。',`机器事实 SHA256：${edcDigest(facts)}`].join('\n\n');
+}

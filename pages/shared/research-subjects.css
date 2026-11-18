@@ -1,0 +1,16 @@
+.rh-formal-subjects .main-grid,.rh-formal-subjects .stack,.rh-formal-subjects .three-col,.rh-formal-subjects .stats-row{min-width:0}
+.rh-formal-subjects .ui-tabs{min-width:0;max-width:100%;overflow-x:auto}
+.rh-formal-subjects .ui-tabs button{white-space:nowrap;flex-shrink:0}
+.rh-formal-subjects .enrollment-check{font-size:14px;line-height:22px;margin-bottom:20px;min-width:0}
+.rh-formal-subjects .enrollment-check fieldset{border:0;padding:0;margin:0;min-width:0}
+.rh-formal-subjects .enrollment-check legend{font-size:14px;line-height:22px;font-weight:600;margin-bottom:8px}
+.rh-formal-subjects .enrollment-check-common{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.rh-formal-subjects .enrollment-check-items{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}
+.rh-formal-subjects .enrollment-check-item{border:1px solid var(--border,#e5e7eb);border-radius:8px;padding:12px;min-width:0;overflow-wrap:anywhere}
+.rh-formal-subjects .enrollment-check-item h4{font-size:14px;line-height:22px;margin:0 0 8px}
+.rh-formal-subjects .enrollment-check :is(input,select,textarea){font-size:14px;line-height:22px;min-height:40px;width:100%;box-sizing:border-box}
+.rh-formal-subjects .enrollment-check-progress{padding:12px;border:1px solid var(--border,#e5e7eb);border-radius:8px;margin-bottom:16px;overflow-wrap:anywhere}
+@media(max-width:1100px){.rh-formal-subjects .enrollment-check-items{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){.rh-formal-subjects .enrollment-check-common{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:900px){html:has(.rh-formal-subjects),body:has(.rh-formal-subjects),body:has(.rh-formal-subjects) #root{min-width:0!important;width:100%!important}body:has(.rh-formal-subjects) .platform-main{min-width:0!important;max-width:100%;width:100%;margin-left:0!important}.rh-formal-subjects .main-grid,.rh-formal-subjects .three-col{grid-template-columns:minmax(0,1fr)}.rh-formal-subjects .stats-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.rh-formal-subjects .ui-tabs{width:100%}}
+@media(min-width:701px) and (max-width:900px){body:has(.rh-formal-subjects) .platform-main{margin-left:var(--layout-sidebar)!important;width:calc(100% - var(--layout-sidebar))!important}}

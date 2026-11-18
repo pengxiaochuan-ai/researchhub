@@ -1,0 +1,92 @@
+// The approved C1 eight-draft matrix, through the real service, always rolled
+// back. No HTTP startup, old-service restart, clinical target or model call.
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {loadCatalogTarget,bindCatalogContext} from './research-assets-catalog-schema.mjs';
+import {assertFixtureTarget,withFixtureTransaction} from '../../app/server/scripts/wp01/fixture-guard.mjs';
+import {readBusinessAssetAdmission,readBusinessSourceProtection} from './research-assets-business-preflight.mjs';
+import {authorizeBusinessAssetStudy} from '../server/research-assets/business-access.mjs';
+import {authorizeCatalogScope} from './research-assets-catalog-access.mjs';
+import {createBusinessAssetRegistration} from '../server/research-assets/business-registration.mjs';
+import {createBusinessLocalBudget,createBusinessLocalEventBudget,projectBusinessLocalActions} from '../server/research-assets/business-local.mjs';
+import {createAssetGovernance,validateAssetGovernance} from './local-research-assets-governance.mjs';
+import {createAssetLifecycle} from './local-research-assets-lifecycle.mjs';
+import {createAssetCatalogReader,loadCatalogRecords} from './local-research-assets-catalog-read.mjs';
+
+assert.deepEqual(process.argv.slice(2),['--rollback-only']);
+const {env,ids}=loadCatalogTarget();
+assert.equal((await assertFixtureTarget(env)).databaseName,'wp01_test_full_baseline');
+const directory=new URL('../docs/planning/research-assets-completion-2026-11-16/evidence/',import.meta.url);
+const baseline=JSON.parse(readFileSync(new URL('business-preflight.json',directory)));
+const applied=JSON.parse(readFileSync(new URL('business-schema-applied.json',directory)));
+const snapshot=()=>withFixtureTransaction(env,'direct',async tx=>{await bindCatalogContext(tx,ids,ids.admin);return{admission:await readBusinessAssetAdmission(tx,ids),sources:await readBusinessSourceProtection(tx,ids)};},{readOnly:true});
+const before=await snapshot();assert.equal(before.admission.protectionHash,baseline.protectionHash);assert.equal(before.admission.ddlFingerprint,applied.afterFingerprint);
+const rollback=Error('BUSINESS_SERVICE_EXPECTED_ROLLBACK'),checks=[],assets=[];let complete=false;
+try{await withFixtureTransaction(env,'direct',async tx=>{
+ await bindCatalogContext(tx,ids,ids.admin);
+ await tx.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtextextended('wp01:official',0))");
+ await tx.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtextextended($1,0))",'wp01:tenant:'+ids.tenant);
+ const accounts=await tx.account.findMany({where:{tenantId:ids.tenant,id:{in:[ids.owner,ids.admin]}},select:{id:true,role:true,authVersion:true}});
+ await tx.$executeRawUnsafe('SET LOCAL ROLE aisci_app');
+ const withAccess=async(user,permission,run)=>{
+  await bindCatalogContext(tx,ids,user.accountId);
+  await tx.$executeRawUnsafe("SELECT set_config('app.research_project_id',$1,true)",user.researchProjectId);
+  const p=await authorizeBusinessAssetStudy({tx,user,scope:{tenantId:user.tenantId,studyGroupId:user.studyGroupId,researchProjectId:user.researchProjectId},permission});
+  const legacy=await authorizeCatalogScope({ids:{...ids,project:user.researchProjectId},tx,user,permission});
+  assert.equal(p.identityRevision,legacy.identityRevision,'cross-family identity revision');
+  return run(tx,p);
+ };
+ const service=createBusinessAssetRegistration({withAccess,syntheticOnly:true,beforeCommit:createBusinessLocalBudget(ids)});
+ const loadRecords=async(tx,p,source)=>projectBusinessLocalActions(await loadCatalogRecords(tx,p,source,{family:'business'}),p);
+ const reader=createAssetCatalogReader({withAccess,loadRecords});
+ const lifecycle=createAssetLifecycle({withAccess,loadRecords,family:'business',beforeCommit:createBusinessLocalEventBudget(ids),auditOptions:{syntheticOnly:true}});
+ const governance=createAssetGovernance({ids,withAccess,loadRecords,validate:input=>validateAssetGovernance(input,{ids,family:'business'}),permissionFor:v=>v.action==='submit'?'artifact.edit':v.action==='review'?'artifact.review':'artifact.release',beforeCommit:createBusinessLocalEventBudget(ids),auditOptions:{syntheticOnly:true}});
+ for(const actor of ['owner','admin'])for(const project of [ids.project,'rh-asset-detail-20261113-study-b'])for(const slot of [1,2]){
+  const a=accounts.find(a=>a.id===ids[actor]);
+  const user={tenantId:ids.tenant,studyGroupId:ids.group,researchProjectId:project,accountId:a.id,role:a.role,authVersion:a.authVersion};
+  const input={kind:'protocol',metadata:{title:'C1合成方案 '+actor+' '+(project===ids.project?'A':'B')+' '+slot,summary:'合成摘要',purpose:'登记与修订联调',limitations:'仅合成材料，不用于临床，不共享或发布',author:'合成研究者',domains:[]},sourceKind:'author',sourceBindings:[],policy:{rightsEvidence:'本人获准合成材料，仅本机验证',discoveryRecipients:[]},contentMd:'# 合成方案\n\n初稿，供服务契约验证。',requestKey:'business-service-'+actor+'-'+(project===ids.project?'a':'b')+'-'+slot};
+  const receipt=await service.register(user,input);assert.equal(receipt.version,1);assets.push({id:receipt.assetId,actor,project});
+  assert.deepEqual(await service.register(user,input),receipt);
+  await assert.rejects(service.register(user,{...input,contentMd:'changed-with-same-key'}),e=>e.code==='ASSET_CATALOG_REQUEST_KEY_CONFLICT');
+  const draft=await service.edit(user,receipt.assetId,1);assert.equal(draft.family,'business');assert.equal(draft.contentMd,input.contentMd);
+  const revised={...input,contentMd:input.contentMd+'\n\n修订说明。',baseVersion:1,expectedRevision:1,requestKey:input.requestKey+'-revision'};
+  const revisedReceipt=await service.revise(user,receipt.assetId,revised);assert.equal(revisedReceipt.version,2);assert.equal(revisedReceipt.revision,2);
+  assert.deepEqual(await service.revise(user,receipt.assetId,revised),revisedReceipt);
+  await assert.rejects(service.revise(user,receipt.assetId,{...revised,requestKey:revised.requestKey+'-stale'}),e=>e.code==='ASSET_CATALOG_VERSION_CONFLICT');
+  assert.equal((await reader.detail(user,receipt.assetId,1)).contentMd,input.contentMd);
+  assert.equal((await reader.detail(user,receipt.assetId,2)).contentMd,revised.contentMd);
+  assert.deepEqual(await service.operation(user,revised.requestKey),revisedReceipt);
+  const operationBody=(o,action,requestKey)=>({action,version:2,expectedRevision:o.expectedRevision,identityRevision:o.identityRevision,contentHash:o.contentHash,policyHash:o.policyHash,requestKey,reason:'仅本轮具名合成资产验证'});
+  let option=await lifecycle.options(user,receipt.assetId,2);
+  const trash=operationBody(option,'trash',input.requestKey+'-trash');assert.equal((await lifecycle.execute(user,receipt.assetId,trash)).revision,3);
+  option=await lifecycle.options(user,receipt.assetId,2);
+  const restore=operationBody(option,'restore',input.requestKey+'-restore');assert.equal((await lifecycle.execute(user,receipt.assetId,restore)).revision,4);
+  option=await governance.options(user,receipt.assetId,2);
+  const submit=operationBody(option,'submit',input.requestKey+'-submit');delete submit.reason;
+  assert.equal((await governance.execute(user,receipt.assetId,submit)).revision,5);
+  const administrator=accounts.find(a=>a.id===ids.admin),reviewer={...user,accountId:administrator.id,role:administrator.role,authVersion:administrator.authVersion};
+  option=await governance.options(reviewer,receipt.assetId,2);
+  const review={...operationBody(option,'review',input.requestKey+'-review'),conclusion:'approved',contentChecked:true,rightsChecked:true,selfReviewAcknowledged:true};
+  const reviewed=await governance.execute(reviewer,receipt.assetId,review);assert.equal(reviewed.revision,6);
+  assert.deepEqual(await governance.execute(reviewer,receipt.assetId,review),reviewed);
+  assert.equal((await reader.detail(user,receipt.assetId,2)).state,'approved');
+ }
+ checks.push('eight service-created drafts, two same-kind per original actor per A/B Study');
+ checks.push('eight real v2 revisions and immutable historical v1 bodies');
+ checks.push('create/revise retries keep receipts and rows; changed-payload and stale-CAS rejected');
+ checks.push('eight draft recycle/restore/submit/current-admin approval chains, private and unreleased, exactly six events each');
+ const admin=accounts.find(a=>a.id===ids.admin),owner=accounts.find(a=>a.id===ids.owner);
+ const user={tenantId:ids.tenant,studyGroupId:ids.group,researchProjectId:'rh-asset-detail-20261113-study-b',accountId:admin.id,role:admin.role,authVersion:admin.authVersion};
+ assert.equal((await reader.catalog(user,{})).stats.all,4);
+ assert.equal((await reader.catalog({...user,accountId:owner.id,role:owner.role,authVersion:owner.authVersion},{})).stats.all,2);
+ await assert.rejects(reader.detail(user,assets[0].id,1),e=>e.status===404);
+ await assert.rejects(reader.catalog({...user,authVersion:user.authVersion+1},{}),e=>e.status===401);
+ checks.push('admin B reads four, owner B reads own two, wrong Study and stale identity rejected');
+ await tx.$executeRawUnsafe('SET CONSTRAINTS ALL IMMEDIATE');checks.push('all deferred real PostgreSQL constraints executed');
+ complete=true;throw rollback;
+});}catch(e){if(e!==rollback)throw e;}
+assert(complete);
+const after=await snapshot();assert.equal(after.admission.protectionHash,before.admission.protectionHash);assert.equal(after.admission.ddlFingerprint,before.admission.ddlFingerprint);assert.deepEqual(after.sources,before.sources);
+const receipt={passed:true,mode:'service-rollback-only',at:new Date().toISOString(),database:'wp01_test_full_baseline',checks,predictedAssets:assets,successfulEvents:48,persistentAssets:0,persistentEvents:0,oldFactsAndSourcesPreserved:true,ddlUnchanged:true,modelCalls:0,roleChanges:0};
+writeFileSync(new URL('business-service-prediction.json',directory),JSON.stringify(receipt,null,2));
+console.log(JSON.stringify({...receipt,predictedAssets:assets.length}));

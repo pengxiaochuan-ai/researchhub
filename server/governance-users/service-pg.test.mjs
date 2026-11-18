@@ -1,0 +1,36 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';import {readFileSync} from 'node:fs';import {createRequire} from 'node:module';
+import {loadFixtureInput} from '../../../app/server/scripts/wp01/local-config.mjs';import {withFixtureTransaction} from '../../../app/server/scripts/wp01/fixture-guard.mjs';
+import {createGovernanceUsers} from './service.mjs';
+const require=createRequire(new URL('../../../app/server/package.json',import.meta.url));require('ts-node').register({project:new URL('../../../app/server/tsconfig.json',import.meta.url).pathname,transpileOnly:true});
+const {AccountsService}=require('./src/accounts/accounts.service.ts'),{PiGovernanceService}=require('./src/pi-governance/pi-governance.service.ts'),{lockAuthorizationMutation}=require('./src/common/worker-publication.ts');
+const {env}=loadFixtureInput('../.superpowers/sdd/implementation-plan/wp01-full-baseline-target.json');const {ids}=JSON.parse(readFileSync('../.tmp/researchhub-knowledge-local/runtime.json','utf8'));const rollback=Error('P2_SERVICE_ROLLBACK');
+test('current tenant admin manages true new Study without fake membership; ordinary reader denied; member CAS/replay/last manager and list projection',async()=>{
+ await assert.rejects(withFixtureTransaction(env,'app',async tx=>{
+  await tx.$executeRaw`SELECT set_config('app.tenant_id',${ids.tenant},true)`;
+  const actor=await tx.account.findUnique({where:{id:ids.admin}}),p={tenantId:ids.tenant,accountId:actor.id,authVersion:actor.authVersion};
+  const seed='rh-p2-svc-'+randomUUID().slice(0,8),gid=seed+'-group',pid=seed+'-project',member=seed+'-member',manager=seed+'-manager';
+  for(const id of [member,manager])await tx.account.create({data:{id,tenantId:p.tenantId,username:id+'@example.test',passwordHash:'no-login',displayName:id}});
+  await tx.studyGroup.create({data:{id:gid,tenantId:p.tenantId,slug:gid,name:'P2服务回滚研究组'}});
+  await tx.$executeRaw`SELECT set_config('app.study_group_id',${gid},true),set_config('app.research_project_id',${pid},true)`;
+  await tx.researchProject.create({data:{id:pid,tenantId:p.tenantId,studyGroupId:gid,code:pid,name:'P2服务回滚Study'}});
+  const role=await tx.permissionRole.findFirst({where:{id:'wp02-invite-3a7f7604-reader',tenantId:p.tenantId}});assert(role);
+  for(const accountId of [member,manager])await tx.studyGroupMembership.create({data:{tenantId:p.tenantId,studyGroupId:gid,accountId,roleId:role.id}});
+  await tx.researchProjectMembership.create({data:{tenantId:p.tenantId,studyGroupId:gid,researchProjectId:pid,accountId:manager,roleKey:'project_manager'}});
+  const bound={withTenantTransaction:(_t,_g,_p,fn)=>fn(tx)},accounts=new AccountsService(bound),members=new PiGovernanceService(bound);
+  const s=createGovernanceUsers({transact:async(principal,fn)=>{await lockAuthorizationMutation(tx,principal.tenantId,{includeOfficial:true});return fn(tx);},legacyUpdate:(_tx,...args)=>accounts.update(...args),legacyChangeMember:(stamped,...args)=>new PiGovernanceService({withTenantTransaction:(_t,_g,_p,fn)=>fn(stamped)}).changeMember(...args)});
+  const list=await s.accounts(p,{q:seed});assert.equal(list.total,2);assert(!JSON.stringify(list).includes('passwordHash'));
+  assert((await s.studies(p)).items.some(x=>x.researchProjectId===pid));
+  assert.equal(await tx.studyGroupMembership.count({where:{studyGroupId:gid,accountId:p.accountId}}),0);
+  const before=await s.members(p,gid,pid);assert.equal(before.items.length,2);
+  await assert.rejects(s.accounts({...p,accountId:member,authVersion:0},{}),{status:403});
+  await assert.rejects(s.members({...p,accountId:member,authVersion:0},gid,pid),{status:403});
+  const input={expectedVersion:null,requestKey:randomUUID(),roleKey:'researcher',status:'active',reason:'P2合成成员验证'};
+  const added=await s.changeMember(p,gid,pid,member,input);assert.equal(added.status,'active');assert.deepEqual(await s.changeMember(p,gid,pid,member,input),added);
+  await assert.rejects(s.changeMember(p,gid,pid,member,{...input,requestKey:randomUUID()}),{status:409});
+  const rows=await s.members(p,gid,pid),leader=rows.items.find(x=>x.accountId===manager);
+  await assert.rejects(s.changeMember(p,gid,pid,manager,{...input,expectedVersion:leader.version,requestKey:randomUUID(),status:'disabled'}),{code:'HUB_MEMBERS_LAST_MANAGER'});
+  const changed=await s.changeMember(p,gid,pid,member,{...input,expectedVersion:added.updatedAt,requestKey:randomUUID(),roleKey:'data_manager'});assert.equal(changed.roleKey,'data_manager');
+  const removed=await s.changeMember(p,gid,pid,member,{...input,expectedVersion:changed.updatedAt,requestKey:randomUUID(),status:'disabled'});assert.equal(removed.status,'disabled');
+  throw rollback;
+ }),e=>e===rollback);
+});

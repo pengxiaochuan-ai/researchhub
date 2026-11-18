@@ -1,0 +1,53 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {createRequire} from 'node:module';
+import {readFile} from 'node:fs/promises';
+import {loadFixtureInput} from '../../../app/server/scripts/wp01/local-config.mjs';
+import {withFixtureTransaction} from '../../../app/server/scripts/wp01/fixture-guard.mjs';
+import {createHubDefaultSkills} from './default-skills.mjs';
+import {loadSkillCatalog,verifySkillSnapshot} from './skill-catalog.mjs';
+import {createSessionSkillRouting} from './session-skill-routing.mjs';
+import {createLiteratureSession} from './literature-session.mjs';
+import {runHubSourceSearch,assertCurrentAiSources} from '../hub-sources/agent-retrieval.mjs';
+import {loadArticleEvidence,assertCurrentArticleEvidence} from '../hub-sources/article-evidence.mjs';
+
+const require=createRequire(import.meta.url),{lockAuthorizationMutation}=require('../../../app/server/dist/common/worker-publication.js'),{resolveEffectiveSkillCatalog}=require('../../../app/server/dist/agents/effective-skills-policy.js');
+const {env}=loadFixtureInput(new URL('../../../.superpowers/sdd/implementation-plan/wp01-full-baseline-target.json',import.meta.url).pathname);
+const {ids}=JSON.parse(await readFile(new URL('../../../.tmp/researchhub-knowledge-local/runtime.json',import.meta.url),'utf8'));
+const root=new URL('../../',import.meta.url),catalog=await loadSkillCatalog(root),agentId=ids.tenant+'-kb-research';
+
+test('guarded app-role PG persists/reloads a route and rejects a live account override before execution',async()=>{
+ const rollback=Error('ROLLBACK_T05_NAMED_TEST');
+ await assert.rejects(()=>withFixtureTransaction(env,'app',async tx=>{
+  await tx.$executeRawUnsafe("SELECT set_config('app.tenant_id',$1,true),set_config('app.study_group_id',$2,true),set_config('app.research_project_id',$3,true)",ids.tenant,ids.group,ids.project);
+  const account=await tx.account.findFirst({where:{tenantId:ids.tenant,id:ids.owner}}),user={tenantId:ids.tenant,accountId:ids.owner,authVersion:account.authVersion,studyGroupId:ids.group,researchProjectId:ids.project};
+  const session=await tx.session.findFirst({where:{tenantId:ids.tenant,accountId:ids.owner,contextKey:'hub:lingshu-xinyu',agentId,status:'active',deletedAt:null}});assert(session);
+  const defaults=createHubDefaultSkills({scope:{product:'researchhub',allowedTenantIds:[ids.tenant]},tenantId:ids.tenant,agentId,catalog,transaction:fn=>fn(tx),lockAuthorization:lockAuthorizationMutation,resolveEffectiveSkillCatalog});
+  const router=createSessionSkillRouting({tenantId:ids.tenant,agentId,catalog,transaction:fn=>fn(tx),effectiveInTx:defaults.listInTransaction,contextOf:()=>({kind:'hub'}),verifySource:s=>verifySkillSnapshot(root,s)});
+  const id='t05-rollback-'+randomUUID(),text='已审核资料对于针灸研究有哪些局限？';
+  const message=await tx.message.create({data:{tenantId:ids.tenant,sessionId:session.id,role:'user',content:text,meta:{syntheticFixture:id}}});
+  const data={id,...user,sessionId:session.id,roleSnapshot:account.role,requestKey:id,text,payload:{kbIds:[]},userMessageId:message.id,status:'processing'};delete data.authVersion;
+  const job=await router.withRequest(user,session,{text,requestKey:id},()=>router.onJobCreate(tx,{data},args=>tx.knowledgeChatJob.create(args)));
+  const restored=await router.prepare(user,session.id,job.id);assert.equal(restored.skill.key,'doubao-medical-literature-search');assert.equal(restored.decision.mode,'existing-reviewed-hub');
+  const nextRouter=createSessionSkillRouting({tenantId:ids.tenant,agentId,catalog,transaction:fn=>fn(tx),effectiveInTx:defaults.listInTransaction,contextOf:()=>({kind:'hub'}),verifySource:s=>verifySkillSnapshot(root,s),literatureEnabled:true,interpretationEnabled:true});
+  const taskId='t06-rollback-'+randomUUID(),question='仅依据已审核资料，针灸治疗失眠研究有哪些局限？';
+  const newJob=await nextRouter.withRequest(user,session,{text:question,requestKey:taskId},()=>nextRouter.onJobCreate(tx,{data:{...data,id:taskId,text:question,requestKey:taskId}},args=>tx.knowledgeChatJob.create(args)));
+  const nextRoute=await nextRouter.prepare(user,session.id,newJob.id);assert.equal(nextRoute.decision.mode,'hub-literature-search');
+  const literature=createLiteratureSession({root,tenantId:ids.tenant,routing:nextRouter,transaction:fn=>fn(tx),hubSearch:(_u,query,compiledPlan)=>runHubSourceSearch({db:tx,principal:user,tenantId:ids.tenant,hubKey:'lingshu-xinyu',query,compiledPlan}),hubCurrent:(_u,sources)=>assertCurrentAiSources({db:tx,principal:user,tenantId:ids.tenant,hubKey:'lingshu-xinyu',sources}),createMcp:async()=>{throw Error('MCP_MUST_NOT_START');}});
+  const turn={user,sessionId:session.id,jobId:newJob.id,skillRoute:nextRoute},evidence=await literature.prepare(turn);assert(evidence.selected.length>0);assert.equal(evidence.external,null);await literature.validate(turn,evidence);
+  await tx.knowledgeChatJob.update({where:{id:taskId},data:{status:'completed'}});
+  const interpretId='t07-rollback-'+randomUUID(),interpretText='解读第一篇的研究局限';
+  const child=await nextRouter.withRequest(user,session,{text:interpretText,requestKey:interpretId},()=>nextRouter.onJobCreate(tx,{data:{...data,id:interpretId,text:interpretText,requestKey:interpretId}},args=>tx.knowledgeChatJob.create(args)));
+  const childRoute=await nextRouter.prepare(user,session.id,child.id);assert.equal(childRoute.decision.mode,'hub-literature-interpretation');assert.equal(childRoute.decision.taskPlan.parentJobId,taskId);
+  const fixed=createLiteratureSession({root,tenantId:ids.tenant,routing:nextRouter,transaction:fn=>fn(tx),hubSearch:async()=>{throw Error('NO_NEW_SEARCH');},hubCurrent:(_u,sources)=>assertCurrentAiSources({db:tx,principal:user,tenantId:ids.tenant,hubKey:'lingshu-xinyu',sources}),loadFixedArticle:async(_u,s)=>(await loadArticleEvidence({db:tx,principal:user,tenantId:ids.tenant,hubKey:'lingshu-xinyu',recordId:s.pmcRecordId})).pack,assertFixedArticleInTx:(db,_u,pack,{lock=false}={})=>assertCurrentArticleEvidence({db,principal:user,tenantId:ids.tenant,hubKey:'lingshu-xinyu',pack,lock})});
+  const childTurn={user,sessionId:session.id,jobId:child.id,skillRoute:childRoute},childEvidence=await fixed.prepare(childTurn);assert.equal(childEvidence.selected.length,1);assert.equal(childEvidence.selected[0].pack.policyVersion,'rh-article-evidence-v2');await fixed.validate(childTurn,childEvidence);
+  const smart=createSessionSkillRouting({tenantId:ids.tenant,agentId,catalog,transaction:fn=>fn(tx),effectiveInTx:defaults.listInTransaction,contextOf:()=>({kind:'hub'}),verifySource:s=>verifySkillSnapshot(root,s),literatureEnabled:true,smartSearchEnabled:true,naturalPlanningEnabled:true});
+  const offlineId='smart-off-rollback-'+randomUUID(),offlineText='仅检索Hub已审核资料，不访问外部网站';
+  await smart.withRequest(user,session,{text:offlineText,requestKey:offlineId,networkIntent:{schema:'hub-network-intent.v1',enabled:true}},()=>smart.onJobCreate(tx,{data:{...data,id:offlineId,text:offlineText,requestKey:offlineId}},args=>tx.knowledgeChatJob.create(args)));
+  assert.equal((await smart.prepare(user,session.id,offlineId)).decision.mode,'existing-reviewed-hub');await assert.rejects(smart.assertNetwork(user,session.id,offlineId),/HUB_NETWORK_DISABLED/);
+  await tx.skillAssignment.create({data:{tenantId:ids.tenant,agentId,skillId:restored.skill.id,scopeKey:user.accountId,accountId:user.accountId,enabled:false}});
+  await assert.rejects(()=>router.prepare(user,session.id,job.id),/HUB_SKILL_NOT_EQUIPPED/);
+  throw rollback;
+ }),e=>e===rollback);
+});

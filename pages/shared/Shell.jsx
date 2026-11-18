@@ -6,28 +6,29 @@ import {
 } from 'lucide-react';
 
 const routes = {
-  我的科研: 'p01', 领域研究: 'h01', '岐研 AI': 'ai01', 科研资产: 'a01',
+  我的工作台: 'p01', 领域研究: 'h01', '岐研 AI': 'ai01', 科研资产: 'a01',
   管理与治理: 'g02',
 };
 
 const platformNav = [
-  ['我的科研', Home], ['领域研究', Box], ['岐研 AI', Sparkles], ['科研资产', FolderKanban],
+  ['我的工作台', Home], ['领域研究', Box], ['岐研 AI', Sparkles], ['科研资产', FolderKanban],
   ['管理与治理', BookOpen],
 ];
 
 const activeSection = {
   文献检索: '领域研究', 研究证据: '领域研究', 研究机会: '领域研究',
-  受试者管理: '我的科研', 数据管理: '我的科研', 研究分析: '我的科研',
-  项目管理: '我的科研', 统计分析: '我的科研', 人工审查: '管理与治理',
+  受试者管理: '我的工作台', 数据管理: '我的工作台', 研究分析: '我的工作台',
+  项目管理: '我的工作台', 统计分析: '我的工作台', 人工审查: '管理与治理',
 };
 
 export function go(page,context={}) { goToPage(page,context); }
 
-export function Header() {
-  return <div data-platform-header-slot/>;
+export function Header({ stableSlot = false } = {}) {
+  return <div data-platform-header-slot data-platform-react-slot={stableSlot ? 'true' : undefined}/>;
 }
 
-export function Sidebar({ active }) {
+export function Sidebar({ active, stableSlot = false }) {
+  if (stableSlot) return <div data-platform-sidebar-slot data-platform-react-slot="true"/>;
   const selected = activeSection[active] || active;
   return <aside className="platform-side">
     <nav>{platformNav.map(([label, Icon]) => <button key={label} className={selected === label ? 'active' : ''} onClick={() => routes[label] && go(routes[label])}>
@@ -44,7 +45,7 @@ export function Sidebar({ active }) {
 export function Hero({ breadcrumb, title, en, subtitle, actions, slogan, compact = false }) {
   return <section className={`platform-hero ${compact ? 'compact' : ''}`}>
     <div className="hero-copy">
-      <div className="breadcrumb">我的科研 <b>›</b> {breadcrumb}</div>
+      <div className="breadcrumb">我的工作台 <b>›</b> {breadcrumb}</div>
       <h1>{title} {en && <em>{en}</em>}</h1>
       <p>{subtitle}</p>
     </div>
@@ -54,10 +55,10 @@ export function Hero({ breadcrumb, title, en, subtitle, actions, slogan, compact
   </section>;
 }
 
-export function Shell({ active, hero, children, className = '' }) {
+export function Shell({ active, hero, children, className = '', stableSlots = false }) {
   return <div className={`platform-app ${className}`}>
-    <Header placeholder={hero.placeholder}/>
-    <Sidebar active={active}/>
+    <Header placeholder={hero.placeholder} stableSlot={stableSlots}/>
+    <Sidebar active={active} stableSlot={stableSlots}/>
     <main className="platform-main"><Hero {...hero}/>{children}</main>
   </div>;
 }

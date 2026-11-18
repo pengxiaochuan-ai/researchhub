@@ -1,0 +1,50 @@
+{
+  "derivation": "Python integer sum of public synthetic examples, not clinical observations",
+  "cases": [
+    {
+      "name": "all_zero",
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "expectedTotal": 0
+    },
+    {
+      "name": "all_three",
+      "values": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "expectedTotal": 27
+    },
+    {
+      "name": "mixed",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        1,
+        2,
+        0,
+        3,
+        2
+      ],
+      "expectedTotal": 14
+    }
+  ]
+}

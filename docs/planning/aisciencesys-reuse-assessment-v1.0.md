@@ -1,137 +1,104 @@
-# aisciencesys → 灵枢心域功能复用评估 V1.0
+# aisciencesys → 灵枢心域功能复用评估 V1.2
 
-日期：2026-10-14。对照：灵枢心域PRD V2.0专业材料修订R1。性质：代码复用分析，不是迁移实施或生产验收。
+日期：2026-10-19。性质：代码/字典复用分析与一期设计准备，非已实现/生产验收。V1.2归档后续用户确认，覆盖V1.1中的独立生产库、历史数据迁移及待确认身份阶段建议；静态/离线事实仍按原证据保留。
+
+现行入口：[一期评审包](phase1-review-2026-10-19/README.md)，含总体方案、AI专项、准备与倒排。事实附件：[数据库覆盖](reuse-review-2026-10-19/database-inventory.md)、[能力/离线证据](reuse-review-2026-10-19/capability-evidence.md)、[本轮增补](phase1-review-2026-10-19/source-evidence.md)。
 
 ## 1. 结论
 
-**可以用，而且最值得用的是研究执行/采集、知识库、确定性研究方法与科研产物服务。** 保留灵枢心域已确认的门户、公共Shell与页面，提取或适配旧项目业务模块；不整体替换前端，不把旧数据库对象直接重命名成Hub/Study。
+**不是从零开发。最省成本的方向是：保留 researchhub 已确认的前端与 Shell，以旧 app/server 整域后端 + 原数据库结构/RLS + 解析、Embedding、研究方法服务作为实现基线，补新业务模型和前端适配。**
 
-优先完成“方案版本→受试者入组→访视窗口→表单/量表→质量核查→专业复核→成果”链路，能显著减少首期自建EDC从零开发的范围。但现有表单并不等于完整EDC，跨机构、盲态、签署/更正/锁库等仍需验证和补齐。
+用户指出的 Agent、整套知识库、科研数据、文档解析都有大量现成实现。“直接复用”是沿用成熟模块/服务/数据库契约，不是原样开放给新用户或零散复制Service。**用户已选择共享PG实例/库/现有公共表，以不同租户隔离，租户管理共用；新旧业务独立部署且不迁历史研究数据。** 实施前验证后台归属与共享兼容，必要时允许最小旧后台修补。剩余大头是对象/权限适配、新研究配置、CRF更正锁定、全部AI业务连接、真实环境和专业验收。
 
-## 2. 检查依据与证据边界
+最重要的修订：
 
-仓库：`git@github.com:pengxiaochuan-ai/aisciencesys.git`。
+- **旧项目并非没有数据库字典。** 本地已有 1,573 行的 `docs/tech/05-数据库表结构字典.md`（V1.2 / 2026-09-13）；本轮用当前 schema、迁移和RLS补覆盖缺口。
+- **researchhub 是较完整的前端演示，不是已经有后端的成品。** 50个登记页面不等于50项真实能力；已有演示逻辑和视觉可保留。
+- **知识库比“上传+RAG”完整。** 原件、异步导入、审核/版本/回滚、去重人工决定、目录/编辑器、权限检索和引文都应优先整域复用。
+- **不应继承过时部署结论。** 当前源码已声明含 OpenCode 的 runtime 和配套 workers；是否在目标环境真正运行仍未验证。
+- **2026年11月中旬正式验收已确认。** 建议11-13工作日验收，准确日仍待预约。团队用户+Codex；主验收链已确认，但不能用它替代全部一期页面AI和模块验收，也不能保证所有远期V2目标同期完成。
 
-检查提交：`eadac113761485d3812dbb2e03a5f0385d9e6423`，2026-09-17，`chore: exclude local prototype agent memory`。
+## 2. 当前项目是什么、做到哪里
 
-已读取系统总纲、技术方案、应用说明、核心Prisma模型、前端页面、控制器、业务服务、策略与相关测试。源码分析副本位于本次任务的`work/aisciencesys-source`，按文本文件稀疏检出；不是完整素材/历史数据迁移。
-
-实际执行：`app/research-methods-worker`中 `python3 -m unittest test_statistical_power test_data_quality`，**12项测试通过**。这些证明样本量与质量算子的本地契约；未启动数据库、模型、Web工作台或生产服务，未执行全部NestJS/前端/端到端测试，不能据此声称整个项目可直接上线。
-
-目录和当前代码优先于历史文档：部分技术文档仍有“缺少app/.dockerignore”等过时条目，但本提交树已经包含该文件。部署缺口必须重新验证，不复制旧问题清单作当前结论。
-
-## 3. 技术架构与兼容性
-
-| 模块 | 旧项目实际技术 | 对灵枢心域的影响 |
+| 维度 | 当前代码事实 | 产品目标与结论 |
 | --- | --- | --- |
-| 前端 | React18、TypeScript、Vite、React Router、Zustand；Tiptap编辑器 | 与现有React/Vite兼容，业务组件可适配；单页路由/旧权限与Shell不能整套搬入 |
-| 后端 | NestJS10、Prisma6 | 可作为新后端候选基础，业务Service与策略优先复用 |
-| 数据 | PostgreSQL、pgvector、RLS；租户/课题组/项目作用域 | 与既有Hub字典的MySQL建议存在差异，需要数据库ADR，不应默默混用 |
-| 文件/知识 | MinIO接口、文档解析、知识版本、索引/引用 | 可用于文件与知识治理；实际生产存储适配另验 |
-| 研究算子 | Python样本量/数据质量Worker，确定性输入输出 | 适合样本量、质控、方法执行；不代表所有统计分析或多模态算子已接通 |
-| AI | DeepSeek/OpenCode、技能编排、研究证据与产物 | 可复用上下文、证据和任务结构；模型/联网/运行时配置需独立验收 |
+| 定位 | P002灵枢心域门户、公共Shell、领域/研究/资产/治理页面 | 岐研为平台、灵枢心域为首个针灸防治情志病Hub；不能把旧抑郁症系统简单改名当完成 |
+| 前端 | React18.3.1 / Vite6.0.7；`platform-pages.json`登记50页 | 保留页面和5个一级工作空间；正式服务、空态/失败/无权限需逐项接入 |
+| 身份 | `src/platform-user.js:1–15`默认demo-professor、authenticated=false；本机资料可覆盖显示 | 注册/登录/自助找回/邀请一期，L2/L3二期；注册归新租户但不授私有Study；window注入不是后端授权 |
+| 数据 | `src/demo-research-store.js:35`使用localStorage；`PublicPages.jsx:21–26`明确认证未接入 | 本机草稿不是正式数据、审计或EDC；生产模式不得失败后静默回退演示存储 |
+| 上下文 | `src/route-context.js:1`有hub/project/protocol等，没有独立studyId | 后端资源模型和前端路由契约需统一；URL传ID不构成权限 |
+| 服务 | 当前package只有前端构建/预览，`scripts/serve-dist.mjs`是静态文件服务 | 当前工程没有可用业务后端接入，不等于没有可复用的旧后端 |
+| 需求 | V2包括统一身份、多机构/Hub、Project→Study、EDC、共享治理、引用AI | 属于平台与研究执行产品，不是单纯学术官网；完整V2明显大于四周小团队的确定性工作包 |
 
-建议优先评估继续采用NestJS + PostgreSQL来复用后端，而不是为贴合历史MySQL建议重写全部RLS/Prisma。最终选型需结合实际部署、既有其他服务和数据团队确认；前端不因此迁移技术栈。
+证据基线：researchhub HEAD `190f509`（2026-10-15），保留此前P002和文档未提交更改；旧系统本地 HEAD `9b2bf43`（2026-09-23）。本轮未改业务代码，也未读取患者数据、备份内容或秘密配置。根仓库其他未提交变更不纳入本轮工作。
 
-## 4. 功能复用矩阵
+## 3. 可复用能力与必须适配的内容
 
-分级：A＝优先复用规则/算子；B＝已有完整代码路径，需上下文与接口改造；C＝部分基础可用，关键缺口仍需开发；D＝本期不直接搬入。A也需要目标研究参数与接入验收。
+分级：A＝优先沿用已有模块/服务；B＝沿用主体、明确新增适配；C＝新业务增量；D＝不纳入本次优先接入。所有等级仍需目标环境与业务验收，不是“上线完成”。
 
-| 功能 | 源码证据 | 判定 | 灵枢心域页面与改造 |
+| 能力 | 源码范围 | 复用判断 | researchhub接入 / 真实缺口 |
 | --- | --- | --- | --- |
-| 方案版本、审批/启用、发布检查 | `study-operations.controller.ts:499`起，Service，`StudyProtocolVersion` | B，高优先 | S02/S07/G01；接独立Study、伦理/机构政策，保留原版本 |
-| 入组、锚点、访视计划/窗口 | 同控制器577–663，VisitPlan/StudyEnrollment/SubjectVisit | B，高优先 | S03/S04/S09；按真实方案配置时点、中心与要求 |
-| 访视要求、补录证据与独立复核 | requirements attest/refresh/verify与visit complete接口 | B，高优先 | S09/S05；提交与专业复核分开，不以任务完成代替访视完成 |
-| 执行任务、分配、协作、提醒 | 控制器674–725，StudyTask等模型 | B，高优先 | S08/P01；成员与Study角色映射，提醒不当完成事实 |
-| 偏离与数据疑问 | 控制器732–767，ProtocolDeviation/DataQuery | B，高优先 | S05/G01；核对疑问回复/关闭授权及中心范围 |
-| eCRF表单模板/版本/分配/草稿/提交 | `study-forms.controller.ts:139`，Service，FormTemplate/Version/Assignment/Response | C，高优先 | S11/S09；基础可用，日期/附件/条件规则与更正/签署/锁定需补 |
-| 参与者触达身份、同意、H5问卷 | StudyOutreach与QuestionnaireH5控制器、`QuestionnaireH5Page.tsx` | B，按研究需要 | 移动采集补充；这是受试者问卷邀请，不能冒充科研成员邀请 |
-| 量表定义/版本/适用范围/结局 | `scale-governance.controller.ts:109`，ScaleDefinition/Version/Applicability | B，高优先 | S11/S09/S06；配置团队许可与实际版本，不默认拥有所有量表 |
-| 中医术语与映射版本 | `terminology/`，TerminologyEntry/MappingVersion | B，高优先 | H03/E01/Q01；疾病/症状/证型/干预分层，中英文范围由教授确认 |
-| 样本量确定性计算 | `statistical_power.py`，研究方法Service/Worker | A，较高优先 | S02设计辅助；已测均值/比例/相关等限定算子，不能覆盖任意试验设计 |
-| 数据质量规则、问题与放行门槛 | `data_quality.py`、`data-quality-release-policy.ts` | A/B，高优先 | S05/S06；原始发现、人工处置、豁免与放行分别保留 |
-| 原始/预处理文件、字段字典、来源 | `ingest/`、`dictionary/`、`data/`、`storage/` | B，高优先 | S09/A01/A02；文件绑定Study/中心/访视，受控元数据与行数据分开 |
-| 知识库文档解析、原文件、版本/审核 | `knowledge-import.service.ts`、KnowledgeDoc/SourceFile/Version | B，高优先 | E01/E02/H06/A01；承接已授权论文、方案、讲座PPT与资料 |
-| 文献元数据、候选去重与人工决定 | `knowledge-literature-metadata.ts`、`knowledge-deduplication.ts`、controller276–305 | A/B，高优先 | 复用DOI/hash/题名作者年份规则；需新增两份Excel的批量行级导入 |
-| RAG与指定文档引用问答 | `knowledge/retrieval.service.ts`、`sessions/`及知识问答UI | B，首期AI | E03/AI01；按资源权限过滤、引用版本，运行时实测 |
-| 外部证据检索、筛选/综合、研究信号 | `research-evidence/`、`research-intelligence/` | B，后续接入 | O01/O02/H01；与真实来源/领域归属结合，外部工具是否执行必须有证据 |
-| 正式科研产物、版本、来源、审核、发布/导出 | `research-artifacts.controller.ts:199–257`、ResearchArtifact相关模型 | B，高优先 | S10/A01/A02/G01；改造为受治理Asset及跨Hub共享/复用 |
-| 身份认证、Cookie、账号停用/会话撤销 | `auth/`、`accounts/`、authVersion | C，基础可用 | P003–P006；旧账号租户绑定，注册/找回/L1–L3需重建流程 |
-| 权限、上下文Guard、RLS、审计 | `StudyGroupGuard`、`prisma.service.ts`、`rls.sql`、`audit/` | B/C，底座优先 | G03/G04/所有业务API；适配跨机构身份与Study/中心/资源Scope |
-| 工作台驾驶舱、待办、启动检查 | `StudyOperationsPage.tsx`、`ResearchHome.tsx`、cockpit/next-actions/startup-checklist | B，复用业务视图 | P01/S01；只提取业务卡与服务，保持当前Shell与学术风格 |
-| 文本品牌配置、功能开关 | `tenant-theme-policy.ts`、`tenant-features/` | C，参考 | 当前实现为租户文本品牌，不能直接当完整Hub Logo/导航/范围配置 |
-| 诊断Agent、专用眼动/抑郁多模态检测 | 旧业务与政策、专用数据处理模块 | D | 不纳入灵枢心域首期临床诊断；仅复用通用处理接口及治理机制 |
-| Token计费、平台运营、整体后台/官网 | `billing/`、平台控制面、`official-site/` | D/后续 | 避免首期转为通用AI SaaS运营项目；按后续需求选择 |
+| Agent会话、编排、工具与Skill | `server/src/orchestrator/`、`sessions/`、`agents/`、`skills/`、`research-evidence/` | A/B；保留整条运行链，不重写另一个聊天后端 | AI01/E03及研究内入口接原服务；模型、工具出网、scope、失败降级与过程/产物留痕实测 |
+| 知识库完整业务域 | `server/src/knowledge/`、`web/src/pages/knowledge/KnowledgeBasePage.tsx`及相关组件 | A/B；整域与业务UI复用 | Wiki/目录、原文/版本/审核/回滚、候选去重/回收站、引文与@问答；适配Hub公开资料和Study私有资源 |
+| 文档解析与导入任务 | `kb-doc-parser/`、`knowledge/doc-extract.service.ts`、`knowledge-import.service.ts` | A；沿用任务和解析/清洗/审核契约 | 依实际格式配置Parser、OCR/结构化解析与资源限制；扫描文档、公式/表格等格式用真实样例验收，不把纯文本fallback冒称高质量解析 |
+| Embedding / 向量检索 | `kb-embed/`、`knowledge/retrieval.service.ts`、pgvector | A/B；不另建向量/RAG服务 | 固定模型/维度/版本，重用权限过滤、指定文档检索和引用；端点/出网/索引质量独立验证 |
+| 科研数据与文件 | `subjects/`、`data/`、`ingest/`、`dictionary/`、`storage/` | A/B；共用原表，保留作用域、文件/特征/来源与任务 | 新研究配置/合成数据验证；旧历史留旧租户不迁移，不能按同名被试合并 |
+| 方案、入组、访视、任务、疑问/偏离 | `study-operations/`、StudyProtocolVersion/VisitPlan/StudyTask等 | A/B；成熟执行底座优先保留 | S01–S09接真实服务，按完整Protocol配置中心、窗口和要求；不以固定演示访视代替研究配置 |
+| CRF / 量表 / 数据治理 | `study-forms*`、`scale-governance*`、`pi-governance/` | B；已有模板/响应/确定性计分，但不是完整目标EDC | 提交后可更正的新revision、前后值/原因、expectedRevision、PI审阅绑定版本、锁/解锁是必补，不用FormVersion.locked或DQ放行替代 |
+| H5触达、同意与问卷 | `study-outreach*`、`questionnaire-h5*`及旧H5业务页 | A/B；按首个研究需要复用 | 这是受试者触达/问卷链，不等于科研成员邀请；有效期、同意、量表/模板和数据scope需实测 |
+| 中医术语及映射版本 | `terminology/`及TerminologyEntry/MappingVersion | A/B；沿用审核/引用治理 | 疾病、症状、证型、干预分别映射；以教授确认的范围和版本为准，不让AI翻译直接改变临床标准 |
+| 研究方法/质量与数值 | `research-methods/`、`research-methods-worker/`、质量/量表策略 | A/B；限定算子直接复用 | 首期按确认SAP/量表规则接入；不声称覆盖任意统计/多模态分析，LLM不生成数值 |
+| 正式产物与导出 | `research-artifacts/`及版本、来源、审核、文件/导出任务 | A/B；保留已有交付层 | S10/A01/A02/G01适配权属、Hub共享和跨Study复用；旧released不自动获得公开权利 |
+| 认证、租户、权限、审计、后台 | `tenants/`、`auth/`、`accounts/`、Guard、Prisma/RLS、`audit/`、旧管理模块 | B；租户管理共用，不重建认证/RLS | 保留Account租户语义；公开注册不自动加默认组，自助找回/成员邀请补齐；三业务角色不变技术超管 |
+| 文献Excel批量接入 | 旧文献元数据、normalizeDoi、hash、去重计划/人工决定 | B/C；借已有规范化和治理引擎 | 新增batch/file/sheet/row/hash、来源映射、Canonical记录和幂等导入；知识文件门禁不等于文献行导入器 |
+| Hub/机构/领域来源层 | 当前新前端及V2逻辑模型；旧系统无等价公共Hub域 | C；新业务层 | Organization–Hub、关注/共建、意图Project/Study关联、Source/Canonical/Hub视图和公开策略；不重造下层研究引擎 |
+| 学术活动/公开网络/注册指标 | P007、C/T/R/H领域页 | B/C；UI可用，数据服务仍需接 | 先团队授权资料与明确来源，指标可复算；不以固定示例或文献条数冒充真实试验数 |
+| 专项诊断/退役检测、计费和多Hub运营 | 旧诊断/特定模态、billing及平台控制面 | D/后续 | 不因复用旧后端自动纳入新项目首期；退役检测不恢复，其他能力按需求另验 |
 
-## 5. 三个不能直接等同的产品对象
+知识业务UI不是整个旧前端原样搬入：现有入口/参数/回调值得复用，但API客户端、Cookie、group/project headers、auth store、对话框Provider、Tiptap及CSS要成组适配到当前Shell。新旧pnpm分别固定10.33.2与11.19.0，锁文件/构建边界先保留，不顺手合并并升级全项目依赖。
 
-### 账号不是跨机构统一身份
+**整包复用也要修正具体质量差额：** 当前知识索引单文档最多200块且无覆盖告警；聊天引文没有文档version/chunk hash；旧版本查看只有元信息，不能称已有全文diff；Embedding兼容端点缺域名硬约束。迁移前应验证长书/指南尾部可检索、引用在原文更新后可复查、索引失败可恢复和出站边界。不要因解析成功、关键词兜底或health返回ok就认定全文向量知识库已验收。这些是沿用成熟模块后的定点加固，不是重新开发整套知识库。
 
-旧 `Account` 明确含必填tenantId，用户名唯一约束为`tenantId + username`。登录需要tenantSlug。适合租户内科研成员，却不满足一个研究者跨机构、跨Hub通用账号。
+## 4. 数据库字典补齐后可以确认什么
 
-需要统一User/Profile和机构认证/成员关系，决定旧租户账号如何关联统一身份；不得仅把登录页面改成邮箱输入而保留原假设。未在本轮检查的Auth接口中发现公开自助注册、用户找回密码或L1–L3验证闭环。
+原结构字典在 `/Users/mac/aisciencesys/docs/tech/05-数据库表结构字典.md`，不是只有业务表 `data_dictionary`。当前源码静态计数：**111模型、11枚举、78迁移目录**；78个migration.sql + 36个rollback.sql共114个SQL文件。
 
-### StudyGroup不是Hub
+本轮数据库附件建立111模型覆盖索引，并补6个完全遗漏模型及TenantTheme/ProjectOnboarding字段说明。原字典仍有摘要化字段，精确DDL以schema与SQL为准；不是另建一份貌似完整但与源码脱节的字典。
 
-旧课题组是私有成员与业务隔离上下文，不能代表跨机构公共领域空间。ResearchProject又同时绑定受试者、Protocol、访视、任务和产物，承担大量执行研究职责，与V2“Project内问题→独立Study”不同。
+静态表/列名筛查未发现111表列名集合与schema标量列集合的差异，但没有连接运行库、重放迁移或验证类型/默认值/实际索引，不能宣称线上schema一致。Prisma以外的HNSW、部分/表达式索引、不可变触发器同样要迁移，不能只用db push重建。
 
-需要关系映射与迁移契约：Tenant运营边界、Organization机构、Hub领域、Project意图、Study执行。先以服务适配层验证语义，不将`studyGroupId`直接替换为`hubId`，不让领域关联继承患者数据权限。
+关键模型映射建议：
 
-### 表单锁定不是数据库锁库
+- Tenant保留技术隔离含义，StudyGroup保留私有成员上下文；二者都不直接改名为Hub或Organization。
+- 旧ResearchProject实际挂接被试/方案/访视/表单/数据/产物，语义接近执行Study。保留旧表/FK，加独立意图Project与Study身份/旧执行项目映射；允许首期显式1:1，不伪装已经支持任意多Study。
+- 旧Account以tenant+username为身份，不按姓名自动合并跨机构用户；Hub负责人、PI、采集是资源级业务角色，不能用旧tenant_admin/platform_admin三个技术角色代替。
+- RLS有项目与父关系隔离，但还存在常驻elevated连接及ScaleItem等例外；服务端Guard/显式过滤/审计与目标环境受限角色测试不可省略。
+- 一期不迁历史数据；实际配置已确认在PG，需具体Study/Protocol/CRF/量表版本和新甲方适用性确认。结构字典不意味着运行库已核查或新研究正式模板已确认。
 
-旧表单版本有draft/published/locked，响应主要有draft/submitted。Service已阻止修改已提交响应，且提交与审计同事务；这是可用基础。
+## 5. 最小成本实施方式（待批准）
 
-但表单字段目前仅number/integer/text/select/boolean。不能由此认定已实现日期/附件/条件逻辑、项目级锁库、受权更正后签署失效、完整签署语义、中心隔离和盲态/紧急揭盲。DataQualityReleaseGate是分析放行治理，不是EDC数据库锁库，须分别设计。
+1. **先固定复用与隔离基线。** 新旧生产共享库表、不同租户；开发/验收以合成副本验证。核查四类后台扫描/恢复与登录/存储/索引边界，再做必要旧后台修补，保留旧功能回归。
+2. **先证明首条真实链路。** 新前端真账号→旧受限API→研究数据；文件→解析→审核→检索→带引用问答；若约定联网，保存实际工具调用/查询词/URL/时间和产物。缺工具/模型必须标阻断/降级。
+3. **只加目标语义与策略。** Project/Study/Hub/机构映射与三角色服务端授权；不大改全部旧FK，不用UI隐藏代替后端隔离。
+4. **完成认可的科研主验收链。** 材料/证据→PICO确认→可评审方案→合成试运行/CRF更正与质控→报告/资产/复用；无历史数据迁移预演任务。真实研究另经模板/专业授权门槛。
+5. **现有前端逐页切换真实数据。** 共用API/上下文/错误策略；复杂知识编辑、数据表单等复用旧业务组件，不重画一套；正式模式失败不得写localStorage假成功。
+6. **按四层验收交付。** 代码实现、目标环境启用、真实请求执行、专业业务结果分别举证；账号/管理/后台联动、单元/集成/界面/截图、部署恢复与培训同步完成。
 
-## 6. 文献表接入：可以借规则，不能原样上传
+## 6. 工期与必须讨论的内容
 
-旧知识库文件门禁明确拒绝独立CSV/XLS/XLSX，要求进入数据模块。因此王教授两份文献Excel不能直接用知识库“上传文献文件”入口导入成规范论文记录；数据模块能读表格也不等于已有文献Canonical化。
+已确认11月中旬正式验收，建议11-13工作日。10-21输入/设计评审、10-23 G1及11-06专业走查为复估点；没有自动缩减范围的批准，也不把Codex当独立真人团队。[现行倒排](phase1-review-2026-10-19/reverse-schedule.md)按纵向包列依赖与退出证据。
 
-需新增文献批次适配器：
+不再重复询问：共享库表/租户、独立共存/无迁移、注册/找回/邀请一期及L2/L3二期、旧科研Agent基线/全部AI入口和主验收链均已明确。仍需具体环境/配置ID、服务/材料授权、方法范围及专业效果判据；集中待决项见[准备清单Q01–Q08](phase1-review-2026-10-19/development-readiness.md)。
 
-1. 识别合并表与来源分表，记录file/sheet/row/hash。
-2. 映射18列题名/作者/单位/关键词/摘要/日期/来源/DOI等元数据。
-3. 复用normalizeDoi、内容hash、题名作者年份等候选去重逻辑。
-4. 保留源记录，人工确认候选重复与领域分类；缺DOI/摘要/URL允许有状态导入。
-5. 生成规范Publication与来源/版本关系，再组织进知识库及灵枢心域。
+## 7. 本轮验证与限制
 
-原合并记录15,696条不能自动当成唯一论文或临床研究数；跨语言去重与中医/现代术语映射由审核支撑，不只用AI译名合并。
+- 当前新前端17/17本地测试通过，范围为演示存储/路由和图片生命周期，不代表正式服务验收。
+- 旧知识/前端策略、研究方法与产物等离线测试、隔离编译结果及具体命令见[能力证据](reuse-review-2026-10-19/capability-evidence.md)。即使测试通过，也未证明目标环境模型、解析/Embedding、数据库、外部检索或迁移已完成。
+- 本轮只读核对源代码/schema/迁移/字典和安全离线测试，未连接数据库或读取患者行/备份/原始媒体/密钥；未部署、迁移、改动app业务代码或提交Git。
+- 没有用无依据的“80%复用”“节省几人月”代替范围和真实验证；复用收益首先来自保留下层整域引擎，新增工时集中在新业务语义、权限和验收。
 
-## 7. 仍需新增或重点补齐
+## 8. 版本记录
 
-- 灵枢心域公共Hub、范围配置、关注/Brief、共建机构关系、学术活动目录及公共学术网络。
-- Source/Canonical/Hub实体归属与临床注册来源、跨源去重、地图/趋势指标复算。
-- 统一个人身份、科研L2/机构L3、多机构关系、科研成员邀请；H5患者问卷邀请另保留。
-- 独立Study与中心/角色/资源权限、盲态限制；完整CRF字段/时点/验证规则。
-- 数据更正版本、审阅签署、锁定/解锁、签署失效与分析快照；随机化/紧急揭盲按首个方案确认。
-- 资产跨Study/跨Hub授权共享、权属与派生限制；旧产物发布不等于新Hub共享许可。
-
-## 8. 建议接入顺序
-
-1. **范围与模型映射**：确认首个Study/Protocol/CRF、账号/机构/Hub/Study模型及数据库选择，保留原项目独立运行。
-2. **身份与作用域适配**：统一身份、Study/机构成员、服务授权、RLS与审计；不能先接采集后补权限。
-3. **采集/执行纵向样例**：旧方案/入组/访视/表单/量表Service → 灵枢心域S02/S07/S03/S04/S09/S11；验证一个Study两个中心的真实链路。
-4. **质量与产物**：旧疑问/偏离/确定性质量/产物治理 → S05/S06/S10/A01/A02/G01；补EDC生命周期缺口。
-5. **文献与AI**：Excel批次适配＋知识库去重/版本/引用，再接E01/E02/AI01/O01/O02。
-6. **领域闭环**：补真实Hub数据、活动、公开网络和经授权资产复用；之后再扩展其他Hub运营。
-
-优先采用“保持现有前端＋后端模块提取/适配”的方式。若短期使用旧后端验证，创建新的受控配置与合成测试租户，不共用原教授账号、业务数据、凭证、模型密钥或部署。模块之间有Prisma/权限/服务依赖，不能按一个Service文件复制后就宣称复用完成。
-
-## 9. 接入验收
-
-至少验证：不同中心/Study拒绝越权；统一账号跨机构认证；方案旧版不被覆盖；表单必填/缺失语义/并发/正式提交；更正/签署/锁定；H5邀请有效期与同意；质量放行理由与数值来源；文献导入幂等与来源；AI输入授权/引用版本；产物共享/导出限制；当前公共Shell和50页路由回归。
-
-本轮仅完成静态功能分析与12项纯算子测试。未迁入代码、接入后端、复制真实研究数据或改动原仓库；不将本报告作为生产功能已验收的证明。
-
-## 10. 源码定位
-
-以下均为检查提交的具体源码，可供后续实现核对：
-
-- [表单策略与当前字段类型](https://github.com/pengxiaochuan-ai/aisciencesys/blob/eadac113761485d3812dbb2e03a5f0385d9e6423/app/server/src/study-operations/study-forms-policy.ts#L1)
-- [研究执行API](https://github.com/pengxiaochuan-ai/aisciencesys/blob/eadac113761485d3812dbb2e03a5f0385d9e6423/app/server/src/study-operations/study-operations.controller.ts#L499)
-- [知识文件格式门禁](https://github.com/pengxiaochuan-ai/aisciencesys/blob/eadac113761485d3812dbb2e03a5f0385d9e6423/app/server/src/knowledge/knowledge-file-policy.ts#L13)
-- [文献候选去重](https://github.com/pengxiaochuan-ai/aisciencesys/blob/eadac113761485d3812dbb2e03a5f0385d9e6423/app/server/src/knowledge/knowledge-deduplication.ts)
-- [Prisma模型：Account](https://github.com/pengxiaochuan-ai/aisciencesys/blob/eadac113761485d3812dbb2e03a5f0385d9e6423/app/server/prisma/schema.prisma#L171)
-- [Prisma模型：ResearchProject](https://github.com/pengxiaochuan-ai/aisciencesys/blob/eadac113761485d3812dbb2e03a5f0385d9e6423/app/server/prisma/schema.prisma#L333)
-- [科研产物审核与发布](https://github.com/pengxiaochuan-ai/aisciencesys/blob/eadac113761485d3812dbb2e03a5f0385d9e6423/app/server/src/research-artifacts/research-artifacts.controller.ts#L199)
-- [确定性样本量算子](https://github.com/pengxiaochuan-ai/aisciencesys/blob/eadac113761485d3812dbb2e03a5f0385d9e6423/app/research-methods-worker/statistical_power.py)
+- V1.0 / 2026-10-14：基于远端旧副本eadac113完成初步功能矩阵与12项纯算子测试，保留“无实际库备份/首研究配置”的证据边界。
+- V1.1 / 2026-10-19：改用用户本地完整app与当前schema；纳入已存在的结构字典及覆盖增补、知识/Agent/解析整域复用、当前runtime/worker声明、三角色和CRF差异，以及用户+Codex的中旬交付准备。没有改变已确认产品模型或执行迁移。
+- V1.2 / 2026-10-19：归档后续明确确认，改为共库共表/租户隔离/租户管理共用、无历史迁移、一期注册找回邀请与二期L2/L3；补全部AI覆盖/主验收、第四类科研运行恢复及初始化风险。仅文档设计，未实施。

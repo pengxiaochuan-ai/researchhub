@@ -2,10 +2,28 @@ import {mountFrontendLinks} from './platform-frontend.js';
 import { goToNav, goToPage } from './platform-navigation.js';
 import { mountPlatformHeader } from './platform-header.js';
 import { mountPlatformShell } from './platform-shell.js';
+import {realModeRouteState} from './real-mode-route.js';
+import {isResearchProjectRoute} from './research-projects-session.js';
+import './real-mode-gate.css';
+import './hub-source-responsive.css';
 
 const currentPage = window.location.pathname.match(/^\/pages\/([^/]+)/)?.[1];
+let explicitDemo=false;try{explicitDemo=sessionStorage.getItem('lingshu-demo-mode')==='true';}catch{}
+const realRouteState=realModeRouteState(currentPage,window.location.search,{configured:Boolean(import.meta.env.VITE_AUTH_TENANT_SLUG),explicitDemo});
+if(realRouteState==='live'&&['g02','e01','e02','h01','h05','c01','c03','h06','t01','t02','r01','r02','g03','g04','g01'].includes(currentPage))document.body.dataset.hubSourceReal='true';
+if(realRouteState==='entry')document.body.dataset.realEntry='true';
+const realPageGated=realRouteState==='pending';
+if(realPageGated){
+  document.body.dataset.realPageGated='true';
+  const gate=document.createElement('main'),card=document.createElement('section'),title=document.createElement('h1'),detail=document.createElement('p'),links=document.createElement('nav');
+  gate.className='qiyan-real-gate';card.className='qiyan-real-gate__card';links.className='qiyan-real-gate__links';links.setAttribute('aria-label','可用入口');
+  title.textContent="此页面暂不可用";
+  detail.textContent="请从“我的工作台”进入已授权研究，或前往知识资料。当前页面不提供研究数据或AI结果。";
+  for(const [label,url] of [['返回我的工作台','/pages/p01/'],['知识资料','/pages/k01/'],['登录或切换账号','/pages/p003/']]){const link=document.createElement('a');link.href=url;link.textContent=label;links.append(link);}
+  card.append(title,detail,links);gate.append(card);document.body.append(gate);
+}
 const linkedNavLabels = [
-  '我的科研', '领域研究', '岐研 AI', '科研资产', '管理与治理',
+  '我的工作台', '领域研究', '岐研 AI', '科研资产', '管理与治理',
 ];
 
 const navSelector = [
@@ -24,9 +42,10 @@ const legacyTopLevelLabels = [
 ];
 
 const activeNavByPage = {
-  q02: '我的科研', s07: '我的科研', s08: '我的科研', s09: '我的科研', s10: '我的科研', s11: '我的科研',
+  k01: '科研资产',
+  q02: '我的工作台', s07: '我的工作台', s08: '我的工作台', s09: '我的工作台', s10: '我的工作台', s11: '我的工作台',
   h06: '领域研究', h07: '领域研究', g03: '管理与治理', g04: '管理与治理', g05: '管理与治理',
-  p01: '我的科研',
+  p01: '我的工作台',
   h05: '领域研究',
   h01: '领域研究',
   c01: '领域研究',
@@ -41,12 +60,12 @@ const activeNavByPage = {
   ai01: '岐研 AI',
   a01: '科研资产',
   a02: '科研资产',
-  s01: '我的科研',
-  s02: '我的科研',
-  s03: '我的科研',
-  s04: '我的科研',
-  s05: '我的科研',
-  s06: '我的科研',
+  s01: '我的工作台',
+  s02: '我的工作台',
+  s03: '我的工作台',
+  s04: '我的工作台',
+  s05: '我的工作台',
+  s06: '我的工作台',
   g01: '管理与治理',
   g02: '管理与治理',
 };
@@ -57,7 +76,7 @@ function exactNavLabel(element, labels) {
 }
 
 function normalizePlatformNavigation() {
-  const selected = activeNavByPage[currentPage] || '领域研究';
+  const selected = isResearchProjectRoute(currentPage,location.search)?'我的工作台':activeNavByPage[currentPage] || '领域研究';
 
   document.querySelectorAll(navSelector).forEach((element) => {
     if (exactNavLabel(element, legacyTopLevelLabels)) {
@@ -72,14 +91,7 @@ function normalizePlatformNavigation() {
 }
 
 const pageRules = {
-  p01: [
-    { selector: '.railTitle a', text: '查看全部（5）', page: 'q02' },
-    { selector: '.actions button', text: '分配任务', page: 's08' },
-    { selector: '.hubNews button', page: 'h01' },
-    { selector: '.aiAnalysis a', page: 'e01' },
-    { selector: '.briefTitle a', page: 'e01' },
-    { selector: '.actions button', text: '进入课题判断', page: 's01' },
-  ],
+  p01: [],
   h01: [
     { selector: '.hub-kpi', text: '临床注册研究', page: 'c01' },
     { selector: '.hub-kpi', text: '研究论文', page: 'e01' },
@@ -202,6 +214,7 @@ function findNavLabel(element) {
 }
 
 function findPageRule(target) {
+  if(['live','entry'].includes(realRouteState))return null;
   for (const rule of pageRules[currentPage] ?? []) {
     const element = target.closest(rule.selector);
     if (!element) continue;
@@ -257,6 +270,7 @@ function markAsLinked(element) {
 }
 
 function decorateLinkedElements() {
+  if(realPageGated)return;
   mountPlatformHeader(currentPage);
   mountPlatformShell(currentPage);
   normalizePlatformNavigation();
@@ -300,7 +314,8 @@ function scheduleDecoration() {
 }
 
 const rootObserver = new MutationObserver(() => {
-  if (!document.querySelector('.global-platform-header')) scheduleDecoration();
+  if (!document.querySelector('.global-platform-header') ||
+      (currentPage === 'k01' && !document.querySelector('.qiyan-platform-sidebar'))) scheduleDecoration();
 });
 
 const root = document.getElementById('root');

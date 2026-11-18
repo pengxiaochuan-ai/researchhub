@@ -1,0 +1,15 @@
+// Reload only the already-owned synthetic local runtime after free preflight.
+import assert from 'node:assert/strict';import {readFileSync,writeFileSync} from 'node:fs';import {execFileSync} from 'node:child_process';import {createHash} from 'node:crypto';
+import {loadFixtureInput} from '../../app/server/scripts/wp01/local-config.mjs';import {assertFixtureTarget,withFixtureTransaction} from '../../app/server/scripts/wp01/fixture-guard.mjs';
+const root='/Users/mac/aisciencesys/',file=root+'.tmp/researchhub-knowledge-local/runtime.json',state=()=>JSON.parse(readFileSync(file)),initial=state(),{env}=loadFixtureInput(root+'.superpowers/sdd/implementation-plan/wp01-full-baseline-target.json'),out='.tmp/ai-question-length-2026-11-12/reload.json';
+const digest=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex'),identity=s=>digest({key:s.key,ids:s.ids,password:s.password,secret:s.secret}),run=action=>JSON.parse(execFileSync(process.execPath,[root+'researchhub/scripts/local-knowledge.mjs',action],{cwd:root,encoding:'utf8',timeout:120000}));
+assert.equal((await assertFixtureTarget(env)).databaseName,'wp01_test_full_baseline');const before=run('status');assert(before.owned);assert.equal(before.pid,initial.pid);assert(before.services.every(s=>s.ready));
+async function check(){return withFixtureTransaction(env,'direct',async tx=>{
+ const active=await tx.knowledgeChatJob.count({where:{tenantId:initial.ids.tenant,status:'processing'}}),queued=await tx.knowledgeChatJob.count({where:{tenantId:initial.ids.tenant,status:'queued',payload:{path:['hubCommand','consumerKey'],equals:'researchhub-interactive.v1'}}}),waiting=await tx.message.count({where:{tenantId:initial.ids.tenant,AND:[{meta:{path:['hubCommand','consumerKey'],equals:'researchhub-interactive.v1'}},{meta:{path:['hubCommand','status'],equals:'waiting'}}]}});
+ assert.equal(active,0,'live model task; do not reload');assert.equal(queued,0,'live queued task; do not reload');assert.equal(waiting,0,'live waiting command; do not reload');
+ const jobs=await tx.knowledgeChatJob.findMany({where:{tenantId:initial.ids.tenant},orderBy:{id:'asc'}});return{active,queued,waiting,jobs:jobs.length,jobsHash:digest(jobs)};
+},{readOnly:true});}
+const gate=await check();assert.equal(state().pid,initial.pid);
+const stopped=execFileSync(process.execPath,[root+'researchhub/scripts/local-knowledge.mjs','stop'],{cwd:root,encoding:'utf8',timeout:30000});assert(stopped.includes('Owned local runtime stopped'));
+const started=run('start'),after=run('status');assert(after.owned);assert(after.services.every(s=>s.ready));assert.notEqual(after.pid,before.pid);assert.equal(identity(state()),identity(initial));const final=await check();assert.equal(final.jobsHash,gate.jobsHash);
+const result={at:new Date().toISOString(),passed:true,beforePid:before.pid,afterPid:after.pid,gate,final,services:after.services,identityPreserved:true,knowledgeJobsPreserved:true,newModelCalls:0,oldServicesTouched:false};writeFileSync(out,JSON.stringify(result,null,2),{mode:0o600,flag:'wx'});console.log(JSON.stringify(result));

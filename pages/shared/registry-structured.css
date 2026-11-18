@@ -1,0 +1,33 @@
+.registry-structured { min-width: 0; margin-top: 24px; color: var(--text-primary, #172845); font: 400 14px/22px var(--font-zh, sans-serif); }
+.registry-structured *, .registry-structured *::before { box-sizing: border-box; }
+.registry-structured__provenance { padding: 16px 20px; border: 1px solid #dce4ef; border-radius: 10px; background: #f5f8fc; }
+.registry-structured p { margin: 0 0 8px; overflow-wrap: anywhere; }
+.registry-structured summary { min-height: 44px; padding: 10px 0; cursor: pointer; color: #334fc8; font: 500 14px/22px var(--font-zh, sans-serif); overflow-wrap: anywhere; }
+.registry-structured summary:focus-visible { outline: 3px solid #5746f5; outline-offset: 3px; border-radius: 4px; }
+.registry-structured__provenance dl { margin: 8px 0; display: grid; gap: 8px; }
+.registry-structured__provenance dt, .registry-field__label { color: var(--text-secondary, #526179); }
+.registry-structured__provenance dd { margin: 0; overflow-wrap: anywhere; }
+.registry-structured__section { margin-top: 24px; min-width: 0; }
+.registry-structured__section h3 { margin: 0 0 12px; font-size: 20px; line-height: 28px; }
+.registry-structured__section h3 span { margin-left: 8px; color: #526179; font-size: 14px; font-weight: 400; }
+.registry-structured__design, .registry-structured__arms article, .registry-structured__outcomes article { min-width: 0; padding: 20px; border: 1px solid #e1e5ed; border-radius: 12px; background: #fff; }
+.registry-field { min-width: 0; padding: 12px 0; border-bottom: 1px solid #e8edf4; }
+.registry-field:last-child { border-bottom: 0; }
+.registry-field__label { display: block; margin-bottom: 4px; }
+.registry-structured .registry-field__value { font: 400 16px/28px var(--font-zh, sans-serif); white-space: normal; }
+.registry-field__missing { color: #66748a; }
+.registry-field__source { max-width: 100%; }
+.registry-field__source[open] { padding: 0 12px 12px; background: #f5f8fc; border-radius: 8px; }
+.registry-field__source blockquote { margin: 8px 0 0; padding-left: 12px; border-left: 3px solid #c7d2ec; white-space: normal; overflow-wrap: anywhere; font: 400 16px/28px var(--font-zh, sans-serif); }
+.registry-structured h4 { margin: 0 0 4px; font-size: 16px; line-height: 24px; }
+.registry-structured__arms { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.registry-structured__outcomes { display: grid; gap: 16px; margin: 12px 0 0; padding: 0; list-style: none; }
+.registry-structured__outcome-name, .registry-structured__measurement { display: grid; gap: 0 20px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.registry-structured__measurement { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.registry-structured .registry-structured__note { color: #526179; margin-bottom: 12px; }
+.registry-structured .registry-structured__notice { padding: 12px 16px; margin-bottom: 12px; border-left: 3px solid #b07d23; background: #fff9ed; color: #6b4c16; }
+@media (max-width: 700px) {
+  .registry-structured__arms, .registry-structured__outcome-name, .registry-structured__measurement { grid-template-columns: minmax(0, 1fr); }
+  .registry-structured__design, .registry-structured__arms article, .registry-structured__outcomes article { padding: 16px; }
+  .registry-structured__provenance { padding: 12px 16px; }
+}

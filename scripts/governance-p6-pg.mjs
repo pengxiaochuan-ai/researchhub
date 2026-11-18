@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {loadFixtureInput} from '../../app/server/scripts/wp01/local-config.mjs';
+import {withFixtureTransaction} from '../../app/server/scripts/wp01/fixture-guard.mjs';
+import {createGovernanceSystem} from '../server/governance-system/service.mjs';
+import {createGovernanceSystemController} from '../server/governance-system/controller.mjs';
+assert.deepEqual(process.argv.slice(2),['--local-synthetic']);
+const root=new URL('../../',import.meta.url).pathname,runtime=JSON.parse(readFileSync(root+'.tmp/researchhub-knowledge-local/runtime.json'));
+const ids=runtime.ids;assert.match(ids.tenant,/^rh-kb-local-/);
+const {env}=loadFixtureInput(root+'.superpowers/sdd/implementation-plan/wp01-full-baseline-target.json');
+const read=cb=>withFixtureTransaction(env,'direct',cb,{readOnly:true}),out=root+'researchhub/docs/testing/evidence/governance-p6-2026-11-13/';mkdirSync(out,{recursive:true});
+const require=createRequire(root+'app/server/package.json');
+const state={account:{configured:true},ai:{configured:true},parser:{configured:true,secret:'MUST_NOT_LEAK',url:'http://private-service',check:{status:'passed',checkedAt:new Date().toISOString()}}};
+const principals=await read(async tx=>{const rows=await tx.account.findMany({where:{tenantId:ids.tenant,id:{in:[ids.admin,ids.owner]}},select:{id:true,tenantId:true,authVersion:true,role:true}});return Object.fromEntries(rows.map(a=>[a.id===ids.admin?'admin':'owner',{accountId:a.id,tenantId:a.tenantId,authVersion:a.authVersion,role:a.role}]));});
+let sourceReads=0;const service=createGovernanceSystem({tenantId:ids.tenant,transact:read,readState:()=>{sourceReads++;return state;}});
+const value=await service.status(principals.admin);assert.equal(value.services.length,5);assert.equal(value.services.find(s=>s.key==='ai').check.status,'unknown');assert(!JSON.stringify(value).includes('MUST_NOT_LEAK'));assert(!JSON.stringify(value).includes('http://'));
+const checks=['real active tenant admin returns five whitelisted service states; no arbitrary config fields'];
+for(const [name,p] of [['owner',principals.owner],['stale',{...principals.admin,authVersion:principals.admin.authVersion+1}],['cross-tenant',{...principals.admin,tenantId:'not-the-local-tenant'}],['forged-role',{...principals.admin,role:'researcher'}]]){const before=sourceReads;await assert.rejects(()=>service.status(p),{status:403});assert.equal(sourceReads,before);checks.push(name+' denied before source read');}
+const C=createGovernanceSystemController({env,ids,require,readState:()=>state}),controller=new C(),headers={};const result=await controller.status({user:principals.admin},{setHeader:(k,v)=>headers[k]=v},{});assert.equal(result.schema,'hub-system-status.v1');assert.equal(headers['Cache-Control'],'private, no-store');
+await assert.rejects(()=>controller.status({user:principals.admin},{setHeader(){}},{tenantId:'other'}),e=>e.getStatus()===400);
+const Broken=createGovernanceSystemController({env,ids,require,readState:()=>{throw Error('SMTP_PASSWORD=MUST_NOT_LEAK');}});await assert.rejects(()=>new Broken().status({user:principals.admin},{setHeader(){}},{}),e=>e.getStatus()===503&&!JSON.stringify(e.getResponse()).includes('MUST_NOT_LEAK'));
+checks.push('actual Nest controller no-store, rejects query, suppresses reader failure');
+const reservations=await read(tx=>tx.tokenQuotaReservation.findMany({where:{tenantId:ids.tenant,accountId:{in:[ids.owner,ids.admin]}},orderBy:{id:'asc'},select:{id:true,status:true,reservedTokens:true,actualTokens:true,reconciliationUsageRecordId:true,settledAt:true}}));
+const hash=createHash('sha256').update(JSON.stringify(reservations,(_,v)=>typeof v==='bigint'?v.toString():v)).digest('hex');
+writeFileSync(out+'readonly-pg.json',JSON.stringify({passed:true,checkedAt:new Date().toISOString(),tenantId:ids.tenant,checks,readOnly:true,businessWrites:0,modelCalls:0,reservations:{count:reservations.length,hash,rows:reservations}},(_,v)=>typeof v==='bigint'?v.toString():v,2));
+console.log(JSON.stringify({passed:true,checks:checks.length,readOnly:true,reservations:reservations.length,out}));

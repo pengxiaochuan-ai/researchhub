@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bookmark, Download, RotateCcw, Search, Settings2 } from 'lucide-react';
+import { RotateCcw, Search, Settings2 } from 'lucide-react';
 
 export const CATALOG = { deduped: 286, recent: 18, filtered: 64, synced: '2026-09-28 09:30' };
 
@@ -11,7 +11,6 @@ export const FILTERS = [
   ['disease', '疾病方向', ['全部', '广泛性焦虑症', '抑郁症', '失眠障碍', '焦虑症', '抑郁障碍', '产后抑郁', '躯体症状障碍', '创伤后应激障碍']],
   ['method', '干预方式', ['全部', '针刺', '电针', '耳针', '艾灸', '推拿', '认知行为疗法', '常规治疗']],
   ['status', '研究状态', ['全部', '进行中', '已完成']],
-  ['recruit', '招募状态', ['全部', '招募中', '尚未招募', '已完成']],
   ['region', '机构地区', ['全部', '北京', '上海', '广州', '成都', '杭州', '南京', '天津']],
   ['source', '来源平台', ['全部', 'ChiCTR', 'ITMCTR']],
   ['time', '时间范围', ['全部', '近30天', '近1年', '近3年']],
@@ -26,7 +25,6 @@ export const COLUMNS = [
   ['org', '牵头机构'],
   ['city', '城市'],
   ['status', '研究状态'],
-  ['recruit', '招募状态'],
   ['dates', '首次公示 / 更新时间'],
   ['source', '来源'],
 ];
@@ -63,18 +61,16 @@ export function matchStudy(item, query, filters) {
   return true;
 }
 
-export function ViewTabs({ view, onChange }) {
+export function ViewTabs() {
   return (
     <div className="reg-views" role="tablist" aria-label="临床注册视图">
-      {[['list', '研究列表'], ['map', '研究分布地图'], ['trend', '趋势分析']].map(([id, label]) => (
-        <button key={id} type="button" role="tab" aria-selected={view === id} className={view === id ? 'on' : ''} onClick={() => onChange(id)}>{label}</button>
-      ))}
+      <button type="button" role="tab" aria-selected="true" className="on">研究列表</button>
     </div>
   );
 }
 
 export function FilterBar({
-  query, setQuery, filters, setFilter, sort, setSort, onReset, saved, onSave, hidden, toggleColumn, resultCount,
+  query, setQuery, filters, setFilter, sort, setSort, onReset, hidden, toggleColumn, resultCount,
 }) {
   const [fieldsOpen, setFieldsOpen] = useState(false);
   return (
@@ -105,7 +101,6 @@ export function FilterBar({
           <span>最近同步 {CATALOG.synced}</span>
         </p>
         <div className="reg-meta-actions">
-          <button type="button"><Download size={14} aria-hidden="true" />导出</button>
           <div className="reg-field-wrap">
             <button type="button" aria-expanded={fieldsOpen} onClick={() => setFieldsOpen((value) => !value)}><Settings2 size={14} aria-hidden="true" />字段设置</button>
             {fieldsOpen && (
@@ -116,7 +111,6 @@ export function FilterBar({
               </div>
             )}
           </div>
-          <button type="button" onClick={onSave}><Bookmark size={14} aria-hidden="true" />{saved ? '已保存筛选' : '保存筛选'}</button>
         </div>
       </div>
     </section>
@@ -127,17 +121,14 @@ export function useRegistryState() {
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [sort, setSort] = useState('综合排序');
-  const [saved, setSaved] = useState(false);
   const [hidden, setHidden] = useState(() => new Set());
   const setFilter = (key, value) => {
-    setSaved(false);
     setFilters((current) => ({ ...current, [key]: value }));
   };
   const onReset = () => {
     setQuery('');
     setFilters(EMPTY_FILTERS);
     setSort('综合排序');
-    setSaved(false);
   };
   const toggleColumn = (key) => {
     setHidden((current) => {
@@ -147,5 +138,5 @@ export function useRegistryState() {
       return next;
     });
   };
-  return { query, setQuery, filters, setFilter, sort, setSort, saved, onSave: () => setSaved(true), hidden, toggleColumn, onReset };
+  return { query, setQuery, filters, setFilter, sort, setSort, hidden, toggleColumn, onReset };
 }

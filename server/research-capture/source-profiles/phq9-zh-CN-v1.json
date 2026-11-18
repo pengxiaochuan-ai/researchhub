@@ -1,0 +1,297 @@
+{
+  "key": "phq9-zh-CN-v1",
+  "name": "PHQ-9（简体中文·中国大陆）",
+  "versionTag": "phq9-zh-CN-09a8afdec154-content-v1-presentation-v1",
+  "source": {
+    "title": "PHQ-9 Simplified Chinese for Mainland China",
+    "sha256": "09a8afdec1546b54162850faae7b9bc43d53879e9cbe8b8e1263e67ff254b095",
+    "manualSha256": "6ed2f00f97e438c1168cd702d38d31fc923031445c720653005f138aa424228a",
+    "frozenOn": "2026-11-13"
+  },
+  "schema": {
+    "schemaVersion": "form-schema.v1",
+    "fields": [
+      {
+        "key": "phq9_q1",
+        "label": "1. 做任何事都觉得沉闷或者根本不想做任何事",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 3,
+        "choices": [
+          {
+            "value": 0,
+            "label": "从来沒有"
+          },
+          {
+            "value": 1,
+            "label": "有几天"
+          },
+          {
+            "value": 2,
+            "label": "刚超过一半天数"
+          },
+          {
+            "value": 3,
+            "label": "接近每天"
+          }
+        ]
+      },
+      {
+        "key": "phq9_q2",
+        "label": "2. 情绪低落、抑郁或绝望",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 3,
+        "choices": [
+          {
+            "value": 0,
+            "label": "从来沒有"
+          },
+          {
+            "value": 1,
+            "label": "有几天"
+          },
+          {
+            "value": 2,
+            "label": "刚超过一半天数"
+          },
+          {
+            "value": 3,
+            "label": "接近每天"
+          }
+        ]
+      },
+      {
+        "key": "phq9_q3",
+        "label": "3. 难于入睡；半夜会醒，或相反，睡觉时间过多",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 3,
+        "choices": [
+          {
+            "value": 0,
+            "label": "从来沒有"
+          },
+          {
+            "value": 1,
+            "label": "有几天"
+          },
+          {
+            "value": 2,
+            "label": "刚超过一半天数"
+          },
+          {
+            "value": 3,
+            "label": "接近每天"
+          }
+        ]
+      },
+      {
+        "key": "phq9_q4",
+        "label": "4. 觉得疲倦或沒有活力",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 3,
+        "choices": [
+          {
+            "value": 0,
+            "label": "从来沒有"
+          },
+          {
+            "value": 1,
+            "label": "有几天"
+          },
+          {
+            "value": 2,
+            "label": "刚超过一半天数"
+          },
+          {
+            "value": 3,
+            "label": "接近每天"
+          }
+        ]
+      },
+      {
+        "key": "phq9_q5",
+        "label": "5. 胃口极差或饮食过量",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 3,
+        "choices": [
+          {
+            "value": 0,
+            "label": "从来沒有"
+          },
+          {
+            "value": 1,
+            "label": "有几天"
+          },
+          {
+            "value": 2,
+            "label": "刚超过一半天数"
+          },
+          {
+            "value": 3,
+            "label": "接近每天"
+          }
+        ]
+      },
+      {
+        "key": "phq9_q6",
+        "label": "6. 不喜欢自己──觉得自己做得不好、对自己失望或有负家人期望",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 3,
+        "choices": [
+          {
+            "value": 0,
+            "label": "从来沒有"
+          },
+          {
+            "value": 1,
+            "label": "有几天"
+          },
+          {
+            "value": 2,
+            "label": "刚超过一半天数"
+          },
+          {
+            "value": 3,
+            "label": "接近每天"
+          }
+        ]
+      },
+      {
+        "key": "phq9_q7",
+        "label": "7. 难于集中精神做事，例如看报纸或看电视",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 3,
+        "choices": [
+          {
+            "value": 0,
+            "label": "从来沒有"
+          },
+          {
+            "value": 1,
+            "label": "有几天"
+          },
+          {
+            "value": 2,
+            "label": "刚超过一半天数"
+          },
+          {
+            "value": 3,
+            "label": "接近每天"
+          }
+        ]
+      },
+      {
+        "key": "phq9_q8",
+        "label": "8. 其它人反映你行动或说话迟缓；或者相反，你比平常活动更多──坐立不安、停不下来",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 3,
+        "choices": [
+          {
+            "value": 0,
+            "label": "从来沒有"
+          },
+          {
+            "value": 1,
+            "label": "有几天"
+          },
+          {
+            "value": 2,
+            "label": "刚超过一半天数"
+          },
+          {
+            "value": 3,
+            "label": "接近每天"
+          }
+        ]
+      },
+      {
+        "key": "phq9_q9",
+        "label": "9. 想到自己最好去死或者自残",
+        "type": "integer",
+        "required": true,
+        "score": true,
+        "min": 0,
+        "max": 3,
+        "choices": [
+          {
+            "value": 0,
+            "label": "从来沒有"
+          },
+          {
+            "value": 1,
+            "label": "有几天"
+          },
+          {
+            "value": 2,
+            "label": "刚超过一半天数"
+          },
+          {
+            "value": 3,
+            "label": "接近每天"
+          }
+        ]
+      },
+      {
+        "key": "functional_difficulty",
+        "label": "如果你选出以上任何问题，这些问题对你的工作、处理家中事务或与人相处时来说造成多大困难？",
+        "type": "select",
+        "required": false,
+        "score": false,
+        "options": [
+          {
+            "value": "difficulty_1",
+            "label": "完全沒有困难"
+          },
+          {
+            "value": "difficulty_2",
+            "label": "有一些困难"
+          },
+          {
+            "value": "difficulty_3",
+            "label": "非常困难"
+          },
+          {
+            "value": "difficulty_4",
+            "label": "极度困难"
+          }
+        ]
+      }
+    ],
+    "presentation": {
+      "title": "病人健康状况问卷  －  9 \n(PHQ-9)",
+      "recallPeriodPrompt": "在过去两周，您经常受到以下问题的困扰吗？",
+      "instruction": "（请用“✔”勾选您的答案）",
+      "attribution": "本问卷由 Robert L. Spitzer 博士、Janet B.W. Williams 博士、Kurt Kroenke 博士和同事用 Pfizer Inc.提供的教育基金设计。无需准许即可复制、翻译、展示或分发。"
+    }
+  },
+  "scoring": {
+    "algorithm": "numeric-sum-v1"
+  },
+  "allowedCaptureModes": [
+    "researcher",
+    "patient_h5"
+  ]
+}

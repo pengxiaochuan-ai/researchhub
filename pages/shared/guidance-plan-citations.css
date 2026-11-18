@@ -1,0 +1,14 @@
+.citation-panel{min-width:0}
+.citation-panel .citation-label,.citation-form label{display:block;margin:16px 0 8px;font-size:var(--text-body-size);line-height:var(--text-body-line);color:var(--text-primary)}
+.citation-panel select{display:block;box-sizing:border-box;min-width:0;width:100%;max-width:48rem;min-height:44px;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-primary);font:inherit;font-size:var(--text-body-size);line-height:var(--text-body-line)}
+.citation-panel h3,.citation-panel h4{font-size:var(--text-h3-size);line-height:var(--text-h3-line);margin:16px 0 8px}
+.citation-panel summary{min-height:44px;box-sizing:border-box;overflow-wrap:anywhere}
+.citation-panel .citation-reading{font-size:var(--text-reading-size);line-height:var(--text-reading-line);max-width:48rem;white-space:pre-line;overflow-wrap:anywhere;color:var(--text-primary)}
+.citation-panel .guidance-clauses__quote{white-space:pre-line}
+.citation-list{list-style:none;padding:0;display:grid;gap:16px}
+.citation-list>li,.citation-form fieldset{min-width:0;margin:0;padding:16px;border:1px solid var(--border);border-radius:8px}
+.citation-form legend{padding:0 8px;font-size:var(--text-body-size);line-height:var(--text-body-line)}
+.citation-panel .citation-confirm{display:flex;gap:12px;align-items:flex-start;min-height:44px;max-width:48rem;padding:8px 0}
+.citation-confirm input{margin-top:4px;flex:none;width:24px;height:24px}
+.citation-source-title{overflow-wrap:anywhere}
+.citation-panel .ui-button{min-height:44px}

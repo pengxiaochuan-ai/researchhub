@@ -1,0 +1,16 @@
+.hub-token-workbench{margin:16px 24px 24px;padding:24px;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--text-primary);font-size:14px;line-height:22px}
+.hub-token-workbench h2{font-size:var(--text-h2-size);line-height:var(--text-h2-line);margin:0 0 8px}
+.hub-token-workbench p{margin:8px 0 16px;overflow-wrap:anywhere}
+.hub-token-workbench header p{color:var(--text-secondary)}
+.hub-token-toolbar,.hub-token-pagination{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0}
+.hub-token-toolbar label{display:flex;align-items:center;gap:8px}
+.hub-token-toolbar select{font:inherit;color:inherit;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px}
+.hub-token-table-wrap{overflow-x:auto}.hub-token-table-wrap table{width:100%;border-collapse:collapse;text-align:left;white-space:nowrap;font-size:14px;line-height:22px}
+.hub-token-table-wrap caption{text-align:left;color:var(--text-secondary);padding-bottom:8px}
+.hub-token-table-wrap th,.hub-token-table-wrap td{padding:12px;border-bottom:1px solid var(--border)}
+.hub-token-table-wrap th{font-weight:500}.hub-token-workbench [role=alert],.ui-confirm-dialog:has(.hub-token-details) [role=alert]{color:var(--danger);font-size:14px;line-height:22px}
+.hub-token-details{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 16px;margin:0 0 16px}.hub-token-details dt{color:var(--text-secondary)}.hub-token-details dd{margin:0;overflow-wrap:anywhere}
+.hub-service-status{margin-top:24px;padding-top:24px;border-top:1px solid var(--border)}
+.hub-service-status h3{font-size:var(--text-h3-size);line-height:var(--text-h3-line);margin:0 0 8px}
+.hub-service-status>p{color:var(--text-secondary)}.hub-service-status .hub-service-observed{font-size:13px;line-height:20px;margin-bottom:0}
+@media(max-width:800px){.hub-token-workbench{margin:16px 0 24px;padding:16px}}

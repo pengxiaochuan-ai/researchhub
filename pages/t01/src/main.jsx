@@ -8,6 +8,8 @@ import photo3 from './photos/team-3.png';
 import photo4 from './photos/team-4.png';
 import photo5 from './photos/team-5.png';
 import './style.css';
+import TeamDirectory from '../../shared/TeamDirectory.jsx';
+import {realIdentityMode} from '../../../src/platform-user.js';
 
 const TEAMS = [
   {
@@ -326,4 +328,4 @@ function TeamMap({ teams, shape }) {
   );
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(realIdentityMode?<TeamDirectory shape={landPath()} project={project}/>:<App />);

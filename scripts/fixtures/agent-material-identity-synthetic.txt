@@ -1,0 +1,4 @@
+Synthetic identity-decision validation only.
+患者姓名：SYNTHETIC-NOT-A-PERSON
+This is a parser safety fixture, not a real patient or research observation.
+No clinical conclusion is asserted.

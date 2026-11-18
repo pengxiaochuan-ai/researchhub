@@ -7,6 +7,8 @@ import photo3 from '../../t01/src/photos/team-3.png';
 import photo4 from '../../t01/src/photos/team-4.png';
 import photo5 from '../../t01/src/photos/team-5.png';
 import './style.css';
+import TeamDetail from '../../shared/TeamDetail.jsx';
+import {realIdentityMode} from '../../../src/platform-user.js';
 
 const TABS = ['概览', '研究者', '研究方向', '研究成果', '临床试验', '指南与贡献', '合作网络'];
 
@@ -300,4 +302,4 @@ function Person({ person }) {
   );
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(realIdentityMode?<TeamDetail/>:<App />);

@@ -1,0 +1,76 @@
+{
+  "at": "2026-11-12T06:17:16.224Z",
+  "syntheticOnly": true,
+  "authorizedRecipientSha256": "82cc0222ac6c4a9ce7927893fde27df1d7d250edf7532be82015e947867d21e6",
+  "studyId": "rh-study-72203d59-4db8-4e74-9444-edff3b088b6d",
+  "visitId": "cmwczp7hw001olud9xmvxf35a",
+  "requestKey": "1d772cdf-5184-498f-8348-c03238d593da",
+  "reusedReadOnly": true,
+  "firstHttpStatus": null,
+  "invitation": {
+    "studyId": "rh-study-72203d59-4db8-4e74-9444-edff3b088b6d",
+    "invitationId": "cmwd1aw5p00eslujykrqfqec6",
+    "assignmentId": "cmwd1aw5f00enlujyb4f2dvuu",
+    "visitId": "cmwczp7hw001olud9xmvxf35a",
+    "expiresAt": "2026-11-15T04:14:53.005Z",
+    "revoked": false,
+    "redeemed": true,
+    "submitted": true,
+    "delivery": {
+      "id": "cmwd1aw5r00eulujyb43xia3y",
+      "status": "accepted"
+    },
+    "receipt": {
+      "requestKey": "1d772cdf-5184-498f-8348-c03238d593da",
+      "action": "outreach.email",
+      "targetId": "cmwczp7hw001olud9xmvxf35a",
+      "studyId": "rh-study-72203d59-4db8-4e74-9444-edff3b088b6d"
+    }
+  },
+  "deliveries": [
+    {
+      "id": "cmwd1aw5r00eulujyb43xia3y",
+      "status": "sent",
+      "providerMessageId": "sha256:397fb5afbcd033bf189fad83db1ce94256d437f149a2eda7a49c23e78781cd11",
+      "failureReason": null
+    }
+  ],
+  "network": [
+    {
+      "at": "2026-11-12T06:17:14.843Z",
+      "path": "/research-studies/rh-study-72203d59-4db8-4e74-9444-edff3b088b6d/visits/cmwczp7hw001olud9xmvxf35a/email-invitation-receipts/1d772cdf-5184-498f-8348-c03238d593da",
+      "method": "GET",
+      "status": 200,
+      "code": null
+    },
+    {
+      "at": "2026-11-12T06:17:15.392Z",
+      "path": "/research-studies/rh-study-72203d59-4db8-4e74-9444-edff3b088b6d/visits/cmwczp7hw001olud9xmvxf35a",
+      "method": "GET",
+      "status": 200,
+      "code": null
+    },
+    {
+      "at": "2026-11-12T06:17:16.224Z",
+      "path": "/research-studies/rh-study-72203d59-4db8-4e74-9444-edff3b088b6d/assignments/cmwd1aw5f00enlujyb4f2dvuu",
+      "method": "GET",
+      "status": 200,
+      "code": null
+    }
+  ],
+  "onePersistedAttempt": true,
+  "smtpAccepted": true,
+  "inboxReceiptConfirmed": true,
+  "recipientReceiptSource": "user_found_in_spam",
+  "submitted": true,
+  "submittedAnswersVerified": true,
+  "submittedAnswers": {
+    "value": 1.5,
+    "completed": true,
+    "optional_value": 2
+  },
+  "proposedBenchmarkMatched": false,
+  "businessAcceptance": true,
+  "clinicalAcceptance": false,
+  "productionAcceptance": false
+}

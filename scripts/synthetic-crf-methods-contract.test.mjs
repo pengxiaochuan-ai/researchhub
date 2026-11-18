@@ -1,0 +1,43 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {crfPacketFixture,crfVersionFixture} from '../tests/fixtures/synthetic-crf-methods.mjs';
+import {edcDigest} from './synthetic-edc-contract.mjs';
+const methods=await import('./synthetic-crf-methods-contract.mjs').catch(e=>{if(e.code==='ERR_MODULE_NOT_FOUND'&&e.url?.endsWith('/synthetic-crf-methods-contract.mjs'))return{};throw e;});
+const build=(b=crfPacketFixture())=>{assert.equal(typeof methods.buildCrfMethodInput,'function','CRF method input adapter not implemented');return methods.buildCrfMethodInput(b,b.quality,crfVersionFixture());};
+test('zero_false_are_present and missing_states_are_distinct',()=>{
+ const {snapshot,manifest}=build(),g=snapshot.groups.find(x=>x.visitKey==='baseline'&&x.fieldKey==='flag');
+ assert.equal(manifest.variables.find(v=>v.name===g.variable).nMissing,1);assert.deepEqual(g.missingStates,{missing:0,not_measured:0,not_applicable:1});
+ const n=snapshot.groups.find(x=>x.visitKey==='baseline'&&x.fieldKey==='value');assert.equal(manifest.variables.find(v=>v.name===n.variable).min,0);assert.deepEqual(n.missingStates,{missing:0,not_measured:1,not_applicable:0});
+});
+test('per_visit_denominator never pools repeated visits as independent subjects',()=>{const {snapshot,manifest}=build();assert.equal(snapshot.groups.length,8);assert(manifest.variables.every(v=>v.n===3));assert.equal(manifest.scope.nSubjects,3);assert.equal(manifest.scope.nVisits,6);const follow=snapshot.groups.filter(g=>g.visitKey==='followup');assert(follow.every(g=>g.nMissing===3));});
+test('no_demographic_defaults_or_raw_rows and original packet remains unchanged',()=>{const b=crfPacketFixture(),before=JSON.stringify(b),out=build(b),text=JSON.stringify(out.manifest);for(const forbidden of ['SIM_','"records"','"recordId"','"rawValues"','不应离开','"age"'])assert(!text.includes(forbidden),forbidden);assert(out.manifest.variables.every(v=>/^crf_[a-f0-9]+$/.test(v.name)));assert.equal(JSON.stringify(b),before);assert.equal(out.inputHash,edcDigest({localCrfMethod:out.snapshot}));assert.equal(out.manifestHash,edcDigest(out.manifest));});
+test('ranges are explicit numeric config only, never boolean or categorical',()=>{const {snapshot,manifest}=build();for(const g of snapshot.groups){const v=manifest.variables.find(x=>x.name===g.variable);if(g.fieldKey==='value'){assert.equal(v.expectedMin,0);assert.equal(v.expectedMax,10);}else{assert(!Object.hasOwn(v,'expectedMin'));assert(!Object.hasOwn(v,'min'));assert(!Object.hasOwn(v,'counts'));}}});
+test('rejects damaged snapshot, stale DQ, unknown states and nonfinite values',()=>{
+ const b=crfPacketFixture();build(b);assert.throws(()=>build({...b,seal:'damaged'}));
+ const stale=structuredClone(b);stale.records[0].responseRevision++;stale.seal=edcDigest(Object.fromEntries(Object.entries(stale).filter(([k])=>k!=='seal')));assert.throws(()=>build(stale));
+});
+test('legacy_gate_not_business_rule: coverage explicitly lists not_examined',()=>{const {coverage}=build();assert.equal(coverage.scope,'own_synthetic_packet');assert(coverage.notExamined.includes('analysis_release'));assert(coverage.notExamined.includes('repeated_measure_inference'));assert(!JSON.stringify(coverage).includes('acceptanceMatrix'));});
+const golden=s=>({schemaVersion:'research-methods-worker.v1',ok:true,status:'accepted',executorKey:'research-data-quality',executorVersion:'t19-1',workerVersion:'t19-1',error:null,outputs:{llm:false,autoRepaired:false,simulation:false,implemented:true,manifestVersion:'t19-1',blockingCount:99,findings:s.groups.filter(g=>g.visitKey==='baseline'&&g.fieldKey==='value').map(g=>({code:'RANGE_ABOVE_MAX',operator:'range-check',n:1,anchors:{fieldKey:g.variable,expectedMax:10}}))},numericEvidence:[{name:'n_subjects',value:3,operator:'completeness-count',operatorVersion:'t19-1',assumptions:[]},{name:'n_visits',value:6,operator:'completeness-count',operatorVersion:'t19-1',assumptions:[]},...s.groups.map(g=>({name:'missing_rate:'+g.variable,value:g.visitKey==='followup'||g.fieldKey==='choice'?1:g.fieldKey==='note'?0.666667:0.333333,operator:'missing-rate',operatorVersion:'t19-1',assumptions:[]})),{name:'range_max:'+s.groups.find(g=>g.visitKey==='baseline'&&g.fieldKey==='value').variable,value:12,operator:'range-check',operatorVersion:'t19-1',assumptions:[]}],warnings:[],limitations:[]});
+test('golden projection only delivers actual per-field evidence and own packet counts',()=>{
+ const {snapshot}=build();assert.equal(typeof methods.projectCrfMethodResult,'function','CRF projection not implemented');const raw=golden(snapshot),{result,resultHash}=methods.projectCrfMethodResult(snapshot,raw);
+ assert.equal(result.evidenceGroups.length,8);const g=result.evidenceGroups.find(x=>x.visitKey==='baseline'&&x.fieldKey==='value');assert.equal(g.missingRate,0.333333);assert.equal(g.n,3);assert.equal(g.rangeObservations[0].value,12);assert.equal(g.rangeLocations.length,1);assert.equal(result.packetCounts.syntheticSubjects,3);assert.equal(resultHash,edcDigest(result));
+ for(const forbidden of ['blockingCount','acceptanceMatrix','n_enrollments','MISSING_RATE_BLOCKING','阻断分析集'])assert(!JSON.stringify(result).includes(forbidden));
+});
+test('projection_rejects_duplicate_or_unknown_metric, wrong version/value/operator and repair',()=>{
+ const {snapshot}=build();assert.equal(typeof methods.projectCrfMethodResult,'function','CRF projection not implemented');
+ for(const mutate of [r=>r.numericEvidence.push(r.numericEvidence[0]),r=>r.numericEvidence[2].name='missing_rate:unknown',r=>r.numericEvidence[2].value=0,r=>r.numericEvidence[2].value=Infinity,r=>r.numericEvidence[2].operator='llm',r=>r.workerVersion='other',r=>r.outputs.autoRepaired=true,r=>r.numericEvidence.pop(),r=>r.outputs.findings=[]]){const r=golden(snapshot);mutate(r);assert.throws(()=>methods.projectCrfMethodResult(snapshot,r));}
+});
+test('same PID never revives an old instance or an explicitly interrupted run',()=>{
+ assert.equal(typeof methods.crfMethodInterrupted,'function','instance lifecycle policy not implemented');
+ const run={id:'run',status:'running',environment:{hostPid:42,instanceId:'old'}};assert.equal(methods.crfMethodInterrupted(run,'new',new Set()),true);assert.equal(methods.crfMethodInterrupted(run,'old',new Set()),false);assert.equal(methods.crfMethodInterrupted(run,'old',new Set(['run'])),true);assert.equal(methods.crfMethodInterrupted({...run,status:'needs_review'},'new',new Set(['run'])),false);
+});
+test('wrong_comparison_rejected: compare real compatible runs without inferential statistics',()=>{
+ assert.equal(typeof methods.compareCrfMethodRuns,'function','comparison not implemented');const left={id:'left',ownerAccountId:'owner',collectionId:'collection',sourceStatus:'current',input:{binding:{researchProjectId:'study'},dataBasis:{configHash:'config'}},result:{adapterVersion:'adapter',evidenceGroups:[{visitKey:'baseline',fieldKey:'value',missingRate:0.333333}]}};const right={...structuredClone(left),id:'right',sourceStatus:'stale'};
+ const c=methods.compareCrfMethodRuns(left,right);assert.equal(c.right.sourceStatus,'stale');assert.equal(c.rows[0].left.missingRate,0.333333);
+ for(const edit of [{ownerAccountId:'other'},{collectionId:'other'},{sourceStatus:'restricted'},{input:{...right.input,dataBasis:{configHash:'other'}}},{result:null}])assert.throws(()=>methods.compareCrfMethodRuns(left,{...right,...edit}));
+});
+test('range-only changes retain each actual input revision and both distinct observed numbers for comparison',()=>{
+ const group={visitKey:'baseline',fieldKey:'value',visitLabel:'基线',fieldLabel:'测试值',n:3,nMissing:0,missingRate:0,rangeSource:'explicit_manual_config',rangeObservations:[{side:'max',value:15,configuredBound:10}]};
+ const left={id:'left',ownerAccountId:'owner',collectionId:'collection',sourceStatus:'stale',inputHash:'actual-before',input:{versionNo:7,binding:{researchProjectId:'study'},dataBasis:{configHash:'config',dataRevision:2}},result:{adapterVersion:'adapter',evidenceGroups:[group]}},right=structuredClone(left);right.id='right';right.sourceStatus='current';right.inputHash='actual-after';right.input.versionNo=10;right.input.dataBasis.dataRevision=3;right.result.evidenceGroups[0].rangeObservations[0].value=12;
+ const value=methods.compareCrfMethodRuns(left,right);assert.deepEqual(value.left.inputRevision,{packetVersionNo:7,dataRevision:2,inputHash:'actual-before'});assert.deepEqual(value.right.inputRevision,{packetVersionNo:10,dataRevision:3,inputHash:'actual-after'});assert.equal(value.rows[0].left.rangeObservations[0].value,15);assert.equal(value.rows[0].right.rangeObservations[0].value,12);assert.equal(value.rows[0].left.nMissing,value.rows[0].right.nMissing);
+});

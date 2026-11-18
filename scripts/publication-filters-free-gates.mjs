@@ -1,0 +1,12 @@
+import {spawnSync} from 'node:child_process';import {readdirSync,mkdirSync,writeFileSync,readFileSync} from 'node:fs';import {randomUUID,createHash} from 'node:crypto';
+const out='docs/testing/evidence/publication-filter-gates-'+randomUUID();mkdirSync(out,{recursive:true});
+const source='server/hub-sources/',tests=readdirSync('tests').filter(n=>n.endsWith('.test.mjs')).map(n=>'tests/'+n);
+const sourceTests=['search-query-plan','publication-classification','pmc-reading','pmc-schema','registry-detail-schema-contract','registry-detail-contract','guidance-clause-schema-contract','guidance-clause-contract'].map(n=>source+n+'.test.mjs');
+const gates=[['pure-and-component',process.execPath,['--test','--test-concurrency=1',...tests,...sourceTests]],
+ ['real-pg',process.execPath,['--test','--test-concurrency=1',source+'publication-filters-pg.test.mjs',source+'bilingual-search-pg.test.mjs',source+'approved-source-chain-pg.test.mjs',source+'article-preflight.test.mjs']],
+ ['build','pnpm',['run','build']],['whitespace','git',['diff','--check']]];
+const results=[];
+for(const [name,cmd,args]of gates){const start=Date.now(),r=spawnSync(cmd,args,{encoding:'utf8',maxBuffer:20*1024*1024,timeout:180000});const text=(r.stdout??'')+(r.stderr??'');writeFileSync(out+'/'+name+'.log',text);results.push({name,exit:r.status,signal:r.signal,ms:Date.now()-start,summary:text.split('\n').filter(l=>/^ℹ (tests|pass|fail)|^✓ built|^# (tests|pass|fail)/.test(l)),error:r.error?.message??null});if(r.status!==0)break;}
+const files=['src/publication-filters.js','pages/e01/src/RealEvidence.jsx','pages/e01/src/EvidenceFilterSkeleton.jsx','pages/e01/src/real-evidence.css',...['publication-classification.mjs','publication-filter-sql.mjs','read-controller.mjs','visible-repository.mjs','pmc-visible.mjs','search-projection.mjs'].map(f=>source+f),'scripts/publication-classification-local.mjs'];
+const result={passed:results.length===gates.length&&results.every(r=>r.exit===0),scope:'all frontend tests plus explicitly listed pure source contracts and current-state read-only PG/preflight tests, not all legacy source integration fixtures',sourceTests,results,modelCalls:0,at:new Date().toISOString(),files:Object.fromEntries(files.map(f=>[f,createHash('sha256').update(readFileSync(f)).digest('hex')]))};
+writeFileSync(out+'/result.json',JSON.stringify(result,null,2));console.log(JSON.stringify({...result,files:undefined,evidence:out}));if(!result.passed)process.exitCode=1;

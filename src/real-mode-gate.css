@@ -1,0 +1,38 @@
+body[data-real-page-gated="true"] #root { display: none !important; }
+.qiyan-real-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: 24px;
+  background: var(--canvas, #f6f8fc);
+  color: var(--text-primary, #0f2347);
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+}
+.qiyan-real-gate__card {
+  width: min(100%, 640px);
+  padding: 32px;
+  border: 1px solid var(--border, #e3e8f1);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+}
+.qiyan-real-gate h1 { margin: 0 0 16px; font-size: 24px; line-height: 34px; }
+.qiyan-real-gate p { margin: 0 0 16px; font-size: 14px; line-height: 22px; }
+.qiyan-real-gate__links { display: flex; flex-wrap: wrap; gap: 12px; }
+.qiyan-real-gate a {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  padding: 8px 16px;
+  border: 1px solid var(--border, #e3e8f1);
+  border-radius: 6px;
+  color: var(--brand-primary, #5746f5);
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.qiyan-real-gate a:focus-visible { outline: 2px solid var(--brand-primary, #5746f5); outline-offset: 2px; }
+@media (max-width: 480px) { .qiyan-real-gate__card { padding: 24px; } }

@@ -1,25 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { FilterBar, STUDIES, ViewTabs, diseaseTone, matchStudy, methodTone, useRegistryState } from './chrome.jsx';
-import { MapView } from '../../c02/src/main.jsx';
-import { TrendView } from './trend-view.jsx';
 import './style.css';
-
-function initialView() {
-  if (window.location.hash === '#map') return 'map';
-  if (window.location.hash === '#trend') return 'trend';
-  return 'list';
-}
+import { isHubSourceRealMode } from '../../../src/hub-source-api.js';
+import { RealClinicalRegistries } from './RealClinicalRegistries.jsx';
 
 function App() {
   const registry = useRegistryState();
-  const [view, setView] = useState(initialView);
   const [page, setPage] = useState(1);
-  const openView = (next) => {
-    setView(next);
-    const hash = next === 'list' ? '' : `#${next}`;
-    if (window.location.hash !== hash) window.history.replaceState(null, '', `${window.location.pathname}${hash}`);
-  };
   const rows = useMemo(() => {
     const matched = STUDIES.filter((item) => matchStudy(item, registry.query, registry.filters));
     return [...matched].sort((a, b) => {
@@ -35,13 +23,9 @@ function App() {
   return (
     <main className="platform-main reg-board">
       <div className="reg-view-row">
-        <ViewTabs view={view} onChange={openView} />
-        {view === 'trend' && <p className="trend-scope">当前筛选条件下：共 <b>68</b> 项研究 · 涉及 <b>24</b> 家机构 · 覆盖 <b>12</b> 个城市</p>}
+        <ViewTabs />
       </div>
-      {view !== 'trend' && <FilterBar {...registry} resultCount={filtering ? rows.length : 64} />}
-      {view === 'map' && <MapView registry={registry} onMore={() => openView('list')} />}
-      {view === 'trend' && <TrendView />}
-      {view === 'list' && (
+      <FilterBar {...registry} resultCount={filtering ? rows.length : 64} />
         <section className="reg-panel">
           <div className="reg-table-wrap">
             <table>
@@ -55,7 +39,6 @@ function App() {
                   {show('org') && <th>牵头机构</th>}
                   {show('city') && <th>城市</th>}
                   {show('status') && <th>研究状态</th>}
-                  {show('recruit') && <th>招募状态</th>}
                   {show('dates') && <th className="wrap">首次公示 / 更新时间</th>}
                   {show('source') && <th>来源</th>}
                   <th>操作</th>
@@ -72,13 +55,12 @@ function App() {
                     {show('org') && <td className="reg-org" title={item.org}><span>{item.org}</span></td>}
                     {show('city') && <td>{item.city}</td>}
                     {show('status') && <td><em className={`status ${item.status}`}>{item.status}</em></td>}
-                    {show('recruit') && <td><em className={`status ${item.recruit}`}>{item.recruit}</em></td>}
                     {show('dates') && <td className="reg-dates"><span>{item.published}</span><span>{item.updated}</span></td>}
                     {show('source') && <td className="reg-sources">{item.sources.map((source) => <span key={source}>{source}</span>)}</td>}
                     <td className="reg-ops"><button type="button" className="reg-open">查看方案</button><button type="button" aria-label="更多操作">···</button></td>
                   </tr>
                 ))}
-                {visible.length === 0 && <tr><td colSpan={12}>没有符合当前条件的注册研究。</td></tr>}
+                {visible.length === 0 && <tr><td colSpan={11}>没有符合当前条件的注册研究。</td></tr>}
               </tbody>
             </table>
           </div>
@@ -92,9 +74,15 @@ function App() {
             </div>
           </footer>
         </section>
-      )}
     </main>
   );
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+function normalizeDeferredView() {
+  if (['#map', '#trend'].includes(window.location.hash)) {
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+  }
+}
+normalizeDeferredView();
+window.addEventListener('hashchange', normalizeDeferredView);
+createRoot(document.getElementById('root')).render(isHubSourceRealMode() ? <RealClinicalRegistries /> : <App />);

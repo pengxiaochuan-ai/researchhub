@@ -1,0 +1,4 @@
+.agent-media-player {margin-top:8px;max-height:24vh;overflow:auto;}
+.agent-media-player video {display:block;width:100%;max-height:22vh;object-fit:contain;background:#000;}
+.agent-media .agent-material-name {flex-basis:160px;}
+.agent-media-upload-name {overflow-wrap:anywhere;}

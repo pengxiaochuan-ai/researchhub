@@ -1,0 +1,17 @@
+import {listVisiblePmc} from '../hub-sources/pmc-visible.mjs';
+import {listVisibleExternal} from '../hub-sources/external-visible.mjs';
+import {resolveDirectorySource} from './sources.mjs';
+import {directoryError} from './contract.mjs';
+export async function directorySourceChoices(tx,scope,q=''){
+ if(typeof q!=='string'||q.length>120)throw directoryError('DIRECTORY_INVALID_INPUT',400,'来源检索词最多120字符。');
+ const {tenantId:t,hubKey:h,audience,principal}=scope,member=audience==='tenant';
+ const rows=await tx.$queryRaw`SELECT r.id AS "rowId",r.source_registry_id AS "sourceId",r.row_sha256 AS "sourceHash" FROM rh_source.source_record r JOIN rh_source.import_batch b ON b.id=r.batch_id AND b.tenant_id=r.tenant_id AND b.hub_key=r.hub_key JOIN LATERAL(SELECT decision,audience,expires_at FROM rh_source.review_decision d WHERE d.tenant_id=r.tenant_id AND d.hub_key=r.hub_key AND d.source_registry_id=r.source_registry_id AND (d.source_record_id=r.id OR (d.source_record_id IS NULL AND d.batch_id=r.batch_id)) AND d.field_kind='bibliographic' AND d.purpose='display' ORDER BY decision_version DESC LIMIT 1)rv ON true WHERE r.tenant_id=${t} AND r.hub_key=${h} AND b.status='staged' AND rv.decision='approve' AND (rv.audience='public' OR (${member} AND rv.audience='tenant')) AND (rv.expires_at IS NULL OR rv.expires_at>clock_timestamp()) AND r.validation_errors='[]'::jsonb AND r.title IS NOT NULL AND position(lower(${q}) in lower(r.title))>0 ORDER BY b.created_at DESC,r.id LIMIT 21`;
+ const refs=rows.slice(0,20).map(r=>({kind:'source_record',...r,versionId:null}));
+ const tenantPmc=await listVisiblePmc({db:tx,tenantId:t,hubKey:h,principal,audience});
+ const pmc=audience==='tenant'?[...new Map([...tenantPmc,...await listVisiblePmc({db:tx,tenantId:t,hubKey:h,principal,audience:'public'})].map(p=>[p.id,p])).values()]:tenantPmc;
+ for(const item of pmc.filter(p=>p.title.toLocaleLowerCase().includes(q.toLocaleLowerCase())).slice(0,20)){const [v]=await tx.$queryRaw`SELECT candidate_id AS "sourceId",id AS "versionId",raw_sha256 AS "sourceHash" FROM rh_source.pmc_candidate_version WHERE tenant_id=${t} AND hub_key=${h} AND pmcid=${item.id.replace(/^pmc-/,'')} ORDER BY staged_at DESC,id DESC LIMIT 1`;if(v)refs.push({kind:'pmc_candidate_version',...v,rowId:null});}
+ const ext=await listVisibleExternal({db:tx,tenantId:t,hubKey:h,principal,audience:member?'member':'public'});
+ for(const item of ext.filter(p=>p.title.toLocaleLowerCase().includes(q.toLocaleLowerCase()))){const [v]=await tx.$queryRaw`SELECT id AS "versionId",content_sha256 AS "sourceHash" FROM rh_source.external_document_version WHERE tenant_id=${t} AND hub_key=${h} AND document_id=${item.documentId} ORDER BY version_number DESC LIMIT 1`;if(v)refs.push({kind:'external_document_version',sourceId:item.documentId,...v,rowId:null});}
+ const items=[];for(const ref of refs){const base={...ref,locator:'待管理员核对原始位置',fieldNames:['title']},source=await resolveDirectorySource(tx,scope,base);if(!source.available)continue;const fields=['title'];for(const field of ['authors','abstract',...(ref.kind==='source_record'?[]:['body'])])if((await resolveDirectorySource(tx,scope,{...base,fieldNames:[field]})).available)fields.push(field);items.push({reference:base,title:source.title,sourceName:source.sourceName,detailUrl:source.detailUrl,canonicalKey:source.canonicalKey,workType:source.workType,availableFields:fields});}
+ return{items,hasMore:rows.length>20,limitNote:'每类来源最多列20个获准匹配项；请用具体题名继续检索。'};
+}

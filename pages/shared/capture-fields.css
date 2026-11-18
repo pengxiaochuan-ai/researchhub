@@ -1,0 +1,13 @@
+.fc-form-presentation{margin:16px 0;overflow-wrap:anywhere}
+.fc-form-presentation p{margin:0 0 8px;white-space:pre-wrap}
+.fc-form-presentation .fc-form-title{font-size:16px;line-height:24px;font-weight:600}
+.fc-form-presentation .fc-form-attribution{color:var(--text-secondary);font-size:13px;line-height:20px}
+.fc-field-editor{min-width:0}
+.fc-field-editor .fc-choice-field{min-width:0;margin:0;padding:12px;border:1px solid var(--border);border-radius:var(--radius-input,8px);font-size:14px;line-height:22px}
+.fc-field-editor .fc-choice-field legend{max-width:100%;padding:0 4px;white-space:pre-wrap;overflow-wrap:anywhere}
+.fc-field-editor .fc-choice-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:8px 0}
+.fc-field-editor .fc-choice-option{display:flex;align-items:center;gap:8px;min-width:0;min-height:44px;cursor:pointer;overflow-wrap:anywhere}
+.fc-field-editor .fc-choice-option input[type="radio"]{width:16px;height:16px;min-height:16px;min-width:16px;padding:0;margin:0;flex:none;accent-color:var(--brand-primary)}
+.fc-field-editor .fc-choice-option:has(input:disabled){cursor:not-allowed}
+.fc-field-editor .fc-choice-option input:focus-visible{outline:2px solid var(--brand-primary);outline-offset:4px}
+.fc-field-editor .fc-choice-field:has([aria-invalid="true"]){border-color:var(--danger)}

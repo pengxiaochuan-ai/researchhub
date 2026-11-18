@@ -1,4 +1,9 @@
+import ResearchStudyOverview from '../../shared/ResearchStudyOverview.jsx';
+import {isResearchProjectRoute} from '../../../src/research-projects-session.js';
 import {WorkflowPage} from '../../shared/WorkflowPages.jsx';
+import RealStudyOverview from '../../shared/RealStudyOverview.jsx';
+import {realModeRouteState} from '../../../src/real-mode-route.js';
+import {isStudyOverviewRoute} from '../../../src/study-overview-route.js';
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
@@ -98,7 +103,7 @@ function Header() {
 
 function Sidebar() {
   const nav = [
-    ['我的科研', Home],
+    ['我的工作台', Home],
     ['领域研究', BookOpen],
     ['岐研 AI', BrainCircuit],
     ['科研资产', PackageCheck],
@@ -125,7 +130,7 @@ function StudyHeader({ activeTab, onTabChange }) {
   ];
   return <>
     <section className="study-head">
-      <div className="breadcrumb">我的科研 <ChevronRight/> 课题详情</div>
+      <div className="breadcrumb">我的工作台 <ChevronRight/> 课题详情</div>
       <div className="study-title-row">
         <div><h1>针刺抑郁多中心研究 <em>执行中</em></h1><p>针刺治疗中度抑郁症的有效性与安全性：一项多中心、随机、对照研究</p></div>
         <div className="study-actions"><button><Share2/>分享</button><button><Edit3/>编辑</button><button aria-label="更多"><MoreHorizontal/></button></div>
@@ -282,4 +287,6 @@ function App() {
   </div></main></>;
 }
 
-createRoot(document.getElementById('root')).render(new URLSearchParams(location.search).has('projectId')?<WorkflowPage pageId="s01"/>:<App/>);
+let explicitDemo=false;try{explicitDemo=sessionStorage.getItem('lingshu-demo-mode')==='true';}catch{}
+const realOverview=realModeRouteState('s01',location.search,{configured:Boolean(import.meta.env.VITE_AUTH_TENANT_SLUG),explicitDemo})==='live'&&isStudyOverviewRoute('s01',location.search);
+createRoot(document.getElementById('root')).render(isResearchProjectRoute('s01',location.search)&&realModeRouteState('s01',location.search,{configured:Boolean(import.meta.env.VITE_AUTH_TENANT_SLUG),explicitDemo})==='live'?<ResearchStudyOverview/>:realOverview?<RealStudyOverview/>:new URLSearchParams(location.search).has('projectId')?<WorkflowPage pageId="s01"/>:<App/>);

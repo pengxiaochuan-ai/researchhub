@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>P002 裁切图片状态集成验收</title>
+  <link rel="stylesheet" href="/pages/p002/styles.css">
+  <link rel="stylesheet" href="/pages/p002/interaction-layout.css">
+  <link rel="stylesheet" href="/pages/p002/typography.css">
+  <style>
+    main { max-width:720px; margin:40px auto; padding:20px; }
+    .states { display:flex; gap:24px; flex-wrap:wrap; }
+    .sample { width:280px; }
+    .sample .audience-photo { position:relative; inset:auto; width:100%; height:230px; mask-image:none; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>裁切图片真实加载验收</h1>
+    <p>调用生产加载器和样式。失败样例请求不存在的图片地址，验证解码失败反馈，不改动生产素材。</p>
+    <div class="states">
+      <div class="sample"><h2>正常源图</h2><span id="success" class="source-crop audience-photo"><img alt="正常加载样例"><span class="crop-status"></span></span></div>
+      <div class="sample"><h2>失败源图</h2><span id="failure" class="source-crop audience-photo"><img alt="失败加载样例"><span class="crop-status"></span></span></div>
+    </div>
+  </main>
+  <script type="module">
+    import {loadCropImage} from '/pages/p002/crop-image.js';
+    for (const [id, source] of [['success', '/pages/p002/assets/reference-6.png'], ['failure', '/__p002_missing_image_test__.png']]) {
+      const frame = document.getElementById(id);
+      loadCropImage(frame.querySelector('img'), frame, source, frame.querySelector('.crop-status'));
+    }
+  </script>
+</body>
+</html>

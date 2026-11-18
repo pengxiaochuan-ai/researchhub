@@ -1,0 +1,18 @@
+.method-assets-workspace { min-width:0; }
+.method-assets-workspace h2,.method-assets-workspace h3 { overflow-wrap:anywhere; }
+.method-assets-workspace .method-recipe { max-width:48rem; }
+.method-assets-workspace .method-recipe li { margin-block:var(--space-2); }
+.method-assets-workspace .method-reading :is(p,li) { font-size:var(--text-reading-size);line-height:var(--text-reading-line); }
+.method-assets-workspace .method-reading table { font-size:var(--text-body-size);line-height:var(--text-body-line); }
+.method-assets-workspace .method-reading :is(code,pre) { font-size:var(--text-body-size);line-height:var(--text-body-line); }
+.method-assets-workspace .method-reading :is(h3,h4,h5,h6) { font-size:var(--text-reading-size);line-height:var(--text-reading-line);margin-block:var(--space-4) var(--space-2); }
+.method-assets-workspace .method-limits { font-size:var(--text-helper-size,13px);line-height:var(--text-helper-line,20px); }
+.method-assets-workspace .method-parent-notes { white-space:pre-wrap;overflow-wrap:anywhere;font-size:var(--text-reading-size);line-height:var(--text-reading-line);max-width:48rem; }
+.method-assets-workspace .ui-button { max-width:100%;white-space:normal; }
+.method-assets-workspace summary { padding-block:var(--space-2); }
+@media(max-width:700px) {
+ body:has(.method-assets-workspace) .qiyan-header-brand { width:80px!important; }
+ body:has(.method-assets-workspace) .qiyan-header-brand .lingshu-brand-copy,
+ body:has(.method-assets-workspace) .qiyan-header-notification,
+ body:has(.method-assets-workspace) .qiyan-header-separator { display:none!important; }
+}

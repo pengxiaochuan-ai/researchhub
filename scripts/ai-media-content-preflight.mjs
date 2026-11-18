@@ -1,0 +1,30 @@
+import assert from'node:assert/strict';import{readFileSync,writeFileSync,mkdirSync,existsSync,statSync,createReadStream}from'node:fs';import{createHash,randomUUID}from'node:crypto';import{pathToFileURL}from'node:url';
+import{loadFixtureInput}from'../../app/server/scripts/wp01/local-config.mjs';import{assertFixtureTarget,withFixtureTransaction}from'../../app/server/scripts/wp01/fixture-guard.mjs';import{readMediaBindingProtection}from'./ai-session-media-ingest-preflight.mjs';import{applyMediaContentSchema}from'./ai-session-media-content-schema.mjs';import{materialDigest}from'../server/ai-agent/session-material-contract.mjs';
+const root=new URL('../../',import.meta.url).pathname,dir=root+'researchhub/.tmp/ai-media-content-implementation-2026-11-17/';
+const save=(name,value)=>writeFileSync(dir+name,JSON.stringify(value,null,2)+'\n',{mode:0o600});
+export async function contentPreflight(){
+ const{ids,key}=JSON.parse(readFileSync(root+'.tmp/researchhub-knowledge-local/runtime.json'));assert.equal(key,'rh-kb-local-b0e2af9d');const{env}=loadFixtureInput(root+'.superpowers/sdd/implementation-plan/wp01-full-baseline-target.json');assert.equal((await assertFixtureTarget(env)).databaseName,'wp01_test_full_baseline');
+ const{target}=JSON.parse(readFileSync(root+'researchhub/.tmp/ai-video-binding-2026-11-16/authorized-scope.json'));
+ mkdirSync(dir,{recursive:true,mode:0o700});if(!existsSync(dir+'protection-before.json'))save('protection-before.json',await readMediaBindingProtection(env,ids,target));
+ if(!existsSync(dir+'scope.json'))save('scope.json',{schema:'hub-media-content-scope.v1',tenantId:ids.tenant,source:{studyGroupId:ids.group,researchProjectId:ids.project},target,actors:Object.fromEntries(['owner','admin'].map(a=>[a,{accountId:ids[a],requestKey:'mc-20261117-'+a+'-'+randomUUID(),rootId:'rh-mc-'+randomUUID()}])),createdAt:new Date().toISOString()});
+ const weight='/Users/mac/.cache/whisper/small.pt',hash=createHash('sha256');for await(const b of createReadStream(weight))hash.update(b);const digest=hash.digest('hex');assert.equal(digest,'9ecf779972d90ba49c06d968637d720dd632c55bbf19d441fb42bf17a411e794');
+ const lock=JSON.parse(readFileSync(dir+'runtime-lock.json'));
+ const config={schema:'hub-media-content-config.v1',python:dir+'venv/bin/python',asrWeight:weight,asrSha256:digest,asrPromptVersion:'qiyan-domain-20261117',visionModel:'qwen3.5-9b',visionApi:'native-v1-reasoning-off',visionFiles:JSON.parse(readFileSync(dir+'vision-weight-lock.json')),maxDurationUs:'600000000',maxFrames:32,dependencyHash:materialDigest(lock)};
+ assert(statSync(config.python).isFile());if(existsSync(dir+'executor-config.json'))assert.deepEqual(JSON.parse(readFileSync(dir+'executor-config.json')),config,'CONFIG_DRIFT');else save('executor-config.json',config);
+ return{env,ids,target,config,configHash:materialDigest(config),scope:JSON.parse(readFileSync(dir+'scope.json'))};
+}
+export async function installContentSchema(){const c=await contentPreflight();const capacity=JSON.parse(readFileSync(dir+'capacity-native/result.json'));assert.equal(capacity.length,2);assert(capacity.every(x=>x.status==='complete'&&x.coverage.endUs==='600000000'));assert.equal(capacity.find(x=>x.channel==='visual').evidence,32);const result=await withFixtureTransaction(c.env,'direct',tx=>applyMediaContentSchema(tx,c.env));save('schema-receipt.json',result);return result;}
+export async function issueContentGrants(){const c=await contentPreflight();return withFixtureTransaction(c.env,'direct',async tx=>{
+ await tx.$queryRawUnsafe(`SELECT set_config('app.tenant_id',$1,true),set_config('app.study_group_id',$2,true),set_config('app.research_project_id',$3,true),set_config('app.account_id',$4,true)`,c.ids.tenant,c.ids.group,c.ids.project,c.ids.admin);
+ const[admin]=await tx.$queryRawUnsafe(`SELECT id FROM public.account WHERE id=$1 AND "tenantId"=$2 AND role='tenant_admin' AND "isTenantAdmin" AND status='active' FOR SHARE`,c.ids.admin,c.ids.tenant);assert(admin);
+ const granted=[];
+ for(const [actor,s]of Object.entries(c.scope.actors)){
+  assert(s.sessionId&&s.mediaId,'UPLOAD_NOT_VERIFIED');
+  const[m]=await tx.$queryRawUnsafe(`SELECT * FROM rh_ai.session_media_uploads WHERE id=$1 AND session_id=$2 AND account_id=$3 AND tenant_id=$4`,s.mediaId,s.sessionId,s.accountId,c.ids.tenant);
+  assert(m&&m.archive_state==='archived'&&m.inspection_classification==='valid'&&m.source_sha256===c.scope.fixtureSha256&&m.request_key===s.requestKey,'SOURCE_NOT_VERIFIED');
+  const[old]=await tx.$queryRawUnsafe(`SELECT id FROM rh_ai.session_media_content_runs WHERE id=$1`,s.rootId);if(old){granted.push(old.id);continue;}
+  const audit=await tx.auditLog.create({data:{tenantId:c.ids.tenant,studyGroupId:c.ids.group,accountId:c.ids.admin,action:'hub_media_content_grant',target:s.rootId,meta:{scope:'MC01-MC03-20261117',mediaId:m.id,accountId:s.accountId,studyId:c.target.studyId}}});
+  await tx.$executeRawUnsafe('SET LOCAL ROLE aisci_app');await tx.$executeRawUnsafe(`INSERT INTO rh_ai.session_media_content_runs(id,root_id,attempt_no,tenant_id,study_group_id,research_project_id,account_id,session_id,media_id,study_id,source_version,source_sha256,source_bytes,grant_by,grant_audit_id,grant_expires_at,config_hash) VALUES($1,$1,0,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,now()+interval '7 days' - interval '1 minute',$14)`,s.rootId,c.ids.tenant,c.ids.group,c.ids.project,s.accountId,s.sessionId,s.mediaId,c.target.studyId,m.version,m.source_sha256,m.byte_size,c.ids.admin,audit.id,c.configHash);await tx.$executeRawUnsafe('RESET ROLE');granted.push(s.rootId);
+ }return{granted};
+});}
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){const[cmd,...rest]=process.argv.slice(2);assert.deepEqual(rest,['--synthetic-staging','--approved-mc01-mc03']);if(cmd==='prepare'){const c=await contentPreflight();console.log(JSON.stringify({prepared:true,actors:2,configHash:c.configHash}));}else if(cmd==='install')console.log(JSON.stringify(await installContentSchema()));else if(cmd==='grant')console.log(JSON.stringify(await issueContentGrants()));else throw Error('COMMAND');}

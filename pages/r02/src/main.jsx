@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useLayoutEffect,useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Building2, ChevronRight, Star, UserPlus } from 'lucide-react';
 import { PEOPLE } from '../../r01/src/people.js';
 import './style.css';
+import {realIdentityMode} from '../../../src/platform-user.js';
+import ResearcherDetail from '../../shared/ResearcherDetail.jsx';
+import {mountPlatformShell} from '../../../src/platform-shell.js';
 
 const TABS = ['概览', '研究成果', '临床研究', '指南与贡献', '合作网络', '研究团队'];
 const TAG_DIMENSIONS = [
@@ -99,6 +102,13 @@ function fill(person) {
 function App() {
   const id = new URLSearchParams(window.location.search).get('id') || 'wang';
   const person = fill(PEOPLE.find((item) => item.id === id) || PEOPLE[0]);
+  return <Profile person={person}/>;
+}
+
+function Profile({person,back}) {
+  // The loading main is replaced after the read. Reattach the existing page
+  // context to this main; do not create a second navigation or layout.
+  useLayoutEffect(()=>{if(person.readOnly)mountPlatformShell('r02');},[person.readOnly]);
   const [tab, setTab] = useState('概览');
   const [resultTab, setResultTab] = useState('论文');
   const [followed, setFollowed] = useState(false);
@@ -108,27 +118,28 @@ function App() {
   return (
     <main className="platform-main profile-board">
       <section className="profile-hero">
-        <img src={person.photo} alt="" />
+        {person.photo?<img src={person.photo} alt="" />:<div className="profile-photo-unavailable">暂无已授权照片</div>}
         <div>
           <header>
             <h2>{person.name}</h2>
             {person.badges.map((badge) => <em key={badge}>{badge}</em>)}
             <div>
-              <button type="button" onClick={() => setFollowed((value) => !value)}><Star size={14} />{followed ? '已关注' : '关注'}</button>
-              <button type="button" onClick={() => setInvited(true)}><UserPlus size={14} />{invited ? '已添加合作意向' : '添加到合作'}</button>
+              <button type="button" disabled={person.readOnly} onClick={() => setFollowed((value) => !value)}><Star size={14} />{followed ? '已关注' : '关注'}</button>
+              <button type="button" disabled={person.readOnly} onClick={() => setInvited(true)}><UserPlus size={14} />{invited ? '已添加合作意向' : '添加到合作'}</button>
             </div>
           </header>
           <p className="profile-post">当前任职：{person.current.org}{unit}</p>
+          {person.readOnly&&<p>关注与合作暂不可用。</p>}
           {person.identifiers.length > 0 && (
             <p className="profile-ids">{person.identifiers.map(([label, value]) => <span key={label}>{label}　{value}</span>)}</p>
           )}
-          <p className="profile-focus">研究方向　<em>{person.directions[0]?.kind === '明确' ? '来源明确' : '岐研归纳'}</em>{person.directions.slice(0, 3).map((item) => item.title).join(' · ')}</p>
+          <p className="profile-focus">研究方向　{person.readOnly&&!person.directions.length?<span>待核验</span>:<><em>{person.directions[0]?.kind === '明确' ? '来源明确' : '岐研归纳'}</em>{person.directions.slice(0, 3).map((item) => item.title).join(' · ')}</>}</p>
         </div>
         <div className="profile-stats">
-          <p><b>{person.papers}</b><small>关联论文</small></p>
-          <p><b>{person.trials}</b><small>参与临床研究</small></p>
-          <p><b>{person.guides.length}</b><small>参与指南/共识</small></p>
-          <p><b>{person.partners.length}</b><small>合作机构</small></p>
+          <p><b>{person.papers??'—'}</b><small>关联论文</small></p>
+          <p><b>{person.trials??'—'}</b><small>参与临床研究</small></p>
+          <p><b>{person.readOnly?person.guideCount??'—':person.guides.length}</b><small>参与指南/共识</small></p>
+          <p><b>{person.readOnly?person.partnerCount??'—':person.partners.length}</b><small>合作机构</small></p>
         </div>
       </section>
       <div className="profile-tabs">
@@ -143,7 +154,7 @@ function App() {
           {tab === '合作网络' && <Network person={person} />}
           {tab === '研究团队' && <TeamList person={person} />}
         </div>
-        <Rail person={person} />
+        <Rail person={person} back={back}/>
       </div>
     </main>
   );
@@ -161,13 +172,13 @@ function Overview({ person, resultTab, setResultTab, onMore }) {
         </section>
         <section className="profile-fit">
           <h3>与本研究领域的相关性</h3>
-          <p className="profile-match-count">当前 Hub 匹配：{matched} 个研究维度</p>
+          <p className="profile-match-count">{person.readOnly?person.relevance.reason||'尚未完成相关性核验。':`当前 Hub 匹配：${matched} 个研究维度`}</p>
           <ul className="profile-dims">
             {person.dimensions.map(([label, value, tone]) => (
               <li key={label} className={tone}>{tone === 'partial' ? '△' : '✓'}　{label}：{value}</li>
             ))}
           </ul>
-          <button type="button" onClick={() => setOpen((value) => !value)}>为什么属于这个 Hub<ChevronRight size={14} /></button>
+          {person.reasons.length>0&&<button type="button" onClick={() => setOpen((value) => !value)}>为什么属于这个 Hub<ChevronRight size={14} /></button>}
           {open && <ul className="profile-reasons">{person.reasons.map((item) => <li key={item}>{item}</li>)}</ul>}
         </section>
       </div>
@@ -196,7 +207,7 @@ function Results({ person, resultTab, setResultTab }) {
   return (
     <>
       <div className="profile-result-tabs">
-        {[['论文', person.papers], ['临床试验', person.trials], ['指南/共识', person.guides.length]].map(([label, count]) => (
+        {[['论文', person.papers??'—'], ['临床试验', person.trials??'—'], ['指南/共识', person.readOnly?person.guideCount??'—':person.guides.length]].map(([label, count]) => (
           <button key={label} type="button" className={resultTab === label ? 'on' : ''} onClick={() => setResultTab(label)}>{label}（{count}）</button>
         ))}
       </div>
@@ -205,7 +216,8 @@ function Results({ person, resultTab, setResultTab }) {
           <ul className="profile-papers">
             {person.works.map((row) => (
               <li key={row.title}>
-                <b>{row.title}{row.role && <em>{row.role}</em>}</b>
+                <b>{row.detailUrl?<a href={row.detailUrl}>{row.title}</a>:row.title}{row.role && <em>{row.role}</em>}</b>
+                {row.provenance&&<Provenance rows={[row.provenance]}/>}
                 <span>{row.authors}　{row.venue} {row.cite}</span>
               </li>
             ))}
@@ -240,7 +252,8 @@ function TrialList({ rows }) {
     <ul className="profile-lines">
       {rows.map((row) => (
         <li key={row.title}>
-          <b>{row.title}{row.role && <em>{row.role}</em>}</b>
+          <b>{row.detailUrl?<a href={row.detailUrl}>{row.title}</a>:row.title}{row.role && <em>{row.role}</em>}</b>
+          {row.provenance&&<Provenance rows={[row.provenance]}/>}
           <span>{row.code}　{row.design}　{row.status}</span>
         </li>
       ))}
@@ -252,7 +265,7 @@ function Guides({ items }) {
   if (!items.length) return <p className="profile-empty">暂无公开指南或共识。</p>;
   return (
     <ul className="profile-lines">
-      {items.map((item) => <li key={item.title}><b>{item.title}{item.role && <em>{item.role}</em>}</b></li>)}
+      {items.map((item) => <li key={item.title}><b>{item.detailUrl?<a href={item.detailUrl}>{item.title}</a>:item.title}{item.role && <em>{item.role}</em>}</b>{item.provenance&&<Provenance rows={[item.provenance]}/>}</li>)}
     </ul>
   );
 }
@@ -310,14 +323,14 @@ function TeamGroup({ title, teams, plain }) {
 
 function TeamCard({ team }) {
   return (
-    <button type="button" className="profile-team" onClick={(event) => { event.stopPropagation(); window.location.assign(`/pages/t02/?team=${team.id}`); }}>
+    <button type="button" className="profile-team" onClick={(event) => { event.stopPropagation(); window.location.assign('/pages/t02/?'+new URLSearchParams({team:team.id,...(realIdentityMode?{returnTo:location.pathname+location.search}:{})})); }}>
       <b>{team.name}</b>
       <span>{team.role}<ChevronRight size={14} /></span>
     </button>
   );
 }
 
-function Rail({ person }) {
+function Rail({ person,back }) {
   const [full, setFull] = useState(false);
   const history = full ? person.history : person.history.slice(0, 3);
   const unit = person.current.unit ? ` · ${person.current.unit}` : '';
@@ -328,6 +341,7 @@ function Rail({ person }) {
         <p className="profile-org"><Building2 size={16} /><span><b>{person.current.org}{unit}</b><small>{person.current.title}</small>{person.current.period && <small>{person.current.period}</small>}</span></p>
         {person.current.source && <p>任职信息来源：{person.current.source}</p>}
         {person.current.confirmedAt && <p>最近确认时间：{person.current.confirmedAt}</p>}
+        {person.readOnly&&<>{person.affiliations.length>1&&<ul className="profile-lines">{person.affiliations.map((a,i)=><li key={i}>{a.org} {a.unit} {a.title}</li>)}</ul>}<Provenance rows={person.provenance}/><p>“—”表示未核验，仅统计当前领域已收录关联。</p><a href={back}>返回研究者目录</a></>}
       </section>
       <section>
         <h3>研究团队</h3>
@@ -356,4 +370,5 @@ function Rail({ person }) {
   );
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+function Provenance({rows=[]}){return <details className="profile-provenance"><summary>查看审核依据与原始位置</summary>{rows.map((p,i)=><div key={p.assertionId??i}><p>{p.label&&<b>{p.label} · </b>}事实版本 {p.revision} · 审核时间 {new Date(p.reviewedAt).toLocaleString('zh-CN')}</p>{p.sources.map((s,j)=><p key={j}>{s.detailUrl?<a href={s.detailUrl}>{s.title}</a>:s.title} · {s.kind==='admin_verification'?'管理员核实':s.locator}{s.kind!=='admin_verification'&&<> · 来源版本 {s.versionId??s.rowId}<br/>内容指纹：{s.sourceHash}</>}</p>)}</div>)}</details>;}
+createRoot(document.getElementById('root')).render(realIdentityMode?<ResearcherDetail Profile={Profile}/>:<App />);

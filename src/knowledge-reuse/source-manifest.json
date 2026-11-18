@@ -1,0 +1,120 @@
+{
+  "copiedAt": "2026-10-22",
+  "origin": "aisciencesys app/web current authorized working tree",
+  "adaptationPolicy": "Hashes identify unchanged old source files, not an assertion that adapted ResearchHub destinations are byte-identical. KbAgentPanel is a bounded read-only integration; knowledge-chat-state is copied without changes.",
+  "files": [
+    {
+      "source": "app/web/src/components/SystemDialogProvider.tsx",
+      "sha256": "b1d6b662d7c8ab2acea4896e500fc131ecdbd73060b4bfaecf1c08b45d97b83c",
+      "destination": "src/knowledge-reuse/components/SystemDialogProvider.tsx"
+    },
+    {
+      "source": "app/web/src/components/markdown-normalization.ts",
+      "sha256": "64db35758ff54f965ce0b1ba9dbc087e859cfa5b54c8210e1d403abfd9494579",
+      "destination": "src/knowledge-reuse/components/markdown-normalization.ts"
+    },
+    {
+      "source": "app/web/src/components/Markdown.tsx",
+      "sha256": "bf82e547c0fef39609ca8042de51719b86eebf741ebcf82585f0f59e7e40ff1d",
+      "destination": "src/knowledge-reuse/components/Markdown.tsx",
+      "mode": "adapted-optional-ai-image-policy-default-preview-unchanged"
+    },
+    {
+      "source": "app/web/src/pages/knowledge/WikiEditor.tsx",
+      "sha256": "71e2929fd4b99f70a01b7c05789c45168e9db32be4659f033f5ca9d35693e068",
+      "destination": "src/knowledge-reuse/pages/knowledge/WikiEditor.tsx"
+    },
+    {
+      "source": "app/web/src/pages/knowledge/VersionDrawer.tsx",
+      "sha256": "1ba08d39c7af17af7b8049ee577ae63b24591f3ccd16ca385b93e50ed118932c",
+      "destination": "src/knowledge-reuse/pages/knowledge/VersionDrawer.tsx"
+    },
+    {
+      "source": "app/web/src/pages/knowledge/EditorBoundary.tsx",
+      "sha256": "fa03122d9dff1b1acbed2ba9f68bbac6f738b6686f6e7cb50bc006bf16278964",
+      "destination": "src/knowledge-reuse/pages/knowledge/EditorBoundary.tsx"
+    },
+    {
+      "source": "app/web/src/pages/knowledge/knowledge-document-view.ts",
+      "sha256": "045fe0bfb039f240550ebe912878d6d937a4ae59d396e1a59c9c8226cbe9ec75",
+      "destination": "src/knowledge-reuse/pages/knowledge/knowledge-document-view.ts"
+    },
+    {
+      "source": "app/web/src/pages/knowledge/OriginalDocumentView.tsx",
+      "sha256": "d5ade7b786a6382cefa3e989255fb5e6953eef62c58902cd68452d0f9a4542b1",
+      "destination": "src/knowledge-reuse/pages/knowledge/OriginalDocumentView.tsx"
+    },
+    {
+      "source": "app/web/src/pages/knowledge/knowledge-pane-layout.ts",
+      "sha256": "e6a6bd6eacd3dd74172e95eb509b8e7332b680b26634338f7e848d8cb71b363f",
+      "destination": "src/knowledge-reuse/pages/knowledge/knowledge-pane-layout.ts"
+    },
+    {
+      "source": "app/web/src/pages/knowledge/knowledge-import-decision.ts",
+      "sha256": "2b4ac93e7c35bd871a1ba085da1b958002beadbbe13c4b0ce64ba5a32f9f47cd",
+      "destination": "src/knowledge-reuse/pages/knowledge/knowledge-import-decision.ts"
+    },
+    {
+      "source": "app/web/src/pages/knowledge/knowledge-base-management.ts",
+      "sha256": "e4221bae05e6806cfef8d572a94b85c78c3ea54a6a83a379a92376008aa8eb7a",
+      "destination": "src/knowledge-reuse/pages/knowledge/knowledge-base-management.ts"
+    },
+    {
+      "source": "app/web/src/pages/knowledge/KnowledgeBaseDialog.tsx",
+      "sha256": "f491c65422c9a95265dab74371dcd8705107555966f314f52767c8c30087488a",
+      "destination": "src/knowledge-reuse/pages/knowledge/KnowledgeBaseDialog.tsx"
+    },
+    {
+      "source": "app/web/src/pages/knowledge/UnsavedChangesDialog.tsx",
+      "sha256": "e13c1c7e6f4965bd1e02d9ee90022b7aad7e8d0797fe7bbfd275273a1000f753",
+      "destination": "src/knowledge-reuse/pages/knowledge/UnsavedChangesDialog.tsx"
+    },
+    {
+      "source": "app/web/src/pages/knowledge/knowledge-document-sections.ts",
+      "sha256": "ef0194110f525f8c780b6472f0e06ac025c4e92cbe0f5703c837c601455e9638",
+      "destination": "src/knowledge-reuse/pages/knowledge/knowledge-document-sections.ts"
+    },
+    {
+      "source": "app/web/src/pages/knowledge/knowledge-document-title.ts",
+      "sha256": "bde593e9872148b57d4d1e4c689db0010b87d6e40d73d75d5b714c096bb78e05",
+      "destination": "src/knowledge-reuse/pages/knowledge/knowledge-document-title.ts"
+    },
+    {
+      "source": "app/web/src/pages/knowledge/KnowledgeDocumentTitleDialog.tsx",
+      "sha256": "758cca55695e5a884febe15a085476bfdbab3adae6a95e85d4d89d3b69fd5943",
+      "destination": "src/knowledge-reuse/pages/knowledge/KnowledgeDocumentTitleDialog.tsx"
+    },
+    {
+      "source": "app/web/src/pages/knowledge/KnowledgeDocumentDeleteDialog.tsx",
+      "sha256": "0288f5d61f3f1637782d845bbb250c0852d9a2c5c9c8193c7aa027fb6d178536",
+      "destination": "src/knowledge-reuse/pages/knowledge/KnowledgeDocumentDeleteDialog.tsx"
+    },
+    {
+      "source": "app/web/src/pages/knowledge/knowledge-trash.ts",
+      "sha256": "58e9ae9dab1ff6b0fbb34ab768b3ba09e47a6d5ddc432f1da0943fc0ab0f5fbc",
+      "destination": "src/knowledge-reuse/pages/knowledge/knowledge-trash.ts"
+    },
+    {
+      "source": "app/web/src/pages/knowledge/KnowledgeTrashDialog.tsx",
+      "sha256": "3c16211c5ffa426b20f2abcf89b3c32222a69c911cbf79a1dc1db7a1c1bea9d7",
+      "destination": "src/knowledge-reuse/pages/knowledge/KnowledgeTrashDialog.tsx"
+    },
+    {
+      "source": "app/web/src/pages/knowledge/KnowledgeBasePage.tsx",
+      "sha256": "30941e955e66016b7e8c4449e24278379b5b907fb6f5a3296059116885eafb07",
+      "destination": "src/knowledge-reuse/pages/knowledge/KnowledgeBasePage.tsx"
+    },
+    {
+      "source": "app/web/src/pages/knowledge/knowledge-chat-state.ts",
+      "sha256": "f4dd0ce17685222e8dad1cc8291afac7eb7abb33259bdc1d8f7b0d1b8f50e9d7",
+      "destination": "src/knowledge-reuse/pages/knowledge/knowledge-chat-state.ts",
+      "mode": "unchanged-copy"
+    },
+    {
+      "source": "app/web/src/pages/knowledge/KbAgentPanel.tsx",
+      "sha256": "a147295c9a5f44779ac8981136b667f2e70fcc092f17b7ee0c834114d8b4ad08",
+      "destination": "src/knowledge-reuse/pages/knowledge/KbAgentPanel.tsx",
+      "mode": "adapted-read-only-qa"
+    }
+  ]
+}

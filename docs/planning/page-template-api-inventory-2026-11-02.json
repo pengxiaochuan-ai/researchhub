@@ -1,0 +1,1442 @@
+{
+  "asOf": "2026-11-02",
+  "scope": "static source/document inventory only; no runtime or production certification",
+  "routeModeAssumption": {
+    "configured": true,
+    "explicitDemo": false,
+    "search": ""
+  },
+  "counts": {
+    "registered": 52,
+    "priorRestoration": 11,
+    "remaining": 41,
+    "defaultStates": {
+      "live": 11,
+      "public": 6,
+      "pending": 27,
+      "entry": 3,
+      "auth": 5
+    },
+    "boundedDefaultPending": 9,
+    "noRealBusinessBranch": 18,
+    "pngCount": 19
+  },
+  "pages": [
+    {
+      "id": "k01",
+      "title": "知识资料",
+      "route": "/pages/k01/",
+      "priorRestoration11": false,
+      "defaultRealMode": "live",
+      "boundedDefaultPending": false,
+      "implementationStatus": "live-partial",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [
+        "I09",
+        "I10",
+        "I11",
+        "I12"
+      ],
+      "legacyReuseCandidates": [],
+      "priority": "P0",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/k01/main.jsx",
+        "entryPath": "pages/k01/index.html",
+        "moduleScripts": [
+          "pages/k01/main.jsx"
+        ]
+      },
+      "gapRow": "5:k01"
+    },
+    {
+      "id": "p00",
+      "title": "开放性首页",
+      "route": "/pages/p00/",
+      "priorRestoration11": false,
+      "defaultRealMode": "public",
+      "boundedDefaultPending": false,
+      "implementationStatus": "static-not-business-api",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [],
+      "priority": "P2",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/p00/src/main.jsx",
+        "entryPath": "pages/p00/index.html",
+        "moduleScripts": [
+          "pages/p00/src/main.jsx"
+        ]
+      },
+      "gapRow": "5:p00"
+    },
+    {
+      "id": "p001",
+      "title": "开放性首页固化稿",
+      "route": "/pages/p001/",
+      "priorRestoration11": false,
+      "defaultRealMode": "public",
+      "boundedDefaultPending": false,
+      "implementationStatus": "static-not-business-api",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [],
+      "priority": "P2",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/p001/src/main.jsx",
+        "entryPath": "pages/p001/index.html",
+        "moduleScripts": [
+          "pages/p001/src/main.jsx"
+        ]
+      },
+      "gapRow": "5:p001"
+    },
+    {
+      "id": "p002",
+      "title": "灵枢心域开放首页",
+      "route": "/pages/p002/",
+      "priorRestoration11": false,
+      "defaultRealMode": "public",
+      "boundedDefaultPending": false,
+      "implementationStatus": "static-not-business-api",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [],
+      "priority": "P1",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/p002/index.html",
+        "entryPath": "pages/p002/index.html",
+        "moduleScripts": [
+          "pages/p002/app.js"
+        ]
+      },
+      "gapRow": "5:p002"
+    },
+    {
+      "id": "p01",
+      "title": "我的科研",
+      "route": "/pages/p01/",
+      "priorRestoration11": true,
+      "defaultRealMode": "live",
+      "boundedDefaultPending": false,
+      "implementationStatus": "live-partial",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [
+        "I04"
+      ],
+      "legacyReuseCandidates": [],
+      "priority": "P1",
+      "baseline": {
+        "kind": "png-plus-existing-source",
+        "actualPngPath": "../针灸情志病/岐研｜中医临床研究智能平台——Product Baseline v1.0/prototype/a4-design-reference/screens/platform/P01-my-research.png",
+        "pngExists": true,
+        "sourcePath": "pages/shared/PersonalOverview.jsx",
+        "entryPath": "pages/p01/index.html",
+        "moduleScripts": [
+          "pages/p01/src/main.jsx",
+          "src/page-linking.js"
+        ]
+      },
+      "gapRow": "6:p01"
+    },
+    {
+      "id": "c01",
+      "title": "临床注册",
+      "route": "/pages/c01/",
+      "priorRestoration11": true,
+      "defaultRealMode": "live",
+      "boundedDefaultPending": false,
+      "implementationStatus": "live-partial",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [
+        "I07"
+      ],
+      "legacyReuseCandidates": [],
+      "priority": "P1",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/c01/src/main.jsx",
+        "entryPath": "pages/c01/index.html",
+        "moduleScripts": [
+          "pages/c01/src/main.jsx",
+          "src/page-linking.js"
+        ]
+      },
+      "gapRow": "6:c01"
+    },
+    {
+      "id": "c03",
+      "title": "试验详情",
+      "route": "/pages/c03/",
+      "priorRestoration11": true,
+      "defaultRealMode": "live",
+      "boundedDefaultPending": false,
+      "implementationStatus": "live-partial",
+      "conditionExamples": [
+        "documentId"
+      ],
+      "existingInterfaceFamilies": [
+        "I07"
+      ],
+      "legacyReuseCandidates": [],
+      "priority": "P1",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/c03/src/main.jsx",
+        "entryPath": "pages/c03/index.html",
+        "moduleScripts": [
+          "pages/c03/src/main.jsx",
+          "src/page-linking.js"
+        ]
+      },
+      "gapRow": "6:c03"
+    },
+    {
+      "id": "t01",
+      "title": "研究团队",
+      "route": "/pages/t01/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": false,
+      "implementationStatus": "no-real-business-branch",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [],
+      "priority": "P1",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/t01/src/main.jsx",
+        "entryPath": "pages/t01/index.html",
+        "moduleScripts": [
+          "pages/t01/src/main.jsx",
+          "src/page-linking.js"
+        ]
+      },
+      "gapRow": "5:t01"
+    },
+    {
+      "id": "t02",
+      "title": "团队详情",
+      "route": "/pages/t02/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": false,
+      "implementationStatus": "no-real-business-branch",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [],
+      "priority": "P1",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/t02/src/main.jsx",
+        "entryPath": "pages/t02/index.html",
+        "moduleScripts": [
+          "pages/t02/src/main.jsx",
+          "src/page-linking.js"
+        ]
+      },
+      "gapRow": "5:t02"
+    },
+    {
+      "id": "r01",
+      "title": "研究者",
+      "route": "/pages/r01/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": false,
+      "implementationStatus": "no-real-business-branch",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [],
+      "priority": "P1",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/r01/src/main.jsx",
+        "entryPath": "pages/r01/index.html",
+        "moduleScripts": [
+          "pages/r01/src/main.jsx",
+          "src/page-linking.js"
+        ]
+      },
+      "gapRow": "5:r01"
+    },
+    {
+      "id": "r02",
+      "title": "研究者详情",
+      "route": "/pages/r02/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": false,
+      "implementationStatus": "no-real-business-branch",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [],
+      "priority": "P1",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/r02/src/main.jsx",
+        "entryPath": "pages/r02/index.html",
+        "moduleScripts": [
+          "pages/r02/src/main.jsx",
+          "src/page-linking.js"
+        ]
+      },
+      "gapRow": "5:r02"
+    },
+    {
+      "id": "h01",
+      "title": "针灸治疗情志病",
+      "route": "/pages/h01/",
+      "priorRestoration11": true,
+      "defaultRealMode": "live",
+      "boundedDefaultPending": false,
+      "implementationStatus": "live-partial",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [
+        "I05",
+        "I07"
+      ],
+      "legacyReuseCandidates": [],
+      "priority": "P1",
+      "baseline": {
+        "kind": "png-plus-existing-source",
+        "actualPngPath": "../针灸情志病/岐研｜中医临床研究智能平台——Product Baseline v1.0/prototype/a4-design-reference/screens/hub/H01-research-hub.png",
+        "pngExists": true,
+        "sourcePath": "pages/h01/src/main.jsx",
+        "entryPath": "pages/h01/index.html",
+        "moduleScripts": [
+          "pages/h01/src/main.jsx",
+          "src/page-linking.js"
+        ]
+      },
+      "gapRow": "6:h01"
+    },
+    {
+      "id": "ai01",
+      "title": "岐研 AI",
+      "route": "/pages/ai01/",
+      "priorRestoration11": true,
+      "defaultRealMode": "entry",
+      "boundedDefaultPending": false,
+      "implementationStatus": "entry-partial",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [
+        "I01",
+        "I09"
+      ],
+      "legacyReuseCandidates": [],
+      "priority": "P1",
+      "baseline": {
+        "kind": "png-plus-existing-source",
+        "actualPngPath": "../针灸情志病/岐研｜中医临床研究智能平台——Product Baseline v1.0/prototype/a4-design-reference/screens/ai/AI01-qiyan-ai.png",
+        "pngExists": true,
+        "sourcePath": "pages/ai01/src/main.jsx",
+        "entryPath": "pages/ai01/index.html",
+        "moduleScripts": [
+          "pages/ai01/src/main.jsx",
+          "src/page-linking.js"
+        ]
+      },
+      "gapRow": "6:ai01"
+    },
+    {
+      "id": "e01",
+      "title": "研究证据",
+      "route": "/pages/e01/",
+      "priorRestoration11": true,
+      "defaultRealMode": "live",
+      "boundedDefaultPending": false,
+      "implementationStatus": "live-partial",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [
+        "I06"
+      ],
+      "legacyReuseCandidates": [],
+      "priority": "P1",
+      "baseline": {
+        "kind": "png-plus-existing-source",
+        "actualPngPath": "../针灸情志病/岐研｜中医临床研究智能平台——Product Baseline v1.0/prototype/a4-design-reference/screens/evidence/E01-evidence-search.png",
+        "pngExists": true,
+        "sourcePath": "pages/e01/src/main.jsx",
+        "entryPath": "pages/e01/index.html",
+        "moduleScripts": [
+          "pages/e01/src/main.jsx",
+          "src/page-linking.js"
+        ]
+      },
+      "gapRow": "6:e01"
+    },
+    {
+      "id": "e02",
+      "title": "证据详情",
+      "route": "/pages/e02/",
+      "priorRestoration11": true,
+      "defaultRealMode": "live",
+      "boundedDefaultPending": false,
+      "implementationStatus": "live-partial",
+      "conditionExamples": [
+        "recordId"
+      ],
+      "existingInterfaceFamilies": [
+        "I06"
+      ],
+      "legacyReuseCandidates": [],
+      "priority": "P1",
+      "baseline": {
+        "kind": "png-plus-existing-source",
+        "actualPngPath": "../针灸情志病/岐研｜中医临床研究智能平台——Product Baseline v1.0/prototype/a4-design-reference/screens/evidence/E02-evidence-detail.png",
+        "pngExists": true,
+        "sourcePath": "pages/e02/src/main.jsx",
+        "entryPath": "pages/e02/index.html",
+        "moduleScripts": [
+          "pages/e02/src/main.jsx",
+          "src/page-linking.js"
+        ]
+      },
+      "gapRow": "6:e02"
+    },
+    {
+      "id": "e03",
+      "title": "AI 证据抽屉",
+      "route": "/pages/e03/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": false,
+      "implementationStatus": "no-real-business-branch",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [
+        "C08"
+      ],
+      "priority": "P1",
+      "baseline": {
+        "kind": "png-plus-existing-source",
+        "actualPngPath": "../针灸情志病/岐研｜中医临床研究智能平台——Product Baseline v1.0/prototype/a4-design-reference/screens/evidence/E03-ai-evidence-drawer.png",
+        "pngExists": true,
+        "sourcePath": "pages/e03/src/main.jsx",
+        "entryPath": "pages/e03/index.html",
+        "moduleScripts": [
+          "pages/e03/src/main.jsx",
+          "src/page-linking.js"
+        ]
+      },
+      "gapRow": "5:e03"
+    },
+    {
+      "id": "s01",
+      "title": "课题概览",
+      "route": "/pages/s01/",
+      "priorRestoration11": true,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": true,
+      "implementationStatus": "bounded-partial",
+      "conditionExamples": [
+        "studyGroupId + researchProjectId"
+      ],
+      "existingInterfaceFamilies": [
+        "I01",
+        "I04"
+      ],
+      "legacyReuseCandidates": [
+        "C02",
+        "C03",
+        "C04",
+        "C05"
+      ],
+      "priority": "P0",
+      "baseline": {
+        "kind": "png-plus-existing-source",
+        "actualPngPath": "../针灸情志病/岐研｜中医临床研究智能平台——Product Baseline v1.0/prototype/a4-design-reference/screens/study/S01-study-overview.png",
+        "pngExists": true,
+        "sourcePath": "pages/s01/src/main.jsx",
+        "entryPath": "pages/s01/index.html",
+        "moduleScripts": [
+          "pages/s01/src/main.jsx",
+          "src/page-linking.js"
+        ]
+      },
+      "gapRow": "6:s01"
+    },
+    {
+      "id": "s02",
+      "title": "研究设计详情",
+      "route": "/pages/s02/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": true,
+      "implementationStatus": "bounded-partial",
+      "conditionExamples": [
+        "designWorkspace=1 + exact scope"
+      ],
+      "existingInterfaceFamilies": [
+        "I10"
+      ],
+      "legacyReuseCandidates": [
+        "C03"
+      ],
+      "priority": "P0",
+      "baseline": {
+        "kind": "png-plus-existing-source",
+        "actualPngPath": "../针灸情志病/岐研｜中医临床研究智能平台——Product Baseline v1.0/prototype/a4-design-reference/screens/study/S02-study-design.png",
+        "pngExists": true,
+        "sourcePath": "pages/shared/StudyPages.jsx",
+        "entryPath": "pages/s02/index.html",
+        "moduleScripts": [
+          "pages/shared/missing-main.jsx"
+        ]
+      },
+      "gapRow": "5:s02"
+    },
+    {
+      "id": "s03",
+      "title": "受试者管理",
+      "route": "/pages/s03/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": true,
+      "implementationStatus": "bounded-partial",
+      "conditionExamples": [
+        "syntheticCapture=1 + exact scope/plan"
+      ],
+      "existingInterfaceFamilies": [
+        "I11"
+      ],
+      "legacyReuseCandidates": [
+        "C04"
+      ],
+      "priority": "P0",
+      "baseline": {
+        "kind": "png-plus-existing-source",
+        "actualPngPath": "../针灸情志病/岐研｜中医临床研究智能平台——Product Baseline v1.0/prototype/a4-design-reference/screens/study/S03-subject-managemen.png",
+        "pngExists": true,
+        "sourcePath": "pages/shared/StudyPages.jsx",
+        "entryPath": "pages/s03/index.html",
+        "moduleScripts": [
+          "pages/shared/missing-main.jsx"
+        ]
+      },
+      "gapRow": "5:s03"
+    },
+    {
+      "id": "s04",
+      "title": "受试者详情",
+      "route": "/pages/s04/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": true,
+      "implementationStatus": "bounded-partial",
+      "conditionExamples": [
+        "syntheticCapture=1 + exact scope/plan/collection"
+      ],
+      "existingInterfaceFamilies": [
+        "I11"
+      ],
+      "legacyReuseCandidates": [
+        "C04"
+      ],
+      "priority": "P0",
+      "baseline": {
+        "kind": "png-plus-existing-source",
+        "actualPngPath": "../针灸情志病/岐研｜中医临床研究智能平台——Product Baseline v1.0/prototype/a4-design-reference/screens/study/S04-subject-detail.png",
+        "pngExists": true,
+        "sourcePath": "pages/shared/StudyPages.jsx",
+        "entryPath": "pages/s04/index.html",
+        "moduleScripts": [
+          "pages/shared/missing-main.jsx"
+        ]
+      },
+      "gapRow": "5:s04"
+    },
+    {
+      "id": "s05",
+      "title": "数据质量详情",
+      "route": "/pages/s05/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": true,
+      "implementationStatus": "bounded-partial",
+      "conditionExamples": [
+        "syntheticCapture=1 + exact scope/plan/collection"
+      ],
+      "existingInterfaceFamilies": [
+        "I11"
+      ],
+      "legacyReuseCandidates": [
+        "C05"
+      ],
+      "priority": "P0",
+      "baseline": {
+        "kind": "png-plus-existing-source",
+        "actualPngPath": "../针灸情志病/岐研｜中医临床研究智能平台——Product Baseline v1.0/prototype/a4-design-reference/screens/study/S05-data-quality.png",
+        "pngExists": true,
+        "sourcePath": "pages/shared/StudyPages.jsx",
+        "entryPath": "pages/s05/index.html",
+        "moduleScripts": [
+          "pages/shared/missing-main.jsx"
+        ]
+      },
+      "gapRow": "5:s05"
+    },
+    {
+      "id": "s06",
+      "title": "研究分析结果",
+      "route": "/pages/s06/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": true,
+      "implementationStatus": "bounded-partial",
+      "conditionExamples": [
+        "crfMethods=1 + exact scope/plan/collection"
+      ],
+      "existingInterfaceFamilies": [
+        "I12"
+      ],
+      "legacyReuseCandidates": [
+        "C05"
+      ],
+      "priority": "P0",
+      "baseline": {
+        "kind": "png-plus-existing-source",
+        "actualPngPath": "../针灸情志病/岐研｜中医临床研究智能平台——Product Baseline v1.0/prototype/a4-design-reference/screens/study/S06-analysis-result.png",
+        "pngExists": true,
+        "sourcePath": "pages/shared/StudyPages.jsx",
+        "entryPath": "pages/s06/index.html",
+        "moduleScripts": [
+          "pages/shared/missing-main.jsx"
+        ]
+      },
+      "gapRow": "5:s06"
+    },
+    {
+      "id": "q01",
+      "title": "研究课题",
+      "route": "/pages/q01/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": true,
+      "implementationStatus": "bounded-partial",
+      "conditionExamples": [
+        "researchPlanId + exact scope"
+      ],
+      "existingInterfaceFamilies": [
+        "I10"
+      ],
+      "legacyReuseCandidates": [
+        "C01"
+      ],
+      "priority": "P0",
+      "baseline": {
+        "kind": "png-plus-existing-source",
+        "actualPngPath": "../针灸情志病/岐研｜中医临床研究智能平台——Product Baseline v1.0/prototype/a4-design-reference/screens/question/Q01-research-question.png",
+        "pngExists": true,
+        "sourcePath": "pages/shared/Q01Page.jsx",
+        "entryPath": "pages/q01/index.html",
+        "moduleScripts": [
+          "pages/shared/missing-main.jsx"
+        ]
+      },
+      "gapRow": "5:q01"
+    },
+    {
+      "id": "g01",
+      "title": "人工审查与审批",
+      "route": "/pages/g01/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": false,
+      "implementationStatus": "no-real-business-branch",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [
+        "C03",
+        "C06"
+      ],
+      "priority": "P0",
+      "baseline": {
+        "kind": "png-plus-existing-source",
+        "actualPngPath": "../针灸情志病/岐研｜中医临床研究智能平台——Product Baseline v1.0/prototype/a4-design-reference/screens/governance/G01-human-review.png",
+        "pngExists": true,
+        "sourcePath": "pages/shared/BusinessPages.jsx",
+        "entryPath": "pages/g01/index.html",
+        "moduleScripts": [
+          "pages/shared/missing-main.jsx"
+        ]
+      },
+      "gapRow": "5:g01"
+    },
+    {
+      "id": "g02",
+      "title": "管理与治理",
+      "route": "/pages/g02/",
+      "priorRestoration11": false,
+      "defaultRealMode": "live",
+      "boundedDefaultPending": false,
+      "implementationStatus": "live-partial",
+      "conditionExamples": [
+        "view=source-review"
+      ],
+      "existingInterfaceFamilies": [
+        "I08"
+      ],
+      "legacyReuseCandidates": [],
+      "priority": "P0",
+      "baseline": {
+        "kind": "png-plus-existing-source",
+        "actualPngPath": "../针灸情志病/岐研｜中医临床研究智能平台——Product Baseline v1.0/prototype/a4-design-reference/screens/governance/G02-management-governance.png",
+        "pngExists": true,
+        "sourcePath": "pages/shared/G02Page.jsx",
+        "entryPath": "pages/g02/index.html",
+        "moduleScripts": [
+          "pages/shared/missing-main.jsx"
+        ]
+      },
+      "gapRow": "5:g02"
+    },
+    {
+      "id": "o01",
+      "title": "研究机会",
+      "route": "/pages/o01/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": false,
+      "implementationStatus": "no-real-business-branch",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [
+        "C08"
+      ],
+      "priority": "P1",
+      "baseline": {
+        "kind": "png-plus-existing-source",
+        "actualPngPath": "../针灸情志病/岐研｜中医临床研究智能平台——Product Baseline v1.0/prototype/a4-design-reference/screens/opportunity/O01-research-opportunities.png",
+        "pngExists": true,
+        "sourcePath": "pages/o01/src/main.jsx",
+        "entryPath": "pages/o01/index.html",
+        "moduleScripts": [
+          "pages/o01/src/main.jsx",
+          "src/page-linking.js"
+        ]
+      },
+      "gapRow": "5:o01"
+    },
+    {
+      "id": "o02",
+      "title": "研究机会详情",
+      "route": "/pages/o02/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": false,
+      "implementationStatus": "no-real-business-branch",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [
+        "C08"
+      ],
+      "priority": "P1",
+      "baseline": {
+        "kind": "png-plus-existing-source",
+        "actualPngPath": "../针灸情志病/岐研｜中医临床研究智能平台——Product Baseline v1.0/prototype/a4-design-reference/screens/opportunity/O02-opportunity-detail.png",
+        "pngExists": true,
+        "sourcePath": "pages/shared/BusinessPages.jsx",
+        "entryPath": "pages/o02/index.html",
+        "moduleScripts": [
+          "pages/shared/missing-main.jsx"
+        ]
+      },
+      "gapRow": "5:o02"
+    },
+    {
+      "id": "a01",
+      "title": "科研资产",
+      "route": "/pages/a01/",
+      "priorRestoration11": true,
+      "defaultRealMode": "entry",
+      "boundedDefaultPending": false,
+      "implementationStatus": "entry-partial",
+      "conditionExamples": [
+        "assetDrafts/assetDraftId",
+        "crfMethodAssets=1 + exact scope"
+      ],
+      "existingInterfaceFamilies": [
+        "I01",
+        "I12"
+      ],
+      "legacyReuseCandidates": [
+        "C06"
+      ],
+      "priority": "P1",
+      "baseline": {
+        "kind": "png-plus-existing-source",
+        "actualPngPath": "../针灸情志病/岐研｜中医临床研究智能平台——Product Baseline v1.0/prototype/a4-design-reference/screens/asset/A01-research-assets.png",
+        "pngExists": true,
+        "sourcePath": "pages/shared/BusinessPages.jsx",
+        "entryPath": "pages/a01/index.html",
+        "moduleScripts": [
+          "pages/shared/missing-main.jsx"
+        ]
+      },
+      "gapRow": "6:a01"
+    },
+    {
+      "id": "a02",
+      "title": "资产详情与复用",
+      "route": "/pages/a02/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": true,
+      "implementationStatus": "bounded-partial",
+      "conditionExamples": [
+        "assetDrafts/assetDraftId",
+        "crfMethodAssets=1 + exact scope/asset",
+        "assetApplicability=1 + exact scope"
+      ],
+      "existingInterfaceFamilies": [
+        "I12"
+      ],
+      "legacyReuseCandidates": [
+        "C06"
+      ],
+      "priority": "P1",
+      "baseline": {
+        "kind": "png-plus-existing-source",
+        "actualPngPath": "../针灸情志病/岐研｜中医临床研究智能平台——Product Baseline v1.0/prototype/a4-design-reference/screens/asset/A02-asset-detail-reuse.png",
+        "pngExists": true,
+        "sourcePath": "pages/shared/BusinessPages.jsx",
+        "entryPath": "pages/a02/index.html",
+        "moduleScripts": [
+          "pages/shared/missing-main.jsx"
+        ]
+      },
+      "gapRow": "5:a02"
+    },
+    {
+      "id": "h02",
+      "title": "创建 Research Hub · 基本信息",
+      "route": "/pages/h02/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": false,
+      "implementationStatus": "no-real-business-branch",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [],
+      "priority": "P2",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/HubCreate.jsx",
+        "entryPath": "pages/h02/index.html",
+        "moduleScripts": [
+          "pages/h02/src/main.jsx",
+          "src/page-linking.js"
+        ]
+      },
+      "gapRow": "5:h02"
+    },
+    {
+      "id": "h03",
+      "title": "创建 Research Hub · 研究范围",
+      "route": "/pages/h03/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": false,
+      "implementationStatus": "no-real-business-branch",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [],
+      "priority": "P1",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/HubCreate.jsx",
+        "entryPath": "pages/h03/index.html",
+        "moduleScripts": [
+          "pages/h03/src/main.jsx",
+          "src/page-linking.js"
+        ]
+      },
+      "gapRow": "5:h03"
+    },
+    {
+      "id": "h04",
+      "title": "创建 Research Hub · AI 检查与确认",
+      "route": "/pages/h04/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": false,
+      "implementationStatus": "no-real-business-branch",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [],
+      "priority": "P1",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/HubCreate.jsx",
+        "entryPath": "pages/h04/index.html",
+        "moduleScripts": [
+          "pages/h04/src/main.jsx",
+          "src/page-linking.js"
+        ]
+      },
+      "gapRow": "5:h04"
+    },
+    {
+      "id": "h05",
+      "title": "领域研究",
+      "route": "/pages/h05/",
+      "priorRestoration11": true,
+      "defaultRealMode": "live",
+      "boundedDefaultPending": false,
+      "implementationStatus": "live-partial",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [
+        "I05"
+      ],
+      "legacyReuseCandidates": [],
+      "priority": "P1",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/h05/src/main.jsx",
+        "entryPath": "pages/h05/index.html",
+        "moduleScripts": [
+          "pages/h05/src/main.jsx",
+          "src/page-linking.js"
+        ]
+      },
+      "gapRow": "6:h05"
+    },
+    {
+      "id": "p003",
+      "title": "登录",
+      "route": "/pages/p003/",
+      "priorRestoration11": false,
+      "defaultRealMode": "auth",
+      "boundedDefaultPending": false,
+      "implementationStatus": "account-synthetic-partial",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [
+        "I01"
+      ],
+      "legacyReuseCandidates": [],
+      "priority": "P0",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/PublicPages.jsx",
+        "entryPath": "pages/p003/index.html",
+        "moduleScripts": [
+          "pages/shared/PublicPages.jsx"
+        ]
+      },
+      "gapRow": "5:p003"
+    },
+    {
+      "id": "p004",
+      "title": "注册",
+      "route": "/pages/p004/",
+      "priorRestoration11": false,
+      "defaultRealMode": "auth",
+      "boundedDefaultPending": false,
+      "implementationStatus": "account-synthetic-partial",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [
+        "I02"
+      ],
+      "legacyReuseCandidates": [],
+      "priority": "P0",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/PublicPages.jsx",
+        "entryPath": "pages/p004/index.html",
+        "moduleScripts": [
+          "pages/shared/PublicPages.jsx"
+        ]
+      },
+      "gapRow": "5:p004"
+    },
+    {
+      "id": "p005",
+      "title": "找回密码",
+      "route": "/pages/p005/",
+      "priorRestoration11": false,
+      "defaultRealMode": "auth",
+      "boundedDefaultPending": false,
+      "implementationStatus": "account-synthetic-partial",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [
+        "I02"
+      ],
+      "legacyReuseCandidates": [],
+      "priority": "P0",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/PublicPages.jsx",
+        "entryPath": "pages/p005/index.html",
+        "moduleScripts": [
+          "pages/shared/PublicPages.jsx"
+        ]
+      },
+      "gapRow": "5:p005"
+    },
+    {
+      "id": "p006",
+      "title": "学术身份资料",
+      "route": "/pages/p006/",
+      "priorRestoration11": false,
+      "defaultRealMode": "auth",
+      "boundedDefaultPending": false,
+      "implementationStatus": "account-synthetic-partial",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [
+        "I02"
+      ],
+      "legacyReuseCandidates": [],
+      "priority": "P1",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/PublicPages.jsx",
+        "entryPath": "pages/p006/index.html",
+        "moduleScripts": [
+          "pages/shared/PublicPages.jsx"
+        ]
+      },
+      "gapRow": "5:p006"
+    },
+    {
+      "id": "p007",
+      "title": "学术发起",
+      "route": "/pages/p007/",
+      "priorRestoration11": false,
+      "defaultRealMode": "public",
+      "boundedDefaultPending": false,
+      "implementationStatus": "static-not-business-api",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [],
+      "priority": "P2",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/PublicPages.jsx",
+        "entryPath": "pages/p007/index.html",
+        "moduleScripts": [
+          "pages/shared/PublicPages.jsx"
+        ]
+      },
+      "gapRow": "5:p007"
+    },
+    {
+      "id": "p008",
+      "title": "帮助中心",
+      "route": "/pages/p008/",
+      "priorRestoration11": false,
+      "defaultRealMode": "public",
+      "boundedDefaultPending": false,
+      "implementationStatus": "static-not-business-api",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [],
+      "priority": "P0",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/PublicPages.jsx",
+        "entryPath": "pages/p008/index.html",
+        "moduleScripts": [
+          "pages/shared/PublicPages.jsx"
+        ]
+      },
+      "gapRow": "5:p008"
+    },
+    {
+      "id": "p009",
+      "title": "帮助文章",
+      "route": "/pages/p009/",
+      "priorRestoration11": false,
+      "defaultRealMode": "public",
+      "boundedDefaultPending": false,
+      "implementationStatus": "static-not-business-api",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [],
+      "priority": "P0",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/PublicPages.jsx",
+        "entryPath": "pages/p009/index.html",
+        "moduleScripts": [
+          "pages/shared/PublicPages.jsx"
+        ]
+      },
+      "gapRow": "5:p009"
+    },
+    {
+      "id": "p010",
+      "title": "确认Study邀请",
+      "route": "/pages/p010/",
+      "priorRestoration11": false,
+      "defaultRealMode": "auth",
+      "boundedDefaultPending": false,
+      "implementationStatus": "account-synthetic-partial",
+      "conditionExamples": [
+        "approved invitation token landing"
+      ],
+      "existingInterfaceFamilies": [
+        "I03"
+      ],
+      "legacyReuseCandidates": [],
+      "priority": "P0",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/PublicPages.jsx",
+        "entryPath": "pages/p010/index.html",
+        "moduleScripts": [
+          "pages/shared/PublicPages.jsx"
+        ]
+      },
+      "gapRow": "5:p010"
+    },
+    {
+      "id": "q02",
+      "title": "我的课题与草稿",
+      "route": "/pages/q02/",
+      "priorRestoration11": true,
+      "defaultRealMode": "entry",
+      "boundedDefaultPending": false,
+      "implementationStatus": "entry-partial",
+      "conditionExamples": [
+        "designWorkspace=1 + exact scope"
+      ],
+      "existingInterfaceFamilies": [
+        "I01",
+        "I10"
+      ],
+      "legacyReuseCandidates": [
+        "C01"
+      ],
+      "priority": "P0",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/WorkflowPages.jsx",
+        "entryPath": "pages/q02/index.html",
+        "moduleScripts": [
+          "pages/shared/workflow-main.jsx"
+        ]
+      },
+      "gapRow": "6:q02"
+    },
+    {
+      "id": "s07",
+      "title": "研究方案编辑",
+      "route": "/pages/s07/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": true,
+      "implementationStatus": "bounded-partial",
+      "conditionExamples": [
+        "designWorkspace=1 + exact scope/plan"
+      ],
+      "existingInterfaceFamilies": [
+        "I10"
+      ],
+      "legacyReuseCandidates": [
+        "C03"
+      ],
+      "priority": "P0",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/WorkflowPages.jsx",
+        "entryPath": "pages/s07/index.html",
+        "moduleScripts": [
+          "pages/shared/workflow-main.jsx"
+        ]
+      },
+      "gapRow": "5:s07"
+    },
+    {
+      "id": "s08",
+      "title": "执行任务",
+      "route": "/pages/s08/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": false,
+      "implementationStatus": "no-real-business-branch",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [
+        "C02"
+      ],
+      "priority": "P0",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/WorkflowPages.jsx",
+        "entryPath": "pages/s08/index.html",
+        "moduleScripts": [
+          "pages/shared/workflow-main.jsx"
+        ]
+      },
+      "gapRow": "5:s08"
+    },
+    {
+      "id": "s09",
+      "title": "演示访视录入",
+      "route": "/pages/s09/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": false,
+      "implementationStatus": "no-real-business-branch",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [
+        "C04"
+      ],
+      "priority": "P0",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/WorkflowPages.jsx",
+        "entryPath": "pages/s09/index.html",
+        "moduleScripts": [
+          "pages/shared/workflow-main.jsx"
+        ]
+      },
+      "gapRow": "5:s09"
+    },
+    {
+      "id": "s10",
+      "title": "科研产出",
+      "route": "/pages/s10/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": false,
+      "implementationStatus": "no-real-business-branch",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [
+        "C06"
+      ],
+      "priority": "P0",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/WorkflowPages.jsx",
+        "entryPath": "pages/s10/index.html",
+        "moduleScripts": [
+          "pages/shared/workflow-main.jsx"
+        ]
+      },
+      "gapRow": "5:s10"
+    },
+    {
+      "id": "s11",
+      "title": "团队与设置",
+      "route": "/pages/s11/",
+      "priorRestoration11": false,
+      "defaultRealMode": "live",
+      "boundedDefaultPending": false,
+      "implementationStatus": "live-partial",
+      "conditionExamples": [
+        "member invitation scope",
+        "executionPreparation=1 + exact scope/plan"
+      ],
+      "existingInterfaceFamilies": [
+        "I03",
+        "I11"
+      ],
+      "legacyReuseCandidates": [
+        "C01"
+      ],
+      "priority": "P0",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/WorkflowPages.jsx",
+        "entryPath": "pages/s11/index.html",
+        "moduleScripts": [
+          "pages/shared/workflow-main.jsx"
+        ]
+      },
+      "gapRow": "5:s11"
+    },
+    {
+      "id": "h06",
+      "title": "指南与教材",
+      "route": "/pages/h06/",
+      "priorRestoration11": false,
+      "defaultRealMode": "live",
+      "boundedDefaultPending": false,
+      "implementationStatus": "live-partial",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [
+        "I07"
+      ],
+      "legacyReuseCandidates": [],
+      "priority": "P1",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/WorkflowPages.jsx",
+        "entryPath": "pages/h06/index.html",
+        "moduleScripts": [
+          "pages/shared/workflow-main.jsx"
+        ]
+      },
+      "gapRow": "5:h06"
+    },
+    {
+      "id": "h07",
+      "title": "相关研究",
+      "route": "/pages/h07/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": false,
+      "implementationStatus": "no-real-business-branch",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [],
+      "priority": "P1",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/WorkflowPages.jsx",
+        "entryPath": "pages/h07/index.html",
+        "moduleScripts": [
+          "pages/shared/workflow-main.jsx"
+        ]
+      },
+      "gapRow": "5:h07"
+    },
+    {
+      "id": "g03",
+      "title": "用户与权限说明",
+      "route": "/pages/g03/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": false,
+      "implementationStatus": "no-real-business-branch",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [
+        "C01",
+        "C07"
+      ],
+      "priority": "P0",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/WorkflowPages.jsx",
+        "entryPath": "pages/g03/index.html",
+        "moduleScripts": [
+          "pages/shared/workflow-main.jsx"
+        ]
+      },
+      "gapRow": "5:g03"
+    },
+    {
+      "id": "g04",
+      "title": "本机操作记录",
+      "route": "/pages/g04/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": false,
+      "implementationStatus": "no-real-business-branch",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [
+        "C07"
+      ],
+      "priority": "P2",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/WorkflowPages.jsx",
+        "entryPath": "pages/g04/index.html",
+        "moduleScripts": [
+          "pages/shared/workflow-main.jsx"
+        ]
+      },
+      "gapRow": "5:g04"
+    },
+    {
+      "id": "g05",
+      "title": "服务接入状态",
+      "route": "/pages/g05/",
+      "priorRestoration11": false,
+      "defaultRealMode": "pending",
+      "boundedDefaultPending": false,
+      "implementationStatus": "no-real-business-branch",
+      "conditionExamples": [],
+      "existingInterfaceFamilies": [],
+      "legacyReuseCandidates": [
+        "C07"
+      ],
+      "priority": "P0",
+      "baseline": {
+        "kind": "existing-source-plus-approved-spec",
+        "actualPngPath": null,
+        "pngExists": null,
+        "sourcePath": "pages/shared/WorkflowPages.jsx",
+        "entryPath": "pages/g05/index.html",
+        "moduleScripts": [
+          "pages/shared/workflow-main.jsx"
+        ]
+      },
+      "gapRow": "5:g05"
+    }
+  ]
+}

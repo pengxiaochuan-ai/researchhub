@@ -1,0 +1,74 @@
+body[data-platform-page="e01"] main.real-evidence { overflow: auto !important; min-height: 100%; padding: 24px; background: var(--canvas); color: var(--text-primary); font-size: 16px; line-height: 1.75; }
+.real-evidence-heading { max-width: 1440px; margin: 0 auto 20px; }
+.real-evidence-heading p { margin: 0 0 8px; color: var(--text-secondary); font-size: 14px; }
+.real-evidence-heading h2 { margin: 0 0 6px; font-size: 24px; line-height: 32px; }
+.real-evidence-heading span { color: var(--text-secondary); }
+.real-evidence-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; max-width: 1440px; margin: 0 auto; }
+.real-evidence-summary, .real-evidence-results { min-width: 0; padding: 24px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.real-evidence-summary h2, .real-evidence-toolbar h2 { margin: 0 0 16px; font-size: 20px; line-height: 28px; }
+.real-evidence-summary dl { margin: 0; }
+.real-evidence-summary dl div { display: flex; justify-content: space-between; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.real-evidence-summary dt { color: var(--text-secondary); }
+.real-evidence-summary dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.real-evidence-summary p { color: var(--text-secondary); font-size: 14px; }
+.real-evidence-toolbar { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px; }
+.real-evidence-toolbar form { min-width: min(100%, 360px); }
+.real-evidence-toolbar label { display: block; margin-bottom: 6px; font-size: 14px; }
+.real-evidence-toolbar form div { display: flex; align-items: center; gap: 8px; min-height: 44px; padding-left: 12px; border: 1px solid var(--border); border-radius: 6px; }
+.real-evidence-toolbar input { flex: 1; min-width: 0; height: 42px; border: 0; outline: 0; font: inherit; }
+.real-evidence-toolbar button, .real-evidence-more { min-height: 44px; padding: 8px 14px; border: 1px solid var(--brand-primary); border-radius: 6px; background: var(--brand-primary); color: #fff; font-size: 14px; font-weight: 600; }
+.real-evidence-toolbar form div:focus-within, .real-evidence-more:focus-visible { outline: 3px solid var(--brand-primary); outline-offset: 2px; }
+.real-evidence-state { margin-top: 20px; padding: 32px; border: 1px dashed var(--border); border-radius: 8px; color: var(--text-secondary); text-align: center; }
+.real-evidence-state h3 { margin: 0 0 8px; color: var(--text-primary); font-size: 20px; }
+.real-evidence-state p { margin: 0; }
+.real-evidence-state.error { border-color: #f3b4ba; color: #9b2333; }
+.real-evidence-state.error button { display: block; margin: 12px auto 0; min-height: 44px; padding: 8px 16px; }
+.real-evidence-list { margin: 20px 0; padding: 0; list-style: none; }
+.real-evidence-list li { padding: 18px 0; border-top: 1px solid var(--border); overflow-wrap: anywhere; }
+.real-evidence-list a { display: inline-flex; align-items: baseline; gap: 8px; color: var(--brand-primary); font-size: 18px; line-height: 28px; font-weight: 600; text-decoration: none; }
+.real-evidence-list a:hover { text-decoration: underline; }
+.real-evidence-list p { margin: 6px 0 0; color: var(--text-secondary); }
+.real-evidence-list small { display: block; margin-top: 8px; color: var(--text-tertiary); font-size: 14px; }
+.real-evidence-more:disabled { opacity: .5; }
+@media (max-width: 800px) { .real-evidence-layout { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .real-evidence { padding: 16px; } .real-evidence-summary, .real-evidence-results { padding: 16px; } .real-evidence-toolbar form { width: 100%; } }
+
+/* Restore the confirmed three-column board; data and review gates stay in RealEvidence. */
+body[data-platform-page="e01"]{margin:0}
+body[data-platform-page="e01"] main.real-evidence{height:100vh;overflow:hidden!important;padding:64px 0 24px!important;background:var(--canvas);color:var(--text-primary);font-size:14px;line-height:22px}
+.real-evidence .paper-work{margin:16px 24px 0;gap:16px;grid-template-columns:248px minmax(0,1fr) 380px}
+.real-evidence .paper-filters{position:static;inset:auto;width:auto;z-index:auto}
+.real-evidence .paper-list header{position:static;inset:auto;width:auto;z-index:auto}
+.real-evidence .paper-filter-scroll>p,.real-evidence .paper-detail p{font-size:14px;line-height:22px;color:var(--text-secondary)}
+.real-evidence .paper-find input{font-size:14px;line-height:22px}
+.real-evidence .paper-dates label{font-size:12px;line-height:18px;color:var(--text-secondary);min-width:0}
+.real-evidence .paper-dates input{width:100%;min-width:0;border:1px solid var(--border);border-radius:6px;height:32px;font:inherit;background:var(--surface);color:var(--text-secondary)}
+.real-evidence .paper-option input{width:14px;height:14px;margin:0;flex:none}
+.real-evidence .paper-option{min-height:28px;font-size:14px;line-height:22px}
+.real-evidence .paper-rows p{font-size:13px;line-height:20px}
+.real-evidence .paper-detail h2{font-size:16px;line-height:24px;overflow-wrap:anywhere}
+.real-evidence .paper-rows article{padding:16px;grid-template-columns:16px 24px minmax(0,1fr) 48px}
+.real-evidence .real-paper-select{border:0;background:none;padding:0;text-align:left;color:var(--text-primary);font-size:14px!important;line-height:22px!important;cursor:pointer;overflow-wrap:anywhere}
+.real-evidence .paper-acts a,.real-evidence .paper-detail-actions a{color:var(--brand-primary);font-size:14px;line-height:22px}
+.real-evidence .paper-detail-actions a{display:inline-flex;align-items:center;gap:8px;margin-top:16px}
+.real-evidence .paper-filter-foot{position:static;inset:auto;height:auto}
+.real-evidence .paper-filter-foot .paper-apply{background:var(--brand-primary);color:var(--surface);border-radius:6px;padding:8px 16px;height:auto;min-height:40px;border:0}
+.real-evidence .paper-tabs{overflow:auto;gap:16px;height:auto;min-height:44px}
+.real-evidence .paper-tabs button{white-space:nowrap;flex:none}
+.real-evidence .paper-detail p.real-preview-reading{white-space:pre-wrap;font-size:16px;line-height:28px}
+.real-evidence .paper-tabs button,.real-evidence .paper-filter-foot button{font-size:14px;line-height:22px}
+.real-evidence-source-state{margin-top:16px;font-size:13px;line-height:20px;color:var(--text-secondary)}
+.real-evidence-source-state summary{cursor:pointer;min-height:40px}
+.real-evidence-source-state dd{margin:0 0 8px}
+.real-evidence button:focus-visible,.real-evidence a:focus-visible{outline:2px solid var(--brand-primary);outline-offset:2px}
+.real-evidence .paper-classification-evidence{margin-top:8px;overflow-wrap:anywhere}
+.real-evidence .paper-classification-evidence summary{cursor:pointer;font-size:14px;line-height:22px;min-height:32px}
+.real-evidence .paper-tags{gap:8px}
+.real-evidence .paper-tags span{font-size:12px;line-height:18px;color:var(--text-secondary)}
+.real-evidence .paper-more,.real-evidence .paper-filter-error{font-size:14px;line-height:22px;overflow-wrap:anywhere}
+.real-evidence .paper-filter-error{color:var(--danger)}
+.real-evidence .paper-chips button{height:auto;min-height:32px;white-space:normal;font-size:14px;line-height:22px;text-align:left}
+.real-evidence input:focus-visible,.real-evidence summary:focus-visible{outline:2px solid var(--brand-primary);outline-offset:2px}
+@media(max-width:1250px){.real-evidence .paper-work{grid-template-columns:220px minmax(0,1fr) 300px}}
+@media(max-width:1050px){body[data-platform-page="e01"] main.real-evidence{overflow:auto!important}.real-evidence .paper-work{grid-template-columns:220px minmax(0,1fr);flex:none;min-height:640px}.real-evidence .paper-detail{grid-column:1/-1;min-height:240px}.real-evidence .paper-filters,.real-evidence .paper-list{min-height:400px;max-height:640px}}
+@media(max-width:760px){.real-evidence .paper-work{grid-template-columns:minmax(0,1fr);margin:16px}.real-evidence .paper-detail{grid-column:auto}.real-evidence .paper-filters{max-height:440px}.real-evidence .paper-rows article{grid-template-columns:16px minmax(0,1fr)}.real-evidence .paper-index{display:none}.real-evidence .paper-cite{grid-column:2;flex-direction:row}.real-evidence .paper-list-bar{flex-wrap:wrap}}

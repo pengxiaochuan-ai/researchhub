@@ -1,0 +1,3 @@
+import React from 'react';import {createRoot} from 'react-dom/client';import ResearchDataPreview from '../../pages/shared/ResearchDataPreview.jsx';import '../../src/design-tokens.css';
+const f=await(await fetch('/.tmp/ai-file-data-2026-11-12/p06-general-ui-fixture.json')).json();
+createRoot(document.getElementById('root')).render(<main style={{maxWidth:960,margin:'16px auto',padding:16}}><ResearchDataPreview data={{plan:{id:'fixture-plan',version:1,state:'previewed',result:f.summary},items:[{id:'general-fixture',name:'SYNTHETIC一般研究表格.csv'}],imports:{item:f.item,targets:[],checked:true,loading:false,canChangeSource:true,confirm:()=>{},refresh:()=>{}},overview:{},preview:async()=>{},cancel:()=>{}}}/></main>);

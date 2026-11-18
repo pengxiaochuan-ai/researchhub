@@ -15,10 +15,18 @@ const pageInputs = Object.fromEntries(
     resolve(projectRoot, page.entry),
   ]),
 );
+let runtimeAssetsOutDir = resolve(projectRoot, 'dist');
+function questionnaireRoute(server) {
+  server.middlewares.use((req, _res, next) => {
+    if (req.method === 'GET' && /^\/h5\/questionnaire\/[^/?]+(?:\?.*)?$/.test(req.url ?? '')) req.url = '/pages/h5-questionnaire/index.html';
+    next();
+  });
+}
 
 export default defineConfig({
   plugins: [
     react(),
+    { name: 'qiyan-questionnaire-route', configureServer: questionnaireRoute, configurePreviewServer: questionnaireRoute },
     {
       name: 'qiyan-page-icons',
       transformIndexHtml() {
@@ -30,10 +38,13 @@ export default defineConfig({
     },
     {
       name: 'qiyan-p002-runtime-assets',
+      configResolved(config) {
+        runtimeAssetsOutDir = resolve(projectRoot, config.build.outDir);
+      },
       closeBundle() {
         cpSync(
           resolve(projectRoot, 'pages/p002/assets'),
-          resolve(projectRoot, 'dist/pages/p002/assets'),
+          resolve(runtimeAssetsOutDir, 'pages/p002/assets'),
           { recursive: true },
         );
       },
@@ -43,6 +54,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         platform: resolve(projectRoot, 'index.html'),
+        knowledgeFrame: resolve(projectRoot, 'pages/k01/frame.html'),
+        questionnaire: resolve(projectRoot, 'pages/h5-questionnaire/index.html'),
         ...pageInputs,
       },
     },

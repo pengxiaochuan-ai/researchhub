@@ -1,0 +1,8 @@
+.agent-materials {margin-bottom:8px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:var(--text-body-size,14px);line-height:var(--text-body-line,22px);color:var(--text-primary);}
+.agent-materials p {margin:4px 0;font-size:inherit;line-height:inherit;}
+.agent-materials summary {cursor:pointer;font-weight:500;}
+.agent-materials ul {list-style:none;margin:4px 0;padding:0;max-height:90px;overflow:auto;}
+.agent-materials li {display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;padding:4px 0;}
+.agent-materials .agent-material-name {flex:1 1 200px;min-width:0;overflow-wrap:anywhere;}
+.agent-materials a {color:var(--brand-primary);text-decoration:underline;white-space:nowrap;}
+.agent-materials summary:focus-visible,.agent-materials a:focus-visible {outline:2px solid var(--brand-primary);outline-offset:2px;}

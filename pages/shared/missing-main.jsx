@@ -1,3 +1,14 @@
+import FormalMethodsWorkspace from './FormalMethodsWorkspace.jsx';
+import {isMethodsRoute} from '../../src/formal-methods-session.js';
+import FormalAnalysisWorkspace from './FormalAnalysisWorkspace.jsx';
+import {isAnalysisRoute} from '../../src/formal-analysis-session.js';
+import FormalCaptureWorkspace from './FormalCaptureWorkspace.jsx';
+import {isCaptureRoute} from '../../src/formal-capture-session.js';
+import ResearchSubjects from './ResearchSubjects.jsx';
+import {isSubjectRoute} from '../../src/research-subjects-session.js';
+import FormalPreparation from './FormalPreparation.jsx';
+import GovernanceProtocolWorkspace from './GovernanceProtocolWorkspace.jsx';
+import {isFormalRoute} from '../../src/formal-preparation-session.js';
 import {WorkflowPage} from './WorkflowPages.jsx';
 import {readContext} from '../../src/route-context.js';
 import React from 'react';
@@ -9,13 +20,35 @@ import './layout-overrides.css';
 import './g02.css';
 import './layout-practice.css';
 import '../../src/page-linking.js';
+import SyntheticAssetWorkspace from './SyntheticAssetWorkspace.jsx';
+import {isAssetDraftRoute} from '../../src/synthetic-asset-route.js';
+import SyntheticEdcWorkspace from './SyntheticEdcWorkspace.jsx';
+import {isSyntheticEdcRoute} from '../../src/synthetic-edc-session.js';
+import CrfMethodsWorkspace from './CrfMethodsWorkspace.jsx';
+import {isCrfMethodsRoute} from '../../src/crf-methods-session.js';
+import CrfMethodAssetWorkspace from './CrfMethodAssetWorkspace.jsx';
+import {isCrfMethodAssetsRoute} from '../../src/crf-method-assets-session.js';
+import AssetApplicabilityWorkspace from './AssetApplicabilityWorkspace.jsx';
+import {isAssetApplicabilityRoute} from '../../src/asset-applicability-session.js';
+import {realModeRouteState} from '../../src/real-mode-route.js';
+import RealWorkspaceEntry from './RealWorkspaceEntry.jsx';
+import ResearchDesignWorkspace from './ResearchDesignWorkspace.jsx';
+import {isResearchDesignRoute} from '../../src/research-design-session.js';
+import ResearchAssetWorkspace from './ResearchAssetWorkspace.jsx';
+import {isResearchAssetRoute} from '../../src/research-assets-session.js';
+import ResearchAssetCatalogWorkspace from './ResearchAssetCatalogWorkspace.jsx';
+import ResearchAssetCatalogReadWorkspace from './ResearchAssetCatalogReadWorkspace.jsx';
+import {isCatalogAssetRoute} from '../../src/research-assets-catalog-session.js';
 
 const pages = { s02: S02, s03: S03, s04: S04, s05: S05, s06: S06, q01: Q01, g01: G01, g02: G02, o01: O01, o02: O02, a01: A01, a02: A02 };
 const pageId = window.location.pathname.match(/\/pages\/([^/]+)/)?.[1] ?? 'q01';
 const context=readContext(location.search);
 const useWorkflow=(context.projectId&&pageId!=='q01'&&!['o01','o02','g02'].includes(pageId))||(pageId==='a01'&&context.view==='local')||(pageId==='a02'&&context.assetId);
-const Page = useWorkflow ? ()=> <WorkflowPage pageId={pageId}/> : pages[pageId] ?? Q01;
+const useAssetDrafts=isAssetDraftRoute(pageId,location.search);
+let demoMode=false;try{demoMode=sessionStorage.getItem('lingshu-demo-mode')==='true';}catch{}
+const entry=realModeRouteState(pageId,location.search,{configured:Boolean(import.meta.env.VITE_AUTH_TENANT_SLUG),explicitDemo:demoMode})==='entry';
+const Page = pageId==='g01'&&Boolean(import.meta.env.VITE_AUTH_TENANT_SLUG)&&!demoMode?GovernanceProtocolWorkspace:isMethodsRoute(pageId,location.search)&&Boolean(import.meta.env.VITE_AUTH_TENANT_SLUG)?FormalMethodsWorkspace:isAnalysisRoute(pageId,location.search)&&Boolean(import.meta.env.VITE_AUTH_TENANT_SLUG)?FormalAnalysisWorkspace:isCaptureRoute(pageId,location.search)&&Boolean(import.meta.env.VITE_AUTH_TENANT_SLUG)?()=> <FormalCaptureWorkspace pageId={pageId}/>:isSubjectRoute(pageId,location.search)&&Boolean(import.meta.env.VITE_AUTH_TENANT_SLUG)?()=> <ResearchSubjects pageId={pageId}/>:isFormalRoute(pageId,location.search)&&Boolean(import.meta.env.VITE_AUTH_TENANT_SLUG)?()=> <FormalPreparation pageId={pageId}/>:entry&&pageId==='a01'?ResearchAssetCatalogWorkspace:isResearchDesignRoute(pageId,location.search)&&pageId==='s02'?()=> <ResearchDesignWorkspace pageId="s02"/>:isAssetApplicabilityRoute(pageId,location.search)?AssetApplicabilityWorkspace:isCrfMethodAssetsRoute(pageId,location.search)?()=> <CrfMethodAssetWorkspace pageId={pageId}/>:isCrfMethodsRoute(pageId,location.search)?CrfMethodsWorkspace:isSyntheticEdcRoute(pageId,location.search)?()=> <SyntheticEdcWorkspace pageId={pageId}/> : useAssetDrafts ? ()=> <SyntheticAssetWorkspace detail={pageId==='a02'}/> : useWorkflow ? ()=> <WorkflowPage pageId={pageId}/> : pages[pageId] ?? Q01;
 
 document.documentElement.dataset.page = pageId;
 
-createRoot(document.getElementById('root')).render(<Page/>);
+createRoot(document.getElementById('root')).render(isCatalogAssetRoute(pageId,location.search)?<ResearchAssetCatalogReadWorkspace/>:isResearchAssetRoute(pageId,location.search)?<ResearchAssetWorkspace/>:<Page/>);

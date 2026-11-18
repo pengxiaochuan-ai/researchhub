@@ -1,0 +1,6 @@
+.video-chat-sources{font-size:14px;line-height:22px;margin-top:12px;overflow-wrap:anywhere}
+.video-chat-sources summary{cursor:pointer}
+.video-chat-sources ul{list-style:none;padding:0;margin:8px 0}
+.video-chat-sources li{padding:10px 0;border-bottom:1px solid var(--line,#e5e7eb)}
+.video-chat-sources li>div{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.video-chat-sources p{margin:6px 0}

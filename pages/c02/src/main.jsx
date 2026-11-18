@@ -93,8 +93,8 @@ function provinceMarks() {
 const LAND = land();
 const PROVINCES = provinceMarks();
 
-export function MapView({ registry, onMore }) {
-  const [mode, setMode] = useState('叠加查看');
+export function MapView({ registry, onMore, showRecruitment=true }) {
+  const [mode, setMode] = useState(showRecruitment?'叠加查看':'研究机构');
   const [city, setCity] = useState('上海');
   const selected = TOP.find(([name]) => name === city) || TOP[1];
   const orgs = DETAIL[selected[0]] || [];
@@ -109,19 +109,19 @@ export function MapView({ registry, onMore }) {
     <>
       <div className="map-top">
         <section className="map-card">
-          <header><i /><b>国内研究与招募点分布</b><Info size={14} aria-hidden="true" /></header>
+          <header><i /><b>{showRecruitment?'国内研究与招募点分布':'国内研究机构分布'}</b><Info size={14} aria-hidden="true" /></header>
           <div className="map-modes">
-            {['叠加查看', '研究机构', '招募点'].map((name) => (
+            {(showRecruitment?['叠加查看', '研究机构', '招募点']:['研究机构']).map((name) => (
               <button key={name} type="button" className={mode === name ? 'on' : ''} onClick={() => setMode(name)}>{name}</button>
             ))}
           </div>
-          <svg viewBox="0 0 540 430" role="img" aria-label="国内研究与招募点分布">
+          <svg viewBox="0 0 540 430" role="img" aria-label={showRecruitment?'国内研究与招募点分布':'国内研究机构分布'}>
             <path className="land" d={LAND.main} />
             {PROVINCES.map(([name, x, y]) => <text key={name} className="province" x={x} y={y}>{name}</text>)}
             {PLACES.filter(([, , , kind]) => mode === '叠加查看' || (mode === '研究机构' ? kind !== 'recruit' : kind !== 'org')).map(([name, lon, lat, kind, count]) => {
               const [x, y] = project(lon, lat);
               return (
-                <g key={name} className={kind} onClick={() => TOP.some(([item]) => item === name) && setCity(name)}>
+                <g key={name} className={showRecruitment?kind:'org'} onClick={() => TOP.some(([item]) => item === name) && setCity(name)}>
                   <circle cx={x} cy={y} r={3 + Math.sqrt(count) * 0.7} />
                   {['北京', '天津', '上海', '广州', '成都', '西安'].includes(name) && <text textAnchor={name === '成都' || name === '西安' ? 'end' : 'start'} x={x + (name === '成都' || name === '西安' ? -8 : 8)} y={y + (name === '天津' ? 16 : -4)}>{name}</text>}
                 </g>
@@ -133,8 +133,8 @@ export function MapView({ registry, onMore }) {
           </svg>
           <div className="map-legend">
             <span><i className="org" />研究机构 / 注册研究地点</span>
-            <span><i className="recruit" />招募中研究点</span>
-            <span><i className="both" />研究机构 + 招募点（重叠）</span>
+            {showRecruitment&&<span><i className="recruit" />招募中研究点</span>}
+            {showRecruitment&&<span><i className="both" />研究机构 + 招募点（重叠）</span>}
           </div>
         </section>
         <div className="map-side">
@@ -154,7 +154,7 @@ export function MapView({ registry, onMore }) {
             <header><i /><b>当前选中：{selected[0]}</b></header>
             <div className="map-metrics">
               <div><ClipboardList size={16} aria-hidden="true" /><span>注册研究</span><b>{selected[1]}</b></div>
-              <div><Users size={16} aria-hidden="true" /><span>招募中研究</span><b>{selected[2]}</b></div>
+              {showRecruitment&&<div><Users size={16} aria-hidden="true" /><span>招募中研究</span><b>{selected[2]}</b></div>}
               <div><Building2 size={16} aria-hidden="true" /><span>研究机构</span><b>{selected[3]}</b></div>
             </div>
             <p>{selected[0]}市主要研究机构（Top 5）<span>相关研究数</span></p>
@@ -168,17 +168,17 @@ export function MapView({ registry, onMore }) {
         <section>
           <header><i /><b>地区分布明细</b></header>
           <table>
-            <thead><tr><th>省份 / 城市</th><th>研究机构数</th><th>注册研究数</th><th>招募中研究</th><th>最近更新</th></tr></thead>
+            <thead><tr><th>省份 / 城市</th><th>研究机构数</th><th>注册研究数</th>{showRecruitment&&<th>招募中研究</th>}<th>最近更新</th></tr></thead>
             <tbody>
               {REGIONS.map(([label, target, orgsCount, studies, recruiting, updated]) => (
                 <tr key={label} className={city === target ? 'on' : ''} onClick={() => setCity(target)}>
-                  <td>{label}</td><td>{orgsCount}</td><td>{studies}</td><td>{recruiting}</td><td>{updated}</td>
+                  <td>{label}</td><td>{orgsCount}</td><td>{studies}</td>{showRecruitment&&<td>{recruiting}</td>}<td>{updated}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </section>
-        <section>
+        {showRecruitment&&<section>
           <header><i /><b>最近新增招募研究</b><button type="button" onClick={onMore}>查看更多</button></header>
           <table>
             <thead><tr><th>研究题目</th><th>注册号</th><th>地区 / 城市</th><th>研究机构</th><th>招募状态</th><th>更新时间</th></tr></thead>
@@ -191,7 +191,7 @@ export function MapView({ registry, onMore }) {
               {recent.length === 0 && <tr><td colSpan={6}>没有符合当前条件的新增招募研究。</td></tr>}
             </tbody>
           </table>
-        </section>
+        </section>}
       </div>
     </>
   );

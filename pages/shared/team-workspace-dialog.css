@@ -1,0 +1,10 @@
+.team-workspace-dialog{box-sizing:border-box;width:min(1080px,calc(100% - 48px));max-width:calc(100% - 48px);height:min(900px,calc(100dvh - 48px));max-height:calc(100dvh - 48px);padding:0;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text-primary);font-size:var(--text-body-size);line-height:var(--text-body-line);overflow:hidden}
+.team-workspace-dialog[open]{display:flex;flex-direction:column}
+.team-workspace-dialog::backdrop{background:rgb(15 35 71 / .4)}
+.team-workspace-dialog-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 24px;border-bottom:1px solid var(--border);flex:none}
+.team-workspace-dialog-header h2{font-size:var(--text-h2-size);line-height:var(--text-h2-line);margin:0;min-width:0;overflow-wrap:anywhere}
+.team-workspace-dialog-header button{flex:none;white-space:nowrap}
+.team-workspace-dialog-body{padding:0 24px 24px;overflow-y:auto;overscroll-behavior:contain;min-height:0;flex:1}
+.team-workspace-dialog-footer{padding:12px 24px;border-top:1px solid var(--border);background:var(--surface);flex:none}
+.team-workspace-dialog-footer .team-submit-actions{margin:0;padding:0;border:0;justify-content:flex-end}
+@media(max-width:800px){.team-workspace-dialog{width:100%;max-width:100%;height:100dvh;max-height:100dvh;margin:0;border-radius:0;border:0}.team-workspace-dialog-header{padding:12px 16px}.team-workspace-dialog-body{padding:0 16px 16px}.team-workspace-dialog-footer{padding:12px 16px}}

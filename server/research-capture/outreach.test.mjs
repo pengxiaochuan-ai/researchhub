@@ -1,0 +1,13 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {createOutreachService} from './outreach.mjs';
+const user={tenantId:'tenant',accountId:'account'},scope={tenantId:'tenant',studyGroupId:'group',executionProjectId:'project'},tx={$queryRaw:async()=>[],auditLog:{create:async()=>({})}};
+test('actor-bound same-key replay never sends again and does not expose the private token',async()=>{
+ let saved,calls=0,token;const studies={withResearchStudyTransaction:async(_u,_s,_p,fn)=>fn(tx,scope)},receipts={getReceipt:async()=>saved,saveReceipt:async(_tx,_u,x)=>{saved={action:x.action,target_id:x.target,request_hash:x.hash,result:x.result};}};
+ const core={register:async()=>({participantId:'participant'}),prepare:async()=>({invitationId:'invite',assignmentId:'assignment',deliveryId:'delivery',expiresAt:new Date(),capability:{}}),send:async(_tx,_user,_scope,input,send)=>{token='secret-token';await send('person@example.test',token);return {status:'unknown'};},read:async()=>({invitationId:'invite',visitId:'visit',delivery:{status:'unknown'}})};
+ const svc=createOutreachService({studies,core,receipts,baseUrl:'https://research.example.test',mailer:async()=>{calls++;return {status:'unknown'};}});const body={requestKey:'request-123456',formVersionId:'version',address:'person@example.test',emailConsentConfirmed:true};
+ const first=await svc.send(user,'study','visit',body);const second=await svc.send(user,'study','visit',body);assert.equal(calls,1);assert.equal(token,'secret-token');assert.deepEqual(first,second);assert.doesNotMatch(JSON.stringify(saved),/secret-token|person@example.test/);assert.doesNotMatch(JSON.stringify(first),/secret-token|person@example.test/);assert.deepEqual(await svc.receipt(user,'study','visit',body.requestKey),first);await assert.rejects(svc.receipt(user,'other','visit',body.requestKey));
+ await assert.rejects(svc.send(user,'study','visit',{...body,address:'other@example.test'}));assert.equal(calls,1);
+});
+test('missing mail configuration rejects before any new contact, invitation or receipt write',async()=>{
+ let writes=0;const svc=createOutreachService({baseUrl:'https://research.example.test',studies:{withResearchStudyTransaction:async(_u,_s,_p,fn)=>fn(tx,scope)},receipts:{getReceipt:async()=>null,saveReceipt:async()=>{writes++;}},core:{register:async()=>{writes++;},prepare:async()=>{writes++;}}});
+ await assert.rejects(svc.send(user,'study','visit',{requestKey:'request-missing',formVersionId:'version',address:'person@example.test',emailConsentConfirmed:true}),e=>e.status===503&&e.code==='OUTREACH_CHANNEL_UNAVAILABLE');assert.equal(writes,0);
+});

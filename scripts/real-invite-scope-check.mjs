@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+const root=fileURLToPath(new URL('../../',import.meta.url));
+const runtime=JSON.parse(readFileSync(root+'.tmp/researchhub-knowledge-local/runtime.json','utf8'));
+const base='http://127.0.0.1:19501';
+const login=await fetch(base+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tenantSlug:runtime.ids.tenant,username:'admin@example.org',password:runtime.password})});
+assert.equal(login.status,201);
+const cookie=login.headers.get('set-cookie').split(';')[0];
+const response=await fetch(base+'/api/member-invitations/context',{headers:{Cookie:cookie,'X-Study-Group-Id':runtime.ids.group,'X-Research-Project-Id':runtime.ids.project}});
+const data=await response.json();
+console.log(JSON.stringify({status:response.status,canInvite:data.canInvite===true,roleName:data.roleName??null,studyMatches:data.studyGroup?.id===runtime.ids.group,projectMatches:data.researchProject?.id===runtime.ids.project}));

@@ -1,0 +1,57 @@
+.real-evidence-detail { overflow: auto !important; min-height: 100%; padding: 24px; background: var(--canvas); color: var(--text-primary); font-size: 16px; line-height: 1.75; overflow-wrap: anywhere; }
+.real-evidence-detail > nav, .real-evidence-detail article, .real-evidence-detail-state { max-width: 1200px; margin: 0 auto; }
+.real-evidence-detail > nav { margin-bottom: 18px; font-size: 14px; }
+.real-evidence-detail a { color: var(--brand-primary); }
+.real-evidence-detail article > header, .real-evidence-detail-grid > * { padding: 24px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.real-evidence-detail article > header h2 { margin: 4px 0 16px; font-size: 24px; line-height: 32px; }
+.real-evidence-detail h2 { margin: 0 0 12px; font-size: 20px; line-height: 28px; }
+.real-evidence-detail h2:not(:first-child) { margin-top: 24px; }
+.real-evidence-detail article > header p { margin: 4px 0; color: var(--text-secondary); }
+.real-evidence-detail article > header button, .real-evidence-detail-state button { min-height: 44px; margin-top: 12px; padding: 8px 16px; border: 1px solid var(--brand-primary); border-radius: 6px; background: var(--brand-primary); color: #fff; font-size: 14px; font-weight: 600; }
+.real-evidence-detail-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(280px, .8fr); gap: 16px; margin-top: 16px; }
+.real-evidence-detail-grid section p { white-space: pre-wrap; }
+.real-evidence-detail dl { margin: 0 0 16px; }
+.real-evidence-detail dl div { margin-bottom: 12px; }
+.real-evidence-detail dt { color: var(--text-secondary); font-size: 14px; }
+.real-evidence-detail dd { margin: 0; }
+.real-evidence-detail dd.hash { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; word-break: break-all; }
+.real-evidence-detail-state { padding: 32px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.real-evidence-detail-state.error { color: #9b2333; }
+.real-evidence-approved-body { max-height: 65vh; overflow: auto; white-space: pre-wrap; }
+.real-evidence-approved-table { margin: 18px 0; }
+.real-evidence-approved-table h3 { font-size: 16px; line-height: 1.5; }
+.real-evidence-table-scroll { max-width: 100%; overflow-x: auto; }
+.real-evidence-table-scroll table { border-collapse: collapse; min-width: 100%; font-size: 14px; line-height: 1.5; }
+.real-evidence-table-scroll td { min-width: 80px; padding: 8px; border: 1px solid var(--border); vertical-align: top; }
+.real-evidence-figure { max-width: 820px; margin: 24px 0; padding: 16px; border: 1px solid var(--border); border-radius: 6px; background: var(--canvas); }
+.real-evidence-figure img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.real-evidence-figure figcaption { margin-top: 12px; font-size: 16px; line-height: 28px; white-space: pre-wrap; }
+.real-evidence-figure p { margin: 8px 0 0; font-size: 14px; line-height: 22px; }
+.real-evidence-detail button:focus-visible, .real-evidence-detail a:focus-visible { outline: 3px solid var(--brand-primary); outline-offset: 2px; }
+@media (max-width: 800px) { .real-evidence-detail-grid { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .real-evidence-detail { padding: 16px; } .real-evidence-detail article > header, .real-evidence-detail-grid > * { padding: 16px; } }
+
+body[data-platform-page="e02"]{margin:0}
+.real-evidence-detail.detail-board{padding:64px 0 24px!important;font-size:14px;line-height:22px;gap:16px}
+.real-evidence-detail.detail-board>nav,.real-evidence-detail.detail-board>article,.real-evidence-detail.detail-board>.real-evidence-detail-state{max-width:none;margin:0 24px}
+.real-evidence-detail.detail-board>article>.detail-paper{padding:16px}
+.real-evidence-detail.detail-board .detail-paper h2{font-size:20px;line-height:28px;margin:8px 0}
+.real-evidence-detail.detail-board .detail-paper p{font-size:14px;line-height:22px}
+.real-evidence-detail.detail-board .detail-actions button{margin:0;height:auto;min-height:40px;padding:8px 12px;background:var(--surface);color:var(--text-primary);border:1px solid var(--border);font-size:14px;line-height:22px}
+.real-evidence-detail.detail-board .detail-actions .paper-ai{background:var(--brand-primary);color:var(--surface)}
+.real-evidence-detail.detail-board .detail-actions button:disabled{opacity:.55;cursor:not-allowed}
+.real-evidence-detail.detail-board .detail-split{grid-template-columns:minmax(0,1fr) 340px;gap:16px}
+.real-evidence-detail.detail-board .real-evidence-detail-grid>.detail-read{padding:0;overflow:visible}
+.real-evidence-detail.detail-board .real-evidence-detail-grid>.detail-side{padding:0;border:0;background:none}
+.real-evidence-detail.detail-board .detail-tabs{height:auto;min-height:52px;top:0;overflow:auto;gap:24px;padding:8px 16px}
+.real-evidence-detail.detail-board .detail-tabs button{min-height:36px;flex:none}
+.real-evidence-detail.detail-board .detail-reading>p,.real-evidence-detail.detail-board .real-evidence-approved-body{font-size:16px;line-height:28px;max-width:48rem}
+.real-evidence-detail.detail-board .detail-side p{font-size:14px;line-height:22px}
+.real-evidence-detail.detail-board .detail-side h3{font-size:16px;line-height:24px}
+.real-evidence-detail.detail-board h2{font-size:20px;line-height:28px}
+.real-evidence-detail.detail-board .detail-cover{background:var(--canvas);color:var(--text-secondary)}
+@media(max-width:1050px){.real-evidence-detail.detail-board .detail-paper{grid-template-columns:72px minmax(0,1fr)}.real-evidence-detail.detail-board .detail-cover{width:72px}.real-evidence-detail.detail-board .detail-actions{grid-column:1/-1;max-width:none;justify-content:flex-start}.real-evidence-detail.detail-board .detail-split{grid-template-columns:minmax(0,1fr) 280px}}
+@media(max-width:760px){.real-evidence-detail.detail-board>nav,.real-evidence-detail.detail-board>article{margin:0 16px}.real-evidence-detail.detail-board .detail-split{grid-template-columns:minmax(0,1fr)}.real-evidence-detail.detail-board .detail-paper{grid-template-columns:minmax(0,1fr)}.real-evidence-detail.detail-board .detail-cover{width:100%;height:auto;min-height:48px}.real-evidence-detail.detail-board .detail-actions{grid-column:auto}}
+.real-evidence-detail [id^="article-evidence-"]{scroll-margin-top:160px}
+.real-evidence-detail .article-evidence-mark{background:#fff0b3;color:inherit;scroll-margin-top:160px}
+.real-evidence-detail .article-ai-unavailable{font-size:14px;line-height:22px;max-width:15rem;white-space:normal}

@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ChevronDown, FileText, Link2, Search, Sparkles, Star } from 'lucide-react';
 import './style.css';
+import { isHubSourceRealMode } from '../../../src/hub-source-api.js';
+import { RealEvidence } from './RealEvidence.jsx';
 
 const PAPERS = [
   {
@@ -429,4 +431,4 @@ function Fold({ title, expanded, onToggle, children }) {
   );
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(isHubSourceRealMode() ? <RealEvidence /> : <App />);
