@@ -44,15 +44,17 @@ with tempfile.TemporaryDirectory(prefix='release-fixture-',dir=str(output)) as d
      producer=subprocess.Popen(['docker','save',tag],stdout=subprocess.PIPE);r=subprocess.run(['gzip','-1'],stdin=producer.stdout,stdout=f,check=True);producer.stdout.close();assert producer.wait()==0
     cid=m.canonical_image_id(archive,tag,sha(archive),architecture=arch);canonical[tag]=cid;real_to_canonical[json.loads(docker('image','inspect',tag))[0]['Id']]=cid
   pg=docker('run','-d','--label',label,'--network','none','--memory','256m','--tmpfs','/var/lib/postgresql/data:rw,size=256m','-e','POSTGRES_HOST_AUTH_METHOD=trust',pgimage).strip()
-  for _ in range(40):
-   try:docker('exec',pg,'psql','-U','postgres','-Atqc','SELECT 1');break
+  ready=False
+  for _ in range(80):
+   try:docker('exec',pg,'psql','-h','127.0.0.1','-U','postgres','-Atqc','SELECT 1');ready=True;break
    except subprocess.CalledProcessError:time.sleep(.5)
+  assert ready,'Synthetic PostgreSQL TCP listener did not become ready'
   tables=['knowledge_import_task','processing_task','research_agent_run','research_artifact_export_job','knowledge_chat_job','research_method_run']
   sql=';'.join("CREATE TABLE "+t+"(id text primary key,status text);INSERT INTO "+t+" VALUES('synthetic-old','queued')" for t in tables)
-  docker('exec',pg,'psql','-U','postgres','-v','ON_ERROR_STOP=1','-qc',sql)
+  docker('exec',pg,'psql','-h','127.0.0.1','-U','postgres','-v','ON_ERROR_STOP=1','-qc',sql)
   def tasks(*args):
    parts=["'"+t+"',(SELECT json_object_agg(id,md5(row_to_json(t)::text)) FROM "+t+" t)" for t in tables]
-   return json.loads(docker('exec',pg,'psql','-U','postgres','-Atqc','SELECT json_build_object('+','.join(parts)+')'))
+   return json.loads(docker('exec',pg,'psql','-h','127.0.0.1','-U','postgres','-Atqc','SELECT json_build_object('+','.join(parts)+')'))
   policy=json.loads((ROOT/'deploy/release-policy.json').read_text());target=policy['target'];tag0='hub-runtime-'+key+'-1';tag1='hub-runtime-'+key+'-2'
   settings={'HUB_DATABASE_NAME':'researchhub','HUB_DATABASE_APP_ROLE':'researchhub_demo_app','HUB_DATABASE_OWNER_ROLE':'researchhub_demo_owner','HUB_DATABASE_MARKER_SHA256':target['markerSha256'],'HUB_SCHEMA_FINGERPRINT':target['schemaFingerprint'],'DEFAULT_TENANT_ID':m.TENANT,'ALLOWED_TENANT_IDS':m.TENANT,'DEPLOYMENT_PRODUCT':'researchhub','DEPLOYMENT_ID':'researchhub-demo-20261119','HUB_SOURCE_REVIEWER_ACCOUNT_ID':'rh-kb-local-b0e2af9d-admin','VITE_AUTH_TENANT_SLUG':m.TENANT,'HUB_CORE_MANIFEST_SHA256':policy['coreDigest'],'CONTROL_PLANE_ENABLED':'false','ENABLED_WORKER_KINDS':'','OFFICIAL_JOB_KINDS':'','HUB_PAID_AI_ENABLED':'false','HUB_EMBEDDING_MODE':'keyword-only','HUB_MAIL_MODE':'disabled','JWT_SECRET':'synthetic-only-'+'x'*40,'AUTH_COOKIE_NAME':'rh_fixture','S3_ENDPOINT':'https://oss-cn-hangzhou.aliyuncs.com','S3_BUCKET':'synthetic-only-bucket','S3_ACCESS_KEY':'synthetic','S3_SECRET_KEY':'synthetic'}
   settings['HUB_BACKEND_IMAGE']=images[0];write(ops/'.env.prod',''.join(k+'='+v+'\n' for k,v in settings.items()));write(ops/'current.env','RESEARCHHUB_IMAGE='+images[2]+'\nRESEARCHHUB_PORT=8083\n')
@@ -117,8 +119,8 @@ with tempfile.TemporaryDirectory(prefix='release-fixture-',dir=str(output)) as d
   (output/'result.json').write_text(json.dumps({'passed':True,'cases':passed,'realDocker':True,'realHttp':True,'realPostgreSQL':True,'syntheticOnly':True,'applicationBusinessCapabilitiesTested':False,'imageIdentityAdapter':'normalize container-store IDs and fixture project names only','rdsAccess':False,'paidCalls':0},indent=2));print(json.dumps({'rehearsalPassed':True,'cases':passed}))
  except BaseException as error:
   diagnostics=[{'name':r['Name'],'status':r['State']['Status'],'log':docker('logs','--tail','5',r['Id'])[-800:] if r['Id']!=pg else 'synthetic PG'} for r in inspect()]
-  print(json.dumps({'rehearsalPassed':False,'kind':type(error).__name__,'cases':passed,'fixtures':diagnostics}),flush=True)
-  (output/('failure-'+key+'.json')).write_text(json.dumps({'passed':False,'kind':type(error).__name__,'cases':passed,'fixtures':diagnostics},indent=2));raise
+  print(json.dumps({'rehearsalPassed':False,'kind':type(error).__name__,'stderr':error.stderr.decode(errors='replace')[-800:] if isinstance(error,subprocess.CalledProcessError) and error.stderr else '', 'cases':passed,'fixtures':diagnostics}),flush=True)
+  (output/('failure-'+key+'.json')).write_text(json.dumps({'passed':False,'kind':type(error).__name__,'stderr':error.stderr.decode(errors='replace')[-800:] if isinstance(error,subprocess.CalledProcessError) and error.stderr else '', 'cases':passed,'fixtures':diagnostics},indent=2));raise
  finally:
   for row in inspect():
    try:docker('rm','-f',row['Id'])

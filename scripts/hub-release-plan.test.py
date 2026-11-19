@@ -1,8 +1,8 @@
 import importlib.util,pathlib,unittest
 s=importlib.util.spec_from_file_location('plan',str(pathlib.Path(__file__).with_name('hub-release-plan.py')));m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 class Changes(unittest.TestCase):
- def test_page_only(self):self.assertEqual(m.classify(['pages/h01/src/main.jsx','pages/shared/Button.css']),{'frontend':True,'backend':False,'database':False})
- def test_backend_only(self):self.assertEqual(m.classify(['server/research-assets/business-registration.mjs']),{'frontend':False,'backend':True,'database':False})
+ def test_page_only(self):self.assertEqual(m.classify(['pages/h01/src/main.jsx','pages/shared/Button.css','Dockerfile']),{'frontend':True,'backend':False,'database':False})
+ def test_backend_only(self):self.assertEqual(m.classify(['server/research-assets/business-registration.mjs','deploy/backend.Dockerfile']),{'frontend':False,'backend':True,'database':False})
  def test_proxy_is_frontend(self):self.assertEqual(m.classify(['server/static.mjs','server/api-proxy.mjs']),{'frontend':True,'backend':False,'database':False})
  def test_shared_and_unknown_are_conservative(self):
   for path in ['src/auth-session.js','package.json','deploy/backend-package.mjs','.github/workflows/deploy.yml','new-runtime-config.toml','pages/h01/src/china.json']:

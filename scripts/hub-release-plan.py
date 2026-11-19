@@ -18,8 +18,8 @@ def classify(paths):
   if database_path(path):result.update(frontend=True,backend=True,database=True);continue
   if path.startswith('docs/') and not path.startswith('docs/reference/'):continue
   if p.suffix=='.md' and not path.startswith(('skill/','integrations/','docs/reference/')):continue
-  if path in ('server/static.mjs','server/api-proxy.mjs') or path.startswith(('pages/','public/')) and path!='pages/h01/src/china.json' or path in ('index.html','platform-pages.json') or p.name.startswith(('vite.config.','tailwind.config.','postcss.config.')):result['frontend']=True
-  elif path.startswith('server/'):result['backend']=True
+  if path in ('server/static.mjs','server/api-proxy.mjs') or path.startswith(('pages/','public/')) and path!='pages/h01/src/china.json' or path in ('index.html','platform-pages.json','Dockerfile','.dockerignore') or p.name.startswith(('vite.config.','tailwind.config.','postcss.config.')):result['frontend']=True
+  elif path.startswith('server/') or path=='deploy/backend.Dockerfile':result['backend']=True
   else:result.update(frontend=True,backend=True)
  return result
 

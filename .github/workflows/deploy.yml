@@ -136,6 +136,9 @@ jobs:
           docker save "ghcr.io/pengxiaochuan-ai/pengxc-researchhub:$HUB_RELEASE_TAG" | gzip > "$RUNNER_TEMP/hub-release/researchhub.tar.gz"
           python3 scripts/hub-release.py collect --directory "$RUNNER_TEMP/hub-release"
           python3 scripts/hub-runtime-artifacts.py upload --directory "$RUNNER_TEMP/hub-release" --tag "$HUB_RELEASE_TAG"
+      - name: Verify real unchanged component reuse and source provenance
+        if: steps.artifacts.outcome == 'success'
+        run: python3 scripts/hub-release-reuse-rehearsal.py
       - name: Real isolated Docker and PostgreSQL upgrade and rollback rehearsal
         if: steps.artifacts.outcome == 'success'
         env:

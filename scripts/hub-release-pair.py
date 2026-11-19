@@ -41,6 +41,20 @@ def front_args():return ['docker','compose','--project-name','researchhub','--en
 
 def back_args():return ['docker','compose','--project-name','researchhub-backend','--env-file',str(m.OPS/'.env.prod'),'-f',str(BACK_TEMPLATE)]
 
+
+def check_environments(front,back,saved):
+ allowed={'NODE_ENV','HOST','PORT','HUB_API_UPSTREAM','HUB_API_AUTHORITY'}
+ need(set(front)<=allowed,'HUB_PAIR_FRONTEND_ENVIRONMENT_REJECTED')
+ fixed={'CONTROL_PLANE_ENABLED':'false','ENABLED_WORKER_KINDS':'','OFFICIAL_JOB_KINDS':'','HUB_PAID_AI_ENABLED':'false','HUB_EMBEDDING_MODE':'keyword-only','HUB_MAIL_MODE':'disabled'}
+ need(all(back.get(k)==v for k,v in fixed.items()),'HUB_PAIR_UNADMITTED_CONSUMER_REJECTED')
+ keys=('DATABASE_URL','DIRECT_URL','DEPLOYMENT_PRODUCT','DEFAULT_TENANT_ID','ALLOWED_TENANT_IDS','HUB_DATABASE_NAME','HUB_DATABASE_APP_ROLE','HUB_DATABASE_OWNER_ROLE','HUB_DATABASE_MARKER_SHA256','HUB_SCHEMA_FINGERPRINT','HUB_CORE_MANIFEST_SHA256')
+ need(all(back.get(k)==m.unquote(saved[k]) for k in keys if k in saved),'HUB_PAIR_BACKEND_ENV_BINDING_REJECTED')
+
+def validate_templates(saved):
+ front=json.loads(m.command(front_args()+['config','--format','json']))['services']['researchhub'].get('environment',{})
+ back=json.loads(m.command(back_args()+['config','--format','json']))['services']['researchhub-api'].get('environment',{})
+ check_environments(front,back,saved)
+
 def wait_api():
  for _ in range(40):
   if m.api_status()=='401':return
@@ -130,6 +144,7 @@ def run(action,sha):
  items=m.containers();old_services=m.baseline(items);states=m.task_snapshot(helper,saved)
  need(not re.search(r'^\s*env_file:',(HERE/'frontend-compose.yml').read_text(),re.M),'HUB_PAIR_FRONTEND_ENV_FILE_REJECTED')
  need(m.command(front_args()+['config','--services']).split()==['researchhub'],'HUB_PAIR_FRONTEND_SCOPE_REJECTED');need(m.command(back_args()+['config','--services']).split()==['researchhub-api'],'HUB_PAIR_BACKEND_SCOPE_REJECTED')
+ validate_templates(saved)
  target=control['target'];journal=HERE/'pair-receipt.json';baseline_file=HERE/'pair-baseline.json';previous_template=HERE/'previous-frontend-compose.yml';previous_backend=HERE/'previous-backend-compose.yml'
  if action=='pair-finalize':
   pair_matches(items,release,target);healthy();need(baseline_file.is_file(),'HUB_PAIR_BASELINE_RECEIPT_REQUIRED');baseline=json.loads(baseline_file.read_text());need(m.baseline(m.containers())==baseline['services'],'HUB_OTHER_SERVICES_CHANGED');m.assert_task_snapshot(baseline['tasks'],m.task_snapshot(helper,saved));need(journal.is_file() and json.loads(journal.read_text()).get('status') in ('applied','promoted'),'HUB_PAIR_APPLIED_RECEIPT_REQUIRED');publish_pointer(control,release,previous);save(journal,{'status':'promoted','tag':release['tag']});print(json.dumps({'status':'paired-release-complete','tag':release['tag'],'databaseMigrationExecuted':False}));return

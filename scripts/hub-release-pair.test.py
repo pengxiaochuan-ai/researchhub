@@ -18,7 +18,7 @@ class PairTests(unittest.TestCase):
     state['calls'].append(release['tag']);state['tag']=release['tag']
     if release['tag']=='new' and failure=='interrupt':raise SystemExit(130)
     if release['tag']=='new' and failure:raise m.Stop('HUB_PAIR_SIMULATED_API_FAILURE')
-   patches=[patch.object(p,'HERE',package),patch.object(p,'FRONT_TEMPLATE',package/'frontend-compose.yml'),patch.object(m,'OPS',ops),patch.object(m.os,'geteuid',return_value=0),patch.object(m,'load_release',return_value=(control,new)),patch.object(m,'helper_module',return_value=helper),patch.object(m,'plan_configuration'),patch.object(m,'containers',return_value=[]),patch.object(m,'baseline',return_value=[]),patch.object(m,'task_snapshot',return_value={'tasks':{'old':'changed' if drift else 'same'}}),patch.object(m,'canonical_image_id',return_value='sha256:'+'2'*64),patch.object(p,'back_args',return_value=['docker','compose','researchhub-api']),patch.object(m,'command',side_effect=lambda args,*a,**k:'researchhub-api' if 'researchhub-api' in args else 'researchhub'),patch.object(p,'preflight_pointer',side_effect=m.Stop('HUB_PAIR_STORAGE_WRITE_NOT_AUTHORIZED') if failure=='storage' else None),patch.object(p,'healthy'),patch.object(p,'publish_pointer',publisher),patch.object(p,'pair_matches',side_effect=matches),patch.object(p,'apply_images',side_effect=apply),patch.object(p,'load_image',return_value={'Config':{'Env':[]}})]
+   patches=[patch.object(p,'HERE',package),patch.object(p,'FRONT_TEMPLATE',package/'frontend-compose.yml'),patch.object(m,'OPS',ops),patch.object(m.os,'geteuid',return_value=0),patch.object(m,'load_release',return_value=(control,new)),patch.object(m,'helper_module',return_value=helper),patch.object(m,'plan_configuration'),patch.object(m,'containers',return_value=[]),patch.object(m,'baseline',return_value=[]),patch.object(m,'task_snapshot',return_value={'tasks':{'old':'changed' if drift else 'same'}}),patch.object(m,'canonical_image_id',return_value='sha256:'+'2'*64),patch.object(p,'back_args',return_value=['docker','compose','researchhub-api']),patch.object(m,'command',side_effect=lambda args,*a,**k:'researchhub-api' if 'researchhub-api' in args else 'researchhub'),patch.object(p,'validate_templates'),patch.object(p,'preflight_pointer',side_effect=m.Stop('HUB_PAIR_STORAGE_WRITE_NOT_AUTHORIZED') if failure=='storage' else None),patch.object(p,'healthy'),patch.object(p,'publish_pointer',publisher),patch.object(p,'pair_matches',side_effect=matches),patch.object(p,'apply_images',side_effect=apply),patch.object(p,'load_image',return_value={'Config':{'Env':[]}})]
    for item in patches:stack.enter_context(item)
    if failure or wrong_baseline or drift:
     with self.assertRaises(BaseException):p.run(action,'e'*64)
@@ -44,4 +44,11 @@ class PairTests(unittest.TestCase):
   state,receipt=self.exercise(action='pair-finalize');self.assertEqual(state['publishCalls'],1);self.assertEqual(receipt['status'],'promoted')
  def test_missing_existing_storage_write_authority_stops_before_any_service_change(self):
   state,receipt=self.exercise('storage');self.assertEqual(state['calls'],[]);self.assertEqual(state['publishCalls'],0);self.assertIsNone(receipt)
+ def test_resolved_templates_reject_workers_and_frontend_secrets_before_up(self):
+  safe={'CONTROL_PLANE_ENABLED':'false','ENABLED_WORKER_KINDS':'','OFFICIAL_JOB_KINDS':'','HUB_PAID_AI_ENABLED':'false','HUB_EMBEDDING_MODE':'keyword-only','HUB_MAIL_MODE':'disabled','DATABASE_URL':'private-app','DIRECT_URL':'private-owner'};saved={'DATABASE_URL':'private-app','DIRECT_URL':'private-owner'}
+  p.check_environments({'HOST':'0.0.0.0'},safe,saved)
+  for key,value in [('HUB_PAID_AI_ENABLED','true'),('ENABLED_WORKER_KINDS','knowledge-chat'),('DATABASE_URL','other-db')]:
+   with self.assertRaises(m.Stop):p.check_environments({},dict(safe,**{key:value}),saved)
+  for key in ('DATABASE_URL','JWT_SECRET','S3_ACCESS_KEY'):
+   with self.assertRaises(m.Stop):p.check_environments({key:'secret'},safe,saved)
 if __name__=='__main__':unittest.main()
