@@ -3,12 +3,12 @@ name: researchhub
 services:
   researchhub:
     image: ${RESEARCHHUB_IMAGE:?RESEARCHHUB_IMAGE is required}
-    env_file:
-      - ${RESEARCHHUB_ENV_FILE:-.env.prod}
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
       PORT: 3000
+      HUB_API_UPSTREAM: ${HUB_API_UPSTREAM:-http://researchhub-api:19612}
+      HUB_API_AUTHORITY: ${HUB_API_AUTHORITY:-hub.pengxc.com}
     ports:
       - "${RESEARCHHUB_PORT:-8083}:3000"
     init: true

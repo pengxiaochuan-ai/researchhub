@@ -5,6 +5,7 @@ RUN corepack enable && corepack prepare pnpm@11.19.0 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
+ARG VITE_AUTH_TENANT_SLUG
 RUN pnpm build
 
 FROM node:22-alpine
@@ -13,6 +14,7 @@ ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --chown=node:node server/static.mjs ./server/static.mjs
+COPY --chown=node:node server/api-proxy.mjs ./server/api-proxy.mjs
 USER node
 EXPOSE 3000
 CMD ["node", "server/static.mjs"]

@@ -81,8 +81,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build frontend
-        run: pnpm build
+      - name: Build frontend with the configured Hub tenant
+        env:
+          VITE_AUTH_TENANT_SLUG: ${{ vars.VITE_AUTH_TENANT_SLUG }}
+        run: |
+          test -n "$VITE_AUTH_TENANT_SLUG" || { echo '::error::Production Hub tenant is not configured'; exit 1; }
+          pnpm build
 
       - name: Validate release scripts
         run: |
@@ -111,6 +115,8 @@ jobs:
           load: true
           push: false
           tags: ${{ steps.meta.outputs.image_ref }}
+          build-args: |
+            VITE_AUTH_TENANT_SLUG=${{ vars.VITE_AUTH_TENANT_SLUG }}
           cache-from: type=gha,scope=researchhub
           cache-to: type=gha,mode=max,scope=researchhub
 
