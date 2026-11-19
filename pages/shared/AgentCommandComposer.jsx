@@ -18,7 +18,7 @@ export default function AgentCommandComposer({client,sessionId,paused=false,unav
  const counts=[['等待执行',pending.length],['需要补充',clarifying.length],['已暂停',stopped.length]].filter(([,count])=>count>0);
  const questionError=agentQuestionLength(question)>AGENT_QUESTION_MAX_CHARACTERS?agentQuestionError(question):'';
  const editError=agentQuestionLength(editText)>AGENT_QUESTION_MAX_CHARACTERS?agentQuestionError(editText):'';
- const cannotSend=blocked||commands.sending||commands.uncertain||Boolean(agentQuestionError(question));
+ const cannotSend=blocked||Boolean(quota?.blocked)||commands.sending||commands.uncertain||Boolean(agentQuestionError(question));
  const submit=async event=>{event.preventDefault();if(cannotSend)return;const original=question;await commands.submit(original,getSession,confirmed=>{if(currentQuestion.current===original)setQuestion('');recordHistory?.(confirmed);},networkIntent);};
  const keyDown=event=>{
   if(event.key!=='Enter'||event.shiftKey||composing.current||event.nativeEvent.isComposing||event.keyCode===229)return;

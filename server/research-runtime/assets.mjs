@@ -1,5 +1,6 @@
 import{withDeploymentTransaction}from'../database/transactions.mjs';
 import{readAssetOverviewScopes}from'../research-assets/overview-scopes.mjs';
+import{createLegacyAssetReader}from'../research-assets/legacy-read.mjs';
 import{authorizeBusinessAssetStudy}from'../research-assets/business-access.mjs';
 import{createBusinessAssetRegistration}from'../research-assets/business-registration.mjs';
 import{createReportSourceService}from'../research-assets/report-source-service.mjs';
@@ -36,6 +37,7 @@ export async function originalAssetInputOnly(tx,p,value,context={},{allowUpload=
 }
 export function createRuntimeAssets({config,foundation,load,require,readReport}){
  const env=foundation.transactionEnv,lock=load('common/worker-publication','lockAuthorizationMutation');
+ const legacy=createLegacyAssetReader({env:process.env,tenantId:config.scope.defaultTenantId});
  const transaction=(user,fn)=>{
   if(user?.tenantId!==config.scope.defaultTenantId||!valid(user.accountId)||!Number.isSafeInteger(user.authVersion))fail();
   return withDeploymentTransaction(env,'app',async tx=>{await lock(tx,user.tenantId,{includeOfficial:true});await tx.$executeRawUnsafe("SELECT set_config('app.account_id',$1,true),set_config('app.auth_version',$2,true)",user.accountId,String(user.authVersion));return fn(tx);});
@@ -46,7 +48,8 @@ export function createRuntimeAssets({config,foundation,load,require,readReport})
  // until the app-role transaction independently validates current authority.
  async function scopedUser(req){
   const u=req.user,h=req.headers??{};if(!u||u.tenantId!==config.scope.defaultTenantId)fail();
-  let scope;const asset=req.params?.id?.startsWith('rhab-')?req.params.id:req.query?.assetId;
+  let scope;const asset=req.params?.id&&(req.params.id.startsWith('rhab-')||legacy?.has(req.params.id))?req.params.id:req.query?.assetId;
+  const legacyId=[req.params?.id,req.query?.assetId,req.body?.assetId].find(id=>legacy?.has(id));if(legacyId)legacy.assertReadRequest(u,req,legacyId);
   const study=req.query?.studyId;
   if(asset!==undefined||study!==undefined){
    if(asset!==undefined&&!valid(asset)||study!==undefined&&!valid(study))fail('INPUT_INVALID',400);
@@ -72,7 +75,7 @@ export function createRuntimeAssets({config,foundation,load,require,readReport})
  const loadRecords=async(tx,p,sources)=>{
   const records=await loadCatalogRecords(tx,p,sources,{family:'business'});
   for(const record of records){record.aiAvailability='unavailable';const policy=record.policies.find(v=>v.version===record.registry.workingVersionNo),ref=policy?.sourceKind==='artifact'&&policy.sourceBindings[0];if(ref&&ref.id.startsWith('rh-formal-report-')){const[b]=await tx.$queryRawUnsafe('SELECT id FROM rh_research.study_binding WHERE tenant_id=$1 AND study_group_id=$2 AND execution_project_id=$3',p.tenantId,p.studyGroupId,p.researchProjectId);if(b)record.sourceOrigin={studyId:b.id,reportId:ref.id,reportVersion:ref.version};}}
-  return records;
+  return legacy?[...records,...await legacy.read(tx,p)]:records;
  };
  const artifacts=(tx,p)=>{
   const same=(t,g,r)=>{if(t!==p.tenantId||g!==undefined&&g!==p.studyGroupId||r!==undefined&&r!==p.researchProjectId)fail();};

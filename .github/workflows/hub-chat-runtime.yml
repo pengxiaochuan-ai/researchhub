@@ -4,7 +4,7 @@ on:
     inputs:
       action:
         type: choice
-        options: [prepare, enable, inspect]
+        options: [prepare, enable, inspect, legacy-prepare]
         default: inspect
         required: true
 permissions:
@@ -36,8 +36,8 @@ jobs:
           tar -xzf "$d/cli.tgz" -C "$d" aliyun
           python3 - "$d/payload" <<'PY'
           import base64,pathlib,sys,os
-          action=os.environ['HUB_CHAT_ACTION'];assert action in ('prepare','enable','inspect')
-          source=pathlib.Path('scripts/hub-chat-runtime.py').read_text()
+          action=os.environ['HUB_CHAT_ACTION'];assert action in ('prepare','enable','inspect','legacy-prepare')
+          source=pathlib.Path('scripts/hub-legacy-prepare.py' if action=='legacy-prepare' else 'scripts/hub-chat-runtime.py').read_text()
           script="python3 - "+action+" <<'HUB_BOUNDED_CHAT'\n"+source+"\nHUB_BOUNDED_CHAT\n"
           value=base64.b64encode(script.encode()).decode();assert len(value)<24000
           pathlib.Path(sys.argv[1]).write_text(value)

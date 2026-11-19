@@ -45,3 +45,9 @@ admin登录岐研AI显示“当前账号没有此会话的使用权限”，科�
 之后发布具备bounded-hub-chat-v1守门能力的OFF基线；核对实际镜像/Compose/挂载后，复制既有DeepSeek密钥到Hub原.env.prod并仅启用knowledge-chat。账本跨版本/日期/重启保留；同requestKey走原生幂等。跨文件/事务提交失败保持槽位待核对，不退款、不假装完成。原生吞掉Provider异常时，不得发布回退为AI回答；已知用量进入原生核账。
 
 普通发布/回滚必须支持相同协议、core和ledger；无守门能力旧镜像不得在ON状态回滚。历史六表仍逐行校验，仅经账本准入的新chat任务可变化，仍核对行存在与tenant/account/session/requestKey/createdAt不可变归属。额度耗尽不关闭模型/Worker，也不续额或再次发起调用。
+
+## 原页接线与旧样例的最终收敛
+
+OFF守门基线ad12d2f的生产44580528496已通过，未开启模型。再核对确认岐研AI工作台原组件使用commands而独立API只接knowledge-messages；补GET/POST commands为同一原生消息队列的读投影与严格提交别名，不新增指令队列或权限。关闭联网开关的原格式归一后复用send的全部门禁，终态保留在items/recent供刷新与原key核对。前端仅发送禁用条件补quota.blocked，不带入未发布的采集/离开保护改动。
+
+旧27样例先恢复能严格核验的原创只读子集，非作者来源不静默通过：原loader对author且空bindings已有校验，KB/copy/旧报告保持排除。独立legacy-assets.json精确封存原ID、父范围、owner、原key、revision/版本及contentHash/policyHash，不改变chat admission SHA/账本。每次实际读取仍执行当前app主体授权、原family、父对象与固定版hash检查。只允许详情/固定版/预览/活动/比较，管理GET、全部POST/其他方法、模型、复用、下载和导出拒绝。实际可见数量与原合成标识须由部署后浏览器证明，不把42登记总数当可见数。

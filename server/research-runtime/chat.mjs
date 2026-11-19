@@ -99,13 +99,24 @@ export function createRuntimeChatController({require,load,getChat,getQueue}){
    if(input.networkIntent&&(![false,undefined].includes(input.networkIntent.enabled)||Object.keys(input.networkIntent).some(k=>k!=='enabled')))unavailable();
    return getQueue().enqueue(req.user,id,{text:input.text,requestKey:input.requestKey,kbIds:[]});
   }
+  async commands(req,id){
+   const state=await this.state(req,id,{}),messages=new Map(state.messages.map(m=>[m.id,m]));
+   const items=state.jobs.map(j=>({id:j.id,sessionId:id,status:j.status,version:1,requestKey:messages.get(j.userMessageId)?.meta?.requestKey,text:messages.get(j.userMessageId)?.content??'',createdAt:j.createdAt}));
+   return{items,recent:items.filter(j=>['completed','failed'].includes(j.status)),paused:false};
+  }
+  async command(req,id,input){
+   body(input,['text','requestKey','kbIds','networkIntent']);
+   if(input.networkIntent&&(input.networkIntent.schema!=='hub-network-intent.v1'||input.networkIntent.enabled!==false||Object.keys(input.networkIntent).some(k=>!['schema','enabled'].includes(k))))unavailable();
+   const result=await this.send(req,id,{...input,...input.networkIntent&&{networkIntent:{enabled:false}}});
+   return{id:result.id,sessionId:id,status:result.status,version:1,requestKey:input.requestKey};
+  }
   async source(req,id,messageId,index){const chat=getChat();await chat.requireReady(req.user);await own(chat,req.user,id);const n=Number(index);if(!Number.isSafeInteger(n)||n<1)invalid();return chat.read(req.user,async db=>{const message=await db.message.findFirst({where:{id:messageId,sessionId:id,tenantId:req.user.tenantId,role:'assistant'}}),sources=message?.meta?.provenance?.hubSources;if(!Array.isArray(sources)||!sources[n-1])invalid();await assertCurrentAiSources({db,principal:req.user,tenantId:req.user.tenantId,hubKey:'lingshu-xinyu',sources:[sources[n-1]]});return{...sources[n-1],index:n,status:'current'};});}
   async notConfigured(req){await getChat().requireReady(req.user);unavailable();}
  }
  Controller()(HubChatController);
- const routes=[['agents',Get,'agents',[]],['status',Get,'knowledge/ai-status',[]],['ensureHub',Post,'sessions/hub-source',[Body()]],['history',Get,'sessions/hub-source/history',[Query()]],['state',Get,'sessions/:id/knowledge-state',[Param('id'),Query()]],['send',Post,'sessions/:id/knowledge-messages',[Param('id'),Body()]],['source',Get,'sessions/:id/knowledge-sources/:messageId/:index',[Param('id'),Param('messageId'),Param('index')]]];
+ const routes=[['agents',Get,'agents',[]],['status',Get,'knowledge/ai-status',[]],['ensureHub',Post,'sessions/hub-source',[Body()]],['history',Get,'sessions/hub-source/history',[Query()]],['state',Get,'sessions/:id/knowledge-state',[Param('id'),Query()]],['send',Post,'sessions/:id/knowledge-messages',[Param('id'),Body()]],['commands',Get,'sessions/:id/commands',[Param('id')]],['command',Post,'sessions/:id/commands',[Param('id'),Body()]],['source',Get,'sessions/:id/knowledge-sources/:messageId/:index',[Param('id'),Param('messageId'),Param('index')]]];
  // Separate contexts must never silently execute as a different evidence scope.
- for(const [verb,path]of [[Post,'sessions/knowledge'],[Get,'hub-sources/article-context/:recordId'],[Get,'sessions/:id/commands'],[Post,'sessions/:id/commands'],[Patch,'sessions/:id/history-action']]){
+ for(const [verb,path]of [[Post,'sessions/knowledge'],[Get,'hub-sources/article-context/:recordId'],[Patch,'sessions/:id/history-action']]){
   const name='unavailable'+routes.length;HubChatController.prototype[name]=HubChatController.prototype.notConfigured;routes.push([name,verb,path,[]]);
  }
  for(const [method,verb,path,params]of routes){
