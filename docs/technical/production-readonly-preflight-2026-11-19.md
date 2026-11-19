@@ -29,3 +29,42 @@
 CLI已使用keyring中的jerryshichina；Git协议SSH，Hub实际admin/push=true，未改仓库或机构角色。已成功手动启动运行44437894517，UTC 01:34（北京时间09:34）。Cloud Assistant返回PRODUCTION_READONLY_PROBE_FAILED，流程非零失败；尚不能据此认定生产结构或部署状态。仅补充只读脚本阶段、Python/CPU版本、白名单异常类别与数值退出码，不回显命令、stdout/stderr、异常文本或凭证；测试与独立复核后再跑同一范围，不扩大权限或运维动作。
 
 第二次只读运行44438223230定位：container_inventory阶段TypeError，目标x86_64、Python3.6.8。源码subprocess.run(capture_output=True,text=True)参数为Python3.7新增，尚未读取docker库存或PG。最小兼容仅将参数改为stdout/stderr=PIPE、universal_newlines=True；不升级服务器Python，不改变远端命令或数据库查询范围。增加Python3.6签名模拟及真实本机子进程回归，独立复核后重跑。
+
+## 当前结论：身份统一且生产只读核对通过（2026-11-19）
+
+[成功运行44438491892](https://github.com/pengxiaochuan-ai/researchhub/actions/runs/44438491892)，执行提交3247965。CLI与现有SSH推送身份均为jerryshichina；CLI凭据保存在keyring，Hub admin/push权限已实际核验，未改机构/仓库角色。旧kechebayan-collab登录记录保留为非活动，不删除其他项目凭据；Codex连接器为独立登录，不冒称其身份也已切换。
+
+Python3.6兼容修补后6项本机测试、Python3.6语法解析、Shell语法及独立评审通过，已取得目标环境实际只读执行证据。首次与第二次失败保留；本次只有服务器清单和catalog查询，不读取临床行、不执行部署/DDL/GRANT/配置写入/重启。
+
+| 项目 | 生产实测结果 |
+| --- | --- |
+| CPU架构/Python | x86_64；Python3.6.8 |
+| 正在运行的容器 | 7个；只统计运行中，不代表停机容器库存 |
+| Hub前端 | researchhub项目；镜像标签190f509d-20261015-142143；宿主8083→容器3000 |
+| 官网 | official-site项目；宿主8082→容器3000 |
+| 旧科研系统 | ops项目；web宿主80；server容器3001；方法Worker8210、解析8200、向量8199均为容器端口，未显示宿主发布 |
+| PG连接目标 | 运行中旧server的DATABASE_URL所指aisci库，PG18.3；连接位置只存SHA256 |
+| 当前DB身份 | aisci_app；rolsuper=false、rolbypassrls=false；本次事务readonly=on |
+| 扩展 | plpgsql1.0、vector0.8.1.2 |
+| 业务schema观察 | 本次public/rh_*检查范围仅返回public；501条relation目录记录（含索引等，不能当表数）；110条relation启用并强制RLS；未观察到rh_* |
+| 结构指纹 | c3926157b522a67b902cc579eb738025 |
+| TLS | 当前旧server DSN sslmode=disable；本轮未更改，不据此代表Hub未来配置 |
+| 旧server部署范围配置 | DEPLOYMENT_PRODUCT未设；DEPLOYMENT_ID/ALLOWED_TENANT_IDS/DEFAULT_TENANT_ID均未设；不能据本机WP01结果宣称生产隔离启用 |
+| Hub代理 | 宿主/etc/nginx/conf.d前40份配置未匹配，不能证明无代理；尚未核对旧web容器或其他宿主配置位置 |
+
+### 迁移与发布门禁
+
+正式架构仍按用户已确认的共享实例、共享库、共享表及租户隔离；本机独立合成库不合并到生产，也不复制合成业务数据或账号。当前只实测了旧server的数据库连接，尚未部署Hub后端，不能称Hub已连接共享库。
+
+现有researchhub-production-equivalence-v1五步包要求前置指纹1636304ae3b092949aed8dc978f8373a，且含对已存在rh_*对象的增量修补；生产指纹不符且rh_*不存在。因此该包是候选基线增量，不是当前生产首次安装包。原有指纹守门必须保留；不能用改写期望hash、忽略漂移或直接db push让其通过。生产DDL/GRANT仍未执行。
+
+### 后端发布检查清单（准备顺序，不是执行授权）
+
+1. **锁定真实结构差额**：在同一已批准只读范围，提取所需schema/table/column/index/FK/RLS/ACL及迁移元数据，生成与生产实测基线对应的首次Hub安装＋增量顺序；不读取业务行，不把旧临床库复制到本机。必须核对新表引用旧共享表的真实类型/约束。
+2. **形成准确迁移交付**：为生产基线生成单独manifest，列出只增DDL、必要GRANT、事务/锁超时、失败回滚及不兼容停线项；以catalog构建无业务行的等价合成库后演练。现有5步不可直接执行。
+3. **验证共享表消费者隔离**：生产旧server缺少部署范围配置；需核对当前旧server及Worker实际版本和租户认领规则。未证明不会扫描Hub任务前不创建生产Hub任务；所需旧服务配置/停线仍提交单独确认。
+4. **单独部署Hub后端**：复用已交付私有包，按实测amd64构建验证，Hub独立Compose项目/进程、配置、存储前缀、网络及回退产物；端口须先确认空闲，不覆盖8082/8083/80或ops服务。生产运行账号、租户及必要权限精确列单，禁止照搬合成账号/Token或整体旧.env。
+5. **核实Hub专用路由**：先只读定位hub.pengxc.com实际代理，随后提交仅Hub域名/API与前端后端配置的准确差异；不假设现有宿主conf.d是入口，不重建旧系统或官网。证书、SMTP/解析/向量/模型依赖另行核实，未实际执行不宣称可用。
+6. **发布审批与验收**：迁移DDL/GRANT、生产配置、影响/锁窗口、备份可恢复证据、Hub专属回退和最小业务冒烟列为一份可评审清单，取得真实发布确认后执行。变更前后核对另外两项目状态；浏览器走注册/登录、知识与科研核心路径并区分配置、实际调用和业务验收。
+
+本轮交付仅身份统一、只读脚本兼容修复及生产现状核验；没有触发前端自动构建或任何项目的真实发布。后续首次安装迁移实现与生产执行分别评审，不因本次只读成功自动推进生产。
