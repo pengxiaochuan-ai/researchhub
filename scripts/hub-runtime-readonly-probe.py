@@ -1,5 +1,5 @@
 """Existing Cloud Assistant: Hub deployment metadata only, no DB/service writes."""
-import json,pathlib,platform,subprocess,shutil,os,re
+import json,pathlib,platform,subprocess,shutil,os,re,hashlib,tarfile
 
 def command(args):
     return subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.PIPE,universal_newlines=True,timeout=20,check=True).stdout
@@ -19,6 +19,29 @@ def config_metadata(path):
         if sep and key in patterns and re.fullmatch(patterns[key],value):out[key]=value
     return out
 
+
+def image_transfer_metadata():
+    tag='hub-runtime-1e0d7087-44502950789';result={}
+    r=command(['docker','image','inspect','researchhub-backend:'+tag]);image=json.loads(r)[0]
+    result.update(loadedId=image['Id'],architecture=image['Architecture'])
+    directory=pathlib.Path('/srv/researchhub/ops/runtime-releases')/tag
+    for folder in directory.glob('control-*'):
+        archive=folder/'backend-image.tar.gz';manifest=folder/'runtime-release.json'
+        if not archive.is_file() or not manifest.is_file():continue
+        release=json.loads(manifest.read_text());result['buildId']=release['images']['backend']['id'];configs={};entries=[]
+        with tarfile.open(str(archive),'r|gz') as source:
+            for member in source:
+                if not member.isfile() or member.size>2*1024*1024:continue
+                if member.name=='manifest.json' or re.fullmatch(r'(?:blobs/sha256/)?[a-f0-9]{64}(?:.json)?',member.name):
+                    raw=source.extractfile(member).read()
+                    try:body=json.loads(raw)
+                    except ValueError:continue
+                    if member.name=='manifest.json':entries=body
+                    elif isinstance(body,dict) and 'rootfs' in body and body.get('os')=='linux':configs[member.name]='sha256:'+hashlib.sha256(raw).hexdigest()
+        result['archiveConfigs']=[{'id':configs.get(x.get('Config')),'tags':x.get('RepoTags')} for x in entries]
+        break
+    return result
+
 def main():
     ids=command(['docker','ps','-q']).split();items=json.loads(command(['docker','inspect']+ids)) if ids else []
     containers=[container_metadata(c) for c in items if (c['Config'].get('Labels') or {}).get('com.docker.compose.project') in ('researchhub','ops','official-site','researchhub-backend')]
@@ -30,7 +53,7 @@ def main():
     keys=[]
     if source.is_file() and not source.is_symlink() and source.stat().st_size<65536:
         keys=sorted({line.partition('=')[0] for line in source.read_text().splitlines()}&{'S3_ENDPOINT','S3_ACCESS_KEY','S3_SECRET_KEY','S3_BUCKET'})
-    result={'schema':'hub-runtime-preflight.v1','architecture':platform.machine(),'python':platform.python_version(),'memory':mem,'diskFreeBytes':disk.free,'containers':containers,'databaseConfig':config_metadata(pathlib.Path('/srv/researchhub/ops/.env.prod')),'releaseStorageKeysPresent':keys,'releaseTransferPresent':pathlib.Path('/srv/researchhub/ops/oss-release-transfer.py').is_file(),'databaseQueries':0,'writes':0}
+    result={'imageTransfer':image_transfer_metadata(),'schema':'hub-runtime-preflight.v1','architecture':platform.machine(),'python':platform.python_version(),'memory':mem,'diskFreeBytes':disk.free,'containers':containers,'databaseConfig':config_metadata(pathlib.Path('/srv/researchhub/ops/.env.prod')),'releaseStorageKeysPresent':keys,'releaseTransferPresent':pathlib.Path('/srv/researchhub/ops/oss-release-transfer.py').is_file(),'databaseQueries':0,'writes':0}
     print(json.dumps(result))
 
 if __name__=='__main__':
