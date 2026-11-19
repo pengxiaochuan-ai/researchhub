@@ -35,3 +35,13 @@ admin登录岐研AI显示“当前账号没有此会话的使用权限”，科�
 真实只读inspection 44569366507：researchhub内42登记（15 business、27 legacy）；历史knowledge-chat 623条，其中175 queued，当前模型/Worker关闭；两账号Access启用，配置v2路由DeepSeek V4 Pro存在，Hub密钥缺失，旧服务密钥存在。数据未丢失。
 
 实际原生scoped catalog：admin在原Project可读10、Study B可读4，owner各可读2；默认overview却只枚举Study binding，遗漏这些已可读业务资产。因此先把登记真实Group/Project范围并入只读overview，仍逐范围app角色授权；新增读取范围不进入creationScopes，不创建绑定/Study或权限。旧legacy家族兼容仍单独保留原分类/来源校验，不用取消过滤替代。
+
+## 持续启用的小步实施（当前未启用）
+
+资产范围修复bf2c8e2已部署，真实浏览器：admin14份、owner4份，统计与列表一致，原创建范围不扩大。
+
+先手动prepare：只读核对researchhub、两账号、当前路由和623条历史队列摘要；使用真实已审核检索与原生Orchestrator的禁网Provider捕获两条问题的提示长度，不创建会话/任务、不调用模型、不持有假答案。通过后仅在Hub ops新建一次性admission和持久ledger（O_EXCL，不重建），封存路径进入原.env.prod，模型/Worker仍OFF。prepare不读取旧密钥。
+
+之后发布具备bounded-hub-chat-v1守门能力的OFF基线；核对实际镜像/Compose/挂载后，复制既有DeepSeek密钥到Hub原.env.prod并仅启用knowledge-chat。账本跨版本/日期/重启保留；同requestKey走原生幂等。跨文件/事务提交失败保持槽位待核对，不退款、不假装完成。原生吞掉Provider异常时，不得发布回退为AI回答；已知用量进入原生核账。
+
+普通发布/回滚必须支持相同协议、core和ledger；无守门能力旧镜像不得在ON状态回滚。历史六表仍逐行校验，仅经账本准入的新chat任务可变化，仍核对行存在与tenant/account/session/requestKey/createdAt不可变归属。额度耗尽不关闭模型/Worker，也不续额或再次发起调用。
