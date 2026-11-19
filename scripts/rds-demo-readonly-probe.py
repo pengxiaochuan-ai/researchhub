@@ -19,7 +19,7 @@ def main():
     if len(servers) != 1:
         raise RuntimeError()
     js = """const {PrismaClient}=require('@prisma/client');const {createHash}=require('node:crypto');
-    let db,legacy; (async()=>{try{
+    let db,legacy,secure; (async()=>{try{
       if(!process.env.DIRECT_URL)throw Error('UNCONFIGURED');
       const u=new URL(process.env.DIRECT_URL);u.pathname='/postgres';
       u.searchParams.set('connection_limit','1');u.searchParams.set('connect_timeout','5');
@@ -46,10 +46,17 @@ def main():
         const columns=await tx.$queryRawUnsafe("SELECT n.nspname AS schema,c.relname AS relation,t.attname AS column,a.privilege_type AS privilege FROM pg_attribute t JOIN pg_class c ON c.oid=t.attrelid JOIN pg_namespace n ON n.oid=c.relnamespace CROSS JOIN LATERAL aclexplode(t.attacl) a WHERE n.nspname='public' AND t.attnum>0 AND NOT t.attisdropped AND a.grantee=0 ORDER BY c.relname,t.attname,a.privilege_type");
         const definers=await tx.$queryRawUnsafe("SELECT n.nspname AS schema,p.proname AS name,pg_get_function_identity_arguments(p.oid) AS arguments,md5(pg_get_functiondef(p.oid)) AS definition_hash FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace CROSS JOIN LATERAL aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a WHERE n.nspname='public' AND p.prosecdef AND p.prokind IN ('f','p') AND p.prorettype NOT IN ('trigger'::regtype,'event_trigger'::regtype) AND a.grantee=0 AND a.privilege_type='EXECUTE' ORDER BY p.proname,arguments");
         const connection=await tx.$queryRawUnsafe("SELECT a.privilege_type FROM pg_database d CROSS JOIN LATERAL aclexplode(coalesce(d.datacl,acldefault('d',d.datdba))) a WHERE d.datname=current_database() AND a.grantee=0 ORDER BY a.privilege_type");
-        return {database:where.database,readonly:where.readonly,relations,columns,definers,connection};
+        const schemas=await tx.$queryRawUnsafe("SELECT nspname AS name,pg_get_userbyid(nspowner) AS owner FROM pg_namespace WHERE nspname NOT IN ('pg_catalog','information_schema') AND nspname NOT LIKE 'pg_toast%' AND nspname NOT LIKE 'pg_temp%' ORDER BY nspname");
+        const schemaPublic=await tx.$queryRawUnsafe("SELECT n.nspname AS schema,a.privilege_type FROM pg_namespace n CROSS JOIN LATERAL aclexplode(coalesce(n.nspacl,acldefault('n',n.nspowner))) a WHERE n.nspname='public' AND a.grantee=0 ORDER BY a.privilege_type");
+        return {database:where.database,readonly:where.readonly,relations,columns,definers,connection,schemas,schemaPublic};
       },{timeout:20000});
-      console.log(JSON.stringify({schema:'hub-rds-demo-admission.v1',...result,legacyPublic,hostSha256:createHash('sha256').update(u.hostname).digest('hex'),writes:0}));
-    }catch(e){console.log(JSON.stringify({blocked:'RDS_DEMO_CATALOG_UNAVAILABLE',code:/^P[0-9]{4}$/.test(e.code||'')?e.code:null}));process.exitCode=1;}finally{if(legacy)await legacy.$disconnect();if(db)await db.$disconnect();}})();"""
+      let tlsStrict;
+      try{const s=new URL(u.href);s.searchParams.set('sslmode','require');s.searchParams.set('sslaccept','strict');secure=new PrismaClient({datasources:{db:{url:s.href}},log:[]});
+        tlsStrict=await secure.$transaction(async tx=>{await tx.$executeRawUnsafe('SET TRANSACTION READ ONLY');const [r]=await tx.$queryRawUnsafe('SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid()');return {connected:true,ssl:r.ssl,certificateMode:'strict'};},{timeout:10000});
+      }catch(e){const reason=String(e.meta?.message||e.message||'');tlsStrict={connected:false,code:/^P[0-9]{4}$/.test(e.code||'')?e.code:null,reason:/does not support (ssl|tls)/i.test(reason)?'SERVER_TLS_UNAVAILABLE':/certificate|issuer|self.signed/i.test(reason)?'CERTIFICATE_UNTRUSTED':/timeout|timed out/i.test(reason)?'CONNECT_TIMEOUT':'TLS_HANDSHAKE_FAILED'};}
+      const capacityRef=(u.hostname.match(/^(pgm-[a-z0-9]+)\\./)||[])[1]||null;
+      console.log(JSON.stringify({schema:'hub-rds-demo-admission.v1',...result,legacyPublic,tlsStrict,capacityRef,hostSha256:createHash('sha256').update(u.hostname).digest('hex'),writes:0}));
+    }catch(e){console.log(JSON.stringify({blocked:'RDS_DEMO_CATALOG_UNAVAILABLE',code:/^P[0-9]{4}$/.test(e.code||'')?e.code:null}));process.exitCode=1;}finally{if(secure)await secure.$disconnect();if(legacy)await legacy.$disconnect();if(db)await db.$disconnect();}})();"""
     output = command(["docker", "exec", "--workdir", "/app/server", servers[0], "node", "-e", js])
     value = json.loads(output)
     if value.get("schema") != "hub-rds-demo-admission.v1":

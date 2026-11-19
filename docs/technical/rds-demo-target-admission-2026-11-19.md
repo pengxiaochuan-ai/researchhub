@@ -45,3 +45,9 @@ G0若获准，只做新库/专用角色及该新库的恢复兼容验证，不�
 ## G0执行准入（用户已批准，2026-11-19）
 
 仅将数据库名改为researchhub，四个角色名保持researchhub_demo_owner/app/analysis_reader/pmc_collector，避免把用户库名修正扩为额外命名决策。现有readonly探针更新为核新库名与四角色，并在aisci只读查询PUBLIC目录权限（表/列、可直接调用SECURITY DEFINER函数，不读取业务行）作为新增LOGIN前置；若有未知可读写入口先审查，未证明安全不创建角色。容量、TLS和vector兼容继续为前置，不扩容/改旧权限/切入口/调用模型或发邮件。
+
+### 容量与TLS只读门禁实现
+
+为执行已批准的容量前置，拟仅用现有RAM查询该RDS实例DescribeDBInstanceAttribute，不修改实例。使用DBInstanceStorage（GB）和DBInstanceDiskUsed（byte）计算；为约213MB源包/约330MB源库保守预留2GiB恢复/WAL余量，要求余量后仍留2GiB且使用率不超过80%，缺指标/权限/标识对应关系即阻断，不自动扩容。接口字段依据[阿里云官方API](https://help.aliyun.com/en/rds/developer-reference/api-rds-2014-08-15-describedbinstanceattribute)。
+
+TLS只读连接试验使用Prisma6的sslmode=require及sslaccept=strict，仅作用于临时连接，不改旧服务.env或RDS配置；证书/握手不满足即不用于新库写入。[Prisma6官方说明](https://docs.prisma.io/docs/orm/v6/overview/databases/postgresql)。PUBLIC目录补充schema CREATE/USAGE及用户schema列表；实例标识仅在运维调用私有中间文件流转，公开日志只留host hash和容量摘要。

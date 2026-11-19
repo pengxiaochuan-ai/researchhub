@@ -26,6 +26,20 @@ for attempt in $(seq 1 45); do
   status="$(jq -r '.Invocation.InvocationResults.InvocationResult[0].InvocationStatus // "Pending"' "${task_dir}/result.json")"
   case "${status}" in
     Success|Failed|Error|Timeout|Stopped|Terminated|Cancelled|Invalid)
+      if [[ "${HUB_READONLY_PROFILE:-catalog}" = rds-demo ]]; then
+        jq -r '.Invocation.InvocationResults.InvocationResult[0].Output // ""' "${task_dir}/result.json" | base64 --decode > "${task_dir}/metadata.json"
+        jq 'del(.capacityRef)' "${task_dir}/metadata.json"
+        test "${status}" = Success
+        test "$(jq -r '.Invocation.InvocationResults.InvocationResult[0].ExitCode' "${task_dir}/result.json")" = 0
+        rds_ref="$(jq -er '.capacityRef' "${task_dir}/metadata.json")"
+        [[ "${rds_ref}" =~ ^pgm-[a-z0-9]+$ ]]
+        if ! "${task_dir}/aliyun" rds DescribeDBInstanceAttribute --region "${ALIYUN_REGION_ID}" --DBInstanceId "${rds_ref}" > "${task_dir}/capacity.json" 2> "${task_dir}/capacity-error"; then
+          echo 'RDS_CAPACITY_API_UNAVAILABLE' >&2
+          exit 1
+        fi
+        node scripts/rds-demo-capacity.mjs "${task_dir}/capacity.json" "${rds_ref}" "${task_dir}/metadata.json"
+        exit $?
+      fi
       jq -r '.Invocation.InvocationResults.InvocationResult[0].Output // ""' "${task_dir}/result.json" | base64 --decode
       test "${status}" = Success
       test "$(jq -r '.Invocation.InvocationResults.InvocationResult[0].ExitCode' "${task_dir}/result.json")" = 0
