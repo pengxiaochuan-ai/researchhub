@@ -24,13 +24,15 @@ try{
   const model=await load('common/model-route-resolver','resolveConfiguredDeepSeekModelRoute')(tx,tenant,config.model);
   activeConfig=config;resolvedModel=model;
   const jobs=await tx.knowledgeChatJob.findMany({where:{tenantId:tenant},select:{id:true},orderBy:{id:'asc'}});
+  const billing=new(load('billing/billing.service','BillingService'))(prisma,{}),required=load('billing/token-quota-policy','estimateRunTokenBudget')(Number(model.maxTokens??4096));
+  const quotaReady=[];for(const a of accounts){const q=await billing.quotaSnapshotFrom(tx,tenant,a.id);quotaReady.push({accountId:a.id,ready:q.effectiveRemaining>=required});}
   const [snapshot]=await tx.$queryRawUnsafe(`SELECT count(*)::int AS count,md5(coalesce(string_agg(md5(to_jsonb(t)::text),'' ORDER BY id),'')) AS hash FROM public.knowledge_chat_job t WHERE "tenantId"=$1`,tenant);
-  return{accounts,model:{provider:model.provider,model:model.model,baseUrl:model.baseUrl||'https://api.deepseek.com',secretRef:model.secretRef||'DEEPSEEK_API_KEY'},historicalChatIds:jobs.map(x=>x.id),queueSnapshot:snapshot};
+  return{accounts,quotaReady,model:{provider:model.provider,model:model.model,baseUrl:model.baseUrl||'https://api.deepseek.com',secretRef:model.secretRef||'DEEPSEEK_API_KEY'},historicalChatIds:jobs.map(x=>x.id),queueSnapshot:snapshot};
  },{readOnly:true});
  r.promptPreflight=[];
  if(process.env.HUB_PAID_AI_ENABLED!=='true')for(const [index,a]of r.accounts.entries()){
   phase='source-'+index;
-  const question='请根据已审核来源概述'+(index===0?'ChiCTR2300073486':'ChiCTR2300077209')+'的研究设计、干预和结局，并标注来源；未记录的字段说明未报告。';
+  const question=index===0?'ChiCTR2300073486':'ChiCTR2300077209';
   const user={...a,accountId:a.id,tenantId:tenant,studyGroupId:'rh-kb-local-b0e2af9d-group',researchProjectId:'rh-kb-local-b0e2af9d-project'};
   const retrieval=await withDeploymentTransaction(env,'app',async db=>{await db.$executeRawUnsafe("SELECT set_config('app.study_group_id',$1,true),set_config('app.research_project_id',$2,true)",user.studyGroupId,user.researchProjectId);await assertHubAgent({db,principal:user,tenantId:tenant,hubKey:'lingshu-xinyu'});return runHubSourceSearch({db,principal:user,tenantId:tenant,hubKey:'lingshu-xinyu',query:question});},{readOnly:true});
   const sources=assertHubToolResult(retrieval);phase='prompt-'+index;let capture=null,calls=0;const unused=new Proxy({},{get(){throw Error('PREFLIGHT_UNUSED_PATH');}});
@@ -99,6 +101,7 @@ def main(action):
  if action=='prepare':
   need(saved.get('HUB_PAID_AI_ENABLED')=='false' and not saved.get('ENABLED_WORKER_KINDS'),'CHAT_PREPARATION_REQUIRES_OFF')
   r=metadata(container);need(len(r['accounts'])==2 and {a['id'] for a in r['accounts']}==set(ACCOUNTS),'CHAT_ACCOUNTS_REJECTED')
+  need(len(r['quotaReady'])==2 and all(x['ready'] for x in r['quotaReady']),'CHAT_EXISTING_TOKEN_QUOTA_INSUFFICIENT')
   need(r['model']=={'provider':'deepseek','model':'deepseek-v4-pro','baseUrl':'https://api.deepseek.com','secretRef':'DEEPSEEK_API_KEY'},'CHAT_MODEL_ROUTE_REJECTED')
   need(r['queueSnapshot']=={'count':623,'hash':'735bdccbbc401c67285f0dd9714a2bed'},'CHAT_HISTORICAL_QUEUE_CHANGED')
   need(not ROOT.exists(),'CHAT_CAMPAIGN_ALREADY_EXISTS_NO_RESET')
@@ -113,6 +116,12 @@ def main(action):
   raw=admission_path.read_bytes();sha=hashlib.sha256(raw).hexdigest();need(saved.get('HUB_CHAT_ADMISSION_SHA256')==sha,'CHAT_ADMISSION_CHANGED');a=json.loads(raw);ledger=json.loads(ledger_path.read_text());need(ledger.get('admissionSha')==sha and ledger.get('campaignId')==a['campaignId'],'CHAT_LEDGER_CHANGED')
   if action=='enable':
    release=json.loads((p/'runtime-release.json').read_text());need('bounded-hub-chat-v1' in release.get('supportedExecutionProfiles',[]),'CHAT_GUARDED_BASELINE_REQUIRED')
+   live={line.split('=',1)[0]:line.split('=',1)[1] for line in container['Config'].get('Env',[]) if '=' in line}
+   need(container['Image']==release['images']['backend'].get('configId') and live.get('HUB_CORE_MANIFEST_SHA256')==CORE and live.get('HUB_EXECUTION_PROFILE')=='disabled' and live.get('HUB_PAID_AI_ENABLED')=='false' and live.get('ENABLED_WORKER_KINDS')=='','CHAT_LIVE_GUARDED_BASELINE_MISMATCH')
+   need('execution-profile.py' in json.loads((p/'control-manifest.json').read_text())['files'],'CHAT_EXECUTION_CONTROL_REQUIRED')
+   spec=importlib.util.spec_from_file_location('activation_execution',str(p/'execution-profile.py'));execution=importlib.util.module_from_spec(spec);spec.loader.exec_module(execution)
+   resolved=json.loads(run(['docker','compose','--project-name','researchhub-backend','--env-file',str(OPS/'.env.prod'),'-f',str(p/'backend-compose.yml'),'config','--format','json']))['services']['researchhub-api'];execution.mounts(resolved,saved)
+   need(all(resolved.get('environment',{}).get(k)==v for k,v in execution.values(saved).items()),'CHAT_LIVE_COMPOSE_STATE_MISMATCH')
    need(not ledger['sessions'] and not ledger['jobs'] and not ledger['dispatches'],'CHAT_ENABLE_ALREADY_USED_NO_RESET')
    r=metadata(container);need(r['queueSnapshot']==a['initialQueueSnapshot'],'CHAT_HISTORICAL_QUEUE_CHANGED')
    key=key_from_old();m.save_config(OPS/'.env.prod',{'DEEPSEEK_API_KEY':key,'HUB_EXECUTION_PROFILE':'bounded-hub-chat-v1','HUB_PAID_AI_ENABLED':'true','ENABLED_WORKER_KINDS':'knowledge-chat'});del key
