@@ -1,0 +1,121 @@
+name: Build isolated Hub runtime
+on:
+  workflow_dispatch:
+    inputs:
+      source_key:
+        description: Private source object under releases/researchhub
+        required: true
+        type: string
+      source_sha256:
+        description: Approved source archive SHA256
+        required: true
+        type: string
+      source_bucket:
+        description: Existing private source bucket
+        required: true
+        type: string
+      tenant_slug:
+        description: Actual Hub tenant slug for the frontend build
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: researchhub-runtime-build
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment: production
+    env:
+      SOURCE_KEY: ${{ inputs.source_key }}
+      SOURCE_SHA256: ${{ inputs.source_sha256 }}
+      SOURCE_BUCKET: ${{ inputs.source_bucket }}
+      HUB_TENANT_SLUG: ${{ inputs.tenant_slug }}
+      OSS_ACCESS_KEY: ${{ secrets.OSS_ACCESS_KEY }}
+      OSS_SECRET_KEY: ${{ secrets.OSS_SECRET_KEY }}
+      OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
+      OSS_ENDPOINT: ${{ secrets.OSS_ENDPOINT }}
+      DOCKER_BUILD_RECORD_UPLOAD: 'false'
+      DOCKER_BUILD_SUMMARY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate bounded source and tenant inputs
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os,re
+          assert re.fullmatch(r"[a-z0-9-]{1,100}",os.environ['HUB_TENANT_SLUG'])
+          assert re.fullmatch(r"[a-f0-9]{64}",os.environ['SOURCE_SHA256'])
+          assert os.environ['RUNNER_ARCH']=='X64'
+          for k in ('OSS_ACCESS_KEY','OSS_SECRET_KEY','OSS_BUCKET','OSS_ENDPOINT'):assert os.environ.get(k)
+          tag='hub-runtime-'+os.environ['GITHUB_SHA'][:8]+'-'+os.environ['GITHUB_RUN_ID']
+          with open(os.environ['GITHUB_ENV'],'a') as f:
+              f.write('HUB_RELEASE_TAG='+tag+'\n')
+              f.write('HUB_FRONT_IMAGE=ghcr.io/pengxiaochuan-ai/pengxc-researchhub:'+tag+'\n')
+              f.write('HUB_BACK_IMAGE=researchhub-backend:'+tag+'\n')
+          PY
+      - name: Install existing OSS transfer SDK
+        run: python3 -m pip install 'oss2==2.19.1'
+      - name: Fetch checksummed private source
+        id: source
+        run: >-
+          python3 scripts/hub-runtime-artifacts.py fetch
+          --key "$SOURCE_KEY" --sha256 "$SOURCE_SHA256"
+          --bucket "$SOURCE_BUCKET" --target "$RUNNER_TEMP/hub-backend-context"
+      - name: Verify sealed backend source
+        run: |
+          node --input-type=module - <<'JS'
+          import{verifyBackendPackage}from'./deploy/backend-package.mjs';
+          const r=verifyBackendPackage(process.env.RUNNER_TEMP+'/hub-backend-context');
+          console.log(JSON.stringify({verified:true,coreDigest:r.coreDigest,hubDigest:r.hubDigest}));
+          JS
+      - uses: docker/setup-buildx-action@v3
+      - name: Build native amd64 backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ runner.temp }}/hub-backend-context
+          file: ${{ runner.temp }}/hub-backend-context/Dockerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: ${{ env.HUB_BACK_IMAGE }}
+          build-args: CORE_MANIFEST_SHA256=${{ steps.source.outputs.core_digest }}
+      - name: Build frontend with actual tenant and same-origin API
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: ${{ env.HUB_FRONT_IMAGE }}
+          build-args: VITE_AUTH_TENANT_SLUG=${{ env.HUB_TENANT_SLUG }}
+          cache-from: type=gha,scope=researchhub-runtime-frontend
+          cache-to: type=gha,mode=max,scope=researchhub-runtime-frontend
+      - name: Verify native platform and compiled real tenant
+        shell: bash
+        run: |
+          test "$(docker image inspect --format '{{.Architecture}}' "$HUB_BACK_IMAGE")" = amd64
+          test "$(docker image inspect --format '{{.Architecture}}' "$HUB_FRONT_IMAGE")" = amd64
+          docker run --rm --network none --entrypoint node "$HUB_BACK_IMAGE" -e "if(process.arch!=='x64'||process.versions.node.split('.')[0]!=='22')process.exit(1);console.log('HUB_NATIVE_NODE_VERIFIED');"
+          docker run --rm --network none --entrypoint node "$HUB_FRONT_IMAGE" -e "const fs=require('fs'),p='/app/dist/assets';if(!fs.readdirSync(p).filter(n=>n.endsWith('.js')).some(n=>fs.readFileSync(p+'/'+n,'utf8').includes(process.argv[1])))process.exit(1);console.log('HUB_REAL_TENANT_COMPILED');" "$HUB_TENANT_SLUG"
+      - name: Save images and checked release metadata
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -m 700 "$RUNNER_TEMP/hub-runtime-release"
+          docker save "$HUB_BACK_IMAGE" | gzip > "$RUNNER_TEMP/hub-runtime-release/backend-image.tar.gz"
+          docker save "$HUB_FRONT_IMAGE" | gzip > "$RUNNER_TEMP/hub-runtime-release/researchhub.tar.gz"
+          python3 scripts/hub-runtime-artifacts.py collect --directory "$RUNNER_TEMP/hub-runtime-release" --context "$RUNNER_TEMP/hub-backend-context" --tag "$HUB_RELEASE_TAG" --source-sha "$SOURCE_SHA256"
+      - name: Upload private release to existing OSS
+        run: >-
+          python3 scripts/hub-runtime-artifacts.py upload
+          --directory "$RUNNER_TEMP/hub-runtime-release" --tag "$HUB_RELEASE_TAG"
