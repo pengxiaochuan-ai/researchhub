@@ -13,3 +13,11 @@
 ## 状态
 
 代码/构建及干净产物浏览器通过；实际main推送、目标部署、线上资源和角色复验待取得回执后追加。当前本机测试不代签生产或用户视觉验收。原生产已批准的合成样例和资料只读，未进行内容发布或科研业务写操作。
+
+## 实际生产补发与复验通过
+
+main源码c328aee6145bc7847d7a1dd759ddfb921bb46313，push自动运行44538795588 completed success；tag `hub-runtime-c328aee6-44538795588001`，最终manifest `4e6a5edc4d1ee0a7fcfcf9932d072e0b113ecc732acd66024437d1ad8edeb1cd`，control `3dc7f65fedd1b6d0cc4ea8eea69d61a1e15c2a570920c5f6044f7277195c64c3`。计划两端build=true（共享src按保守策略），databaseChanged=false。现场apply/公开browser/finalize全部成功，旧服务/六任务不变、databaseMigrationExecuted=false；成功指针写入/回读完成。
+
+实际生产不替换任何请求的Chrome检查：1440/390各8页=16检查、两次P011详情；两角色登录、已登录简卡/继续以及五页读取共14检查，无页面异常或非预期失败，只有登录前auth/me401。生产20截图（含首页资产/人群区实际滚动核对）/2录屏，角色14截图/2录屏；认证登录会话是允许的实际写入，没有科研业务/内容写入、模型或外发邮件。独立总评无新P1/P2，用户视觉签收仍待。
+
+准确交付仅40路径；研究数据、舌图/音频/EEGLAB及少量工作台/共享文案尚未发布，私有差额清单`.tmp/frontend-catchup-20261119/remaining-unpublished-code.json`。本次不以“全部本地最新”描述有限补发。Notion专项、产品基线/版本与统一操作手册同步；最终证据仅文档归档skip ci，不再次切服务。

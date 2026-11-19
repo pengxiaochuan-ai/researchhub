@@ -4,7 +4,7 @@
 
 本仓库保存ResearchHub自身的前后端实现、适配器、测试及设计。独立演示环境已接通现有RDS中的`researchhub`库，保留获准资料和明确标识的合成样例；不改旧`aisci`或官网。合并数据库留待12月以后重新评估。
 
-main普通push自动进入[前后端统一发布流水线](docs/technical/unified-release-pipeline-2026-11-19.md)：按上一成功版本识别变更，重建有变组件、复用未变组件，两端用同一版本成对发布；文档/测试独有差额不切服务。数据库模型/SQL差额必须独立确认，流水线不执行迁移或授权。当前实际成对版本`hub-runtime-8f5aee04-44525278754001`已完成构建、合成升级回退演练、线上切换、浏览器与成功指针验证。
+main普通push自动进入[前后端统一发布流水线](docs/technical/unified-release-pipeline-2026-11-19.md)：按上一成功版本识别变更，重建有变组件、复用未变组件，两端用同一版本成对发布；文档/测试独有差额不切服务。数据库模型/SQL差额必须独立确认，流水线不执行迁移或授权。当前实际成对版本`hub-runtime-c328aee6-44538795588001`已完成构建、合成升级回退演练、线上切换、浏览器与成功指针验证。
 
 完整后端仍依赖受审的私有core封存包，不能仅clone公开仓库部署全部能力；私有材料、凭据、快照和生成证据不公开。运行配置唯一为`/srv/researchhub/ops/.env.prod`。AI/邮件/Worker尚未启用；本次验证为登录和主要页面只读，不代表全部科研功能验收。[验证记录](docs/testing/unified-release-pipeline-2026-11-19.md) · [独立数据库边界](docs/technical/repository-and-database-delivery-2026-11-18.md) · [用户操作手册](docs/product/用户验证与操作手册.md)。历史[手动建库步骤](docs/technical/manual-rds-setup-2026-11-19.md)仅供准确阶段核对，已完成的恢复不要重复执行。
 
