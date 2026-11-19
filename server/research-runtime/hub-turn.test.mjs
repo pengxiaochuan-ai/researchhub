@@ -68,12 +68,13 @@ test('bare send/virtual KB passed into worker options cannot bypass the native c
  await assert.rejects(runtime.sessions.sendMessage(user,'session','实际问题',{...opts,kbIds:[HUB_TOOL_KB_ID]}),/CONTEXT_REJECTED/);assert.deepEqual(calls,[]);
 });
 test('current Hub admission is rechecked under the native enqueue transaction before any queue writes',async()=>{
- let active=true,writes=0;const tx={};
+ let active=true,writes=0,scope;const tx={$executeRawUnsafe:async(_sql,...values)=>{scope=values;}};
  const prisma={app:{$transaction:fn=>fn(tx)}};
- const fence=fenceHubQueue(prisma,async(actual,user,sid)=>{assert.equal(actual,tx);assert.equal(user.accountId,'owner');assert.equal(sid,'session');if(!active)throw Error('ADMISSION_REVOKED');});
+ const fence=fenceHubQueue(prisma,async(actual,user,sid)=>{assert.equal(actual,tx);assert.equal(user.accountId,'owner');assert.equal(sid,'session');assert.deepEqual(scope,['tenant','group','project','owner','1']);if(!active)throw Error('ADMISSION_REVOKED');});
  const queue=fence.bind({enqueue:()=>fence.prisma.app.$transaction(async()=>{writes++;return{id:'job'};})});
- active=false;await assert.rejects(queue.enqueue({accountId:'owner'},'session',{}),/ADMISSION_REVOKED/);assert.equal(writes,0);
- active=true;assert.deepEqual(await queue.enqueue({accountId:'owner'},'session',{}),{id:'job'});assert.equal(writes,1);
+ const user={accountId:'owner',tenantId:'tenant',studyGroupId:'group',researchProjectId:'project',authVersion:1};
+ active=false;await assert.rejects(queue.enqueue(user,'session',{}),/ADMISSION_REVOKED/);assert.equal(writes,0);
+ active=true;assert.deepEqual(await queue.enqueue(user,'session',{}),{id:'job'});assert.equal(writes,1);
 });
 test('Hub admin tool intersection remains inside native worker publication and ordinary members keep native checks',async()=>{
  const user={tenantId:'t',accountId:'admin',studyGroupId:'g',researchProjectId:'p',role:'tenant_admin'},tx={};let checked=false;

@@ -57,3 +57,13 @@ OFF守门基线ad12d2f的生产44580528496已通过，未开启模型。再核�
 ed68bdf的生产44582141051成功，独立legacy准入44582263824封存17份原创候选，数据库无写入。两次启用在复制密钥前被挂载门禁拦住，原生只读inspect44584673629确认旧Compose将显式false序列化为bind:{}；模型/Worker仍OFF，账本0/0/0。
 
 不能把遗漏字段直接当false：[Docker规范](https://docs.docker.com/reference/compose-file/services/#long-syntax-5)的create_host_path默认true。兼容仅在同一已封存模板的对应长语法source/target块明确写false时接受序列化遗漏，显式true、路径/只读位变化仍拒绝。正向及旧版回滚模板均传入本次封存正文，门禁不依赖猜测默认值。先对当前镜像只更新并验证封存控制文件，不重建/切容器、不开启消费者，再执行原启用步骤。
+
+## 已开启；原页真实请求发现的提交问题
+
+控制验证44585280420通过；启用44585843506通过：canonical模型true、唯一knowledge-chat、原623任务不变、旧服务/官网身份不变，0模型调用。此后保持ON，不再将关闭作为验证结束动作。Git发布策略绑定原bounded profile及原admission SHA，下一次普通发布不得覆盖OFF或重建账本。
+
+浏览器原新会话按钮经身份初始化后可用，管理员已建立1个获准新会话；科研人员新会话尚未建立。前两次脚本分别因初始化点击时机、直接请求缺Study头停止，未发送模型问题；原失败记录保留。原页实际commands提交503，定位为Hub队列围栏在原enqueue内部SET LOCAL之前先执行当前授权，导致tenant上下文为空；拒绝发生在原生写入前，不应取消校验。
+
+最小修正只在Hub围栏同一app事务最先校验并参数化绑定JWT主体tenant/group/project/account/authVersion，然后保留原lock→authorize→native fn→after顺序。真实隔离PG只读验证已确认：授权前五项正确、撤权与缺字段不执行native操作、commit/rollback不串值，0业务写/0模型。另将旧样例只读拒绝改用既有catalogError契约，让真实Controller返回403，避免普通Error被Nest映射成500；红→绿Controller回归已留存。修后仍须先只读核对原requestKey无任务和账本0调用，再以原会话/原编号继续，不自动重试Provider、不扩大2任务/2调用/1元。
+
+免费两角色浏览器现已确认：admin31＝14业务＋17旧原创，owner14＝4业务＋10原有权限可见旧原创；固定正文、原合成标识正常。A02原hooks会自动请求files/reuse-options/recommendations，这些只读兼容未开放的能力导致错误提示。详情仅对封存旧ID新增compatibilityReadOnly，原操作hooks/关联与推荐暂停请求，正文/版本/活动沿原读取状态；七标签、正文结构、500px侧栏、按钮/导航及业务资产行为不改。SSR四项通过，修后仍需真实网络与两角色复验。

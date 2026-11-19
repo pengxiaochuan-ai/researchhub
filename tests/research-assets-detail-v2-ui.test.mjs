@@ -19,3 +19,8 @@ test('version comparison and activity have distinct same-tab contents, never a c
 test('an unavailable current read hides all private asset content instead of retaining a stale visible panel',async()=>{
  const html=await render({blocked:true});assert(!html.includes('合成方案正文'));assert(!html.includes('合成作者'));assert(html.includes('当前内容暂不可核对'));
 });
+test('read-only compatibility preserves the fixed body and versions while operation regions remain unavailable',async()=>{
+ const readOnly={...asset,compatibilityReadOnly:true,canEditTags:false,canActions:['read','versions'],aiAvailability:'unavailable'};
+ const html=await render({asset:readOnly});assert(html.includes('合成方案正文'));assert(html.includes('合成作者'));assert(html.includes('当前推荐暂不可核对'));assert(!html.includes('正在读取推荐'));assert(html.includes('内容概览'));assert(html.includes('文件附件'));
+ const history=await render({asset:readOnly,initialTab:1});assert(history.includes('比较版本'));assert(history.includes('查看固定版本'));assert(!history.includes('当前内容暂不可核对，请重新读取'));
+});

@@ -6,7 +6,7 @@ import {ensureHubConversation} from '../../scripts/hub-conversation-session.mjs'
 import {isHubConversation,projectHubMessages} from '../../scripts/hub-agent-contract.mjs';
 import {hubHistoryQuery,projectHubHistoryPage} from '../../scripts/hub-conversation-history.mjs';
 import {agentQuestionError} from '../../src/agent-question.js';
-import {createHubTurnRuntime,fenceHubQueue} from './hub-turn.mjs';
+import {createHubTurnRuntime,fenceHubQueue,bindHubTransactionScope} from './hub-turn.mjs';
 import {AsyncLocalStorage} from 'node:async_hooks';
 
 export const HUB_CHAT=Symbol.for('researchhub.runtime.chat');
@@ -50,7 +50,7 @@ export function createRuntimeChat({config,env,transactionEnv,prisma,load,service
  async function authorize(user,tx){
   // The native publication already holds official/tenant authorization locks;
   // no nested transaction may weaken its same-transaction source fence.
-  if(tx)return assertHubAgent(scope(tx,user));
+  if(tx){if(user?.tenantId!==tenantId)invalid();await bindHubTransactionScope(tx,user);return assertHubAgent(scope(tx,user));}
   await requireReady(user);return read(user,db=>assertHubAgent(scope(db,user)));
  }
  const current=(user,sources,tx)=>tx?assertHubPublicationSources({...scope(tx,user),sources}):read(user,db=>assertCurrentAiSources({...scope(db,user),sources}));

@@ -85,7 +85,7 @@ export function createRuntimeAssets({config,foundation,load,require,readReport})
  };
  const reuse=createBusinessAssetReuse({withAccess,assertSources,loadRecords,artifacts});
  const readOptions={withAccess,assertSources,loadRecords},baseReader=createAssetCatalogReader({...readOptions,previewProjection:previewAssetView}),views=createAssetViewReader(readOptions);
- const reader={...baseReader,async detail(user,id,v){const result=await baseReader.detail(user,id,v);return result.ownerAccountId===user.accountId&&result.kind==='publication'&&result.state==='approved'&&result.sourceOrigin?{...result,reportQaEligible:true}:result;}};
+ const reader={...baseReader,async detail(user,id,v){const result=await baseReader.detail(user,id,v);if(legacy?.has(id))return{...result,compatibilityReadOnly:true};return result.ownerAccountId===user.accountId&&result.kind==='publication'&&result.state==='approved'&&result.sourceOrigin?{...result,reportQaEligible:true}:result;}};
  const materialBasis=createMaterialAiBasisService({withAccess,readNativeReport:async(tx,p,ref)=>{const s=await readSource(tx,p,{studyId:ref.studyId,reportId:ref.reportId});if(s.target.version!==ref.version)fail('REPORT_SOURCE_CHANGED',409);return s.value;}});
  const reportQa=createBusinessReportAiService({withAccess,assertSources,readSource});
  const registration=createBusinessAssetRegistration({withAccess,assertSources,listRecipients,uploads,resolveSource:(tx,p,v,c)=>originalAssetInputOnly(tx,p,v,c,{allowUpload:true})}),reportSource=createReportSourceService({withAccess,assertSources,readSource,syntheticOnly:false});

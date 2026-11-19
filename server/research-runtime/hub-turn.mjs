@@ -27,13 +27,21 @@ export function fenceAssistantTransactions(prisma,context,beforeAssistant){
  }});
 }
 
+export async function bindHubTransactionScope(tx,user){
+ if(!['tenantId','studyGroupId','researchProjectId','accountId'].every(k=>typeof user?.[k]==='string'&&/^[A-Za-z0-9_-]{1,160}$/.test(user[k]))||!Number.isSafeInteger(user.authVersion)||user.authVersion<0)reject();
+ await tx.$executeRawUnsafe("SELECT set_config('app.tenant_id',$1,true),set_config('app.study_group_id',$2,true),set_config('app.research_project_id',$3,true),set_config('app.account_id',$4,true),set_config('app.auth_version',$5,true)",user.tenantId,user.studyGroupId,user.researchProjectId,user.accountId,String(user.authVersion));
+}
+
 export function fenceHubQueue(prisma,authorize,after=async()=>{}){
  const context=new AsyncLocalStorage();
  const app=new Proxy(prisma.app,{get(target,key){
   if(key==='$transaction')return (fn,...opts)=>target.$transaction(tx=>{
    const current=context.getStore();
    if(!current)reject();
-   return authorize(tx,current.user,current.sessionId).then(async()=>{const result=await fn(tx);await after(tx,current.user,result);return result;});
+   const user=current.user;
+   // Native enqueue sets these values inside fn. Our pre-write authorization
+   // runs first, so bind the same authenticated scope before any RLS read.
+   return bindHubTransactionScope(tx,user).then(()=>authorize(tx,user,current.sessionId)).then(async()=>{const result=await fn(tx);await after(tx,user,result);return result;});
   },...opts);
   const value=Reflect.get(target,key);return typeof value==='function'?value.bind(target):value;
  }});

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import {createHash} from 'node:crypto';
 import {loadCatalogRecords} from '../../scripts/local-research-assets-catalog-read.mjs';
+import {catalogError} from '../../scripts/research-assets-catalog-contract.mjs';
 
 const tenant='rh-kb-local-b0e2af9d-tenant',accounts=[tenant.replace('-tenant','-admin'),tenant.replace('-tenant','-owner')];
 const fail=()=>{throw Error('HUB_LEGACY_ASSET_ADMISSION_REJECTED');};
@@ -17,7 +18,7 @@ export function createLegacyAssetReader({env,tenantId,loader=loadCatalogRecords}
  const ids=new Set(a.assets.map(x=>x.id));
  return{
   has:id=>ids.has(id),
-  assertReadRequest(user,req,id){const path=(req.route?.path??req.path??req.url??'').split('?')[0].toLowerCase(),key=req.route?.path?':id':id.toLowerCase(),v=req.route?.path?':version':'[1-9][0-9]*',allowed=new RegExp('/research-assets/(?:catalog/'+key+'(?:/versions/'+v+')?|'+key+'/preview|'+key+'/versions/'+v+'/(?:activity|compare))$').test(path);if(!ids.has(id)||!accounts.includes(user.accountId)||user.tenantId!==tenant||req.method!=='GET'||!allowed)throw Object.assign(Error('旧合成样例仅供查看固定版本。'),{code:'LEGACY_ASSET_READ_ONLY',status:403});},
+  assertReadRequest(user,req,id){const path=(req.route?.path??req.path??req.url??'').split('?')[0].toLowerCase(),key=req.route?.path?':id':id.toLowerCase(),v=req.route?.path?':version':'[1-9][0-9]*',allowed=new RegExp('/research-assets/(?:catalog/'+key+'(?:/versions/'+v+')?|'+key+'/preview|'+key+'/versions/'+v+'/(?:activity|compare))$').test(path);if(!ids.has(id)||!accounts.includes(user.accountId)||user.tenantId!==tenant||req.method!=='GET'||!allowed)throw catalogError('LEGACY_READ_ONLY',403,'此合成资料仅供阅读固定版本。');},
   async read(tx,p){
    if(p.tenantId!==tenant||!accounts.includes(p.accountId))return[];
    const principal={...p,catalogActors:{admin:accounts[0],owner:accounts[1]}};
