@@ -51,3 +51,20 @@ G0若获准，只做新库/专用角色及该新库的恢复兼容验证，不�
 为执行已批准的容量前置，拟仅用现有RAM查询该RDS实例DescribeDBInstanceAttribute，不修改实例。使用DBInstanceStorage（GB）和DBInstanceDiskUsed（byte）计算；为约213MB源包/约330MB源库保守预留2GiB恢复/WAL余量，要求余量后仍留2GiB且使用率不超过80%，缺指标/权限/标识对应关系即阻断，不自动扩容。接口字段依据[阿里云官方API](https://help.aliyun.com/en/rds/developer-reference/api-rds-2014-08-15-describedbinstanceattribute)。
 
 TLS只读连接试验使用Prisma6的sslmode=require及sslaccept=strict，仅作用于临时连接，不改旧服务.env或RDS配置；证书/握手不满足即不用于新库写入。[Prisma6官方说明](https://docs.prisma.io/docs/orm/v6/overview/databases/postgresql)。PUBLIC目录补充schema CREATE/USAGE及用户schema列表；实例标识仅在运维调用私有中间文件流转，公开日志只留host hash和容量摘要。
+
+## G0当前结果：在建库前按约定停下（2026-11-19）
+
+用户已批准，目标库名researchhub，四角色名不变；批准持续有效，不重复申请建库权限。
+
+- 运行44447519860已核researchhub/四角色均未占用；aisci的public表/列/可直接调用非触发器SECURITY DEFINER函数PUBLIC授权均空，PUBLIC仍有CONNECT/TEMP。不是全库跨schema风险排除证明。
+- 运行[44448517287](https://github.com/pengxiaochuan-ai/researchhub/actions/runs/44448517287)再次只读核对：旧库用户schema为public与vector；public的PUBLIC schema权限为空。严格临时TLS连接connected=false、SERVER_TLS_UNAVAILABLE；未改旧服务连接方式或实例SSL。
+- 容量查询返回RDS_CAPACITY_API_UNAVAILABLE；现有流程未取得allocated/used数值，不能断言容量不足或具体RAM错误，也不假定容量足够。没有自动增RAM权限、扩容或重复试写。
+- 当前researchhub库、四角色、向量扩展、目标数据恢复均**未执行**；源/aisci业务数据写入0，无入口/服务/费用变更。
+
+[阿里云SSL官方文档](https://help.aliyun.com/zh/rds/apsaradb-rds-for-postgresql/configure-ssl-encryption-for-an-apsaradb-rds-for-postgresql-instance)明确开启云端证书会重启实例、存在分钟级闪断，因此不能在“不影响旧服务”的G0授权内自动开启。
+
+最小待讨论项：本次纯演示是否显式允许仅在已核实的ECS—RDS VPC私网沿用现有非TLS模式（传输不加密、不开放公网、无真实临床数据；正式使用前另补TLS）；或另约SSL维护窗口并确认旧系统影响。私网模式如获准，必须先在ECS验证解析地址全部为私网及连接目标不变，不能将旧TLS门禁直接删除或默认降级。
+
+容量可由管理员在RDS控制台提供当前“已分配存储GB＋已使用存储GB/byte”，附实例对应关系与采集时间；或单独授权既有RAM新增仅DescribeDBInstanceAttribute只读权限。优先人工提供事实，不申请云权限来绕过条件。取得容量证据前不建库/恢复。
+
+本轮新增容量/严格TLS反例4项、RDS元数据2项、既有只读探针6项及语法检查通过；独立评审关闭TLS失败仍可能变绿的P2后再实际执行，失败按门禁保留。不把工作流检查、名称可用或源快照当作G0已完成。
