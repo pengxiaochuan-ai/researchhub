@@ -71,6 +71,8 @@ def collect(args):
  (target/'SHA256SUMS').write_text(''.join(files[n]['sha256']+'  '+n+'\n' for n in ('cloud-assistant-bootstrap.sh','ecs-release.sh','oss-release-transfer.py')))
  context=json.loads((pathlib.Path(args.context)/'release.json').read_text())
  manifest={'schema':'researchhub-runtime-images.v1','tag':tag,'architecture':'amd64','frontendImage':frontend,'backendImage':backend,'coreDigest':context['coreDigest'],'hubDigest':context['hubDigest'],'contextSha256':args.source_sha,'controlGit':os.environ['GITHUB_SHA'],'tenantSlug':os.environ['HUB_TENANT_SLUG'],'files':files,'images':{'frontend':image_info(frontend),'backend':image_info(backend)},'workersEnabled':False,'modelsEnabled':False,'mailEnabled':False}
+ # Capability is distinct from the operator's persistent activation state.
+ manifest['supportedExecutionProfiles']=['disabled','bounded-hub-chat-v1']
  (target/'runtime-release.json').write_text(json.dumps(manifest,indent=2)+'\n');print(json.dumps({'tag':tag,'coreDigest':manifest['coreDigest'],'frontendImage':frontend,'backendImage':backend,'manifestSha256':file_info(target/'runtime-release.json')['sha256']}))
 
 def upload(args):

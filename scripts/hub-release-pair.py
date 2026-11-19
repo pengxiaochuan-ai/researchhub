@@ -45,15 +45,16 @@ def back_args():return ['docker','compose','--project-name','researchhub-backend
 def check_environments(front,back,saved):
  allowed={'NODE_ENV','HOST','PORT','HUB_API_UPSTREAM','HUB_API_AUTHORITY'}
  need(set(front)<=allowed,'HUB_PAIR_FRONTEND_ENVIRONMENT_REJECTED')
- fixed={'CONTROL_PLANE_ENABLED':'false','ENABLED_WORKER_KINDS':'','OFFICIAL_JOB_KINDS':'','HUB_PAID_AI_ENABLED':'false','HUB_EMBEDDING_MODE':'keyword-only','HUB_MAIL_MODE':'disabled'}
- need(all(back.get(k)==v for k,v in fixed.items()),'HUB_PAIR_UNADMITTED_CONSUMER_REJECTED')
+ fixed=m.execution.values(saved)
+ need(all(back.get(k,'disabled' if k=='HUB_EXECUTION_PROFILE' else None)==v for k,v in fixed.items()),'HUB_PAIR_UNADMITTED_CONSUMER_REJECTED')
  keys=('DATABASE_URL','DIRECT_URL','DEPLOYMENT_PRODUCT','DEFAULT_TENANT_ID','ALLOWED_TENANT_IDS','HUB_DATABASE_NAME','HUB_DATABASE_APP_ROLE','HUB_DATABASE_OWNER_ROLE','HUB_DATABASE_MARKER_SHA256','HUB_SCHEMA_FINGERPRINT','HUB_CORE_MANIFEST_SHA256')
  need(all(back.get(k)==m.unquote(saved[k]) for k in keys if k in saved),'HUB_PAIR_BACKEND_ENV_BINDING_REJECTED')
 
 def validate_templates(saved):
  front=json.loads(m.command(front_args()+['config','--format','json']))['services']['researchhub'].get('environment',{})
- back=json.loads(m.command(back_args()+['config','--format','json']))['services']['researchhub-api'].get('environment',{})
- check_environments(front,back,saved)
+ service=json.loads(m.command(back_args()+['config','--format','json']))['services']['researchhub-api']
+ check_environments(front,service.get('environment',{}),saved)
+ if saved.get('HUB_EXECUTION_PROFILE')==m.execution.PROFILE:m.execution.mounts(service,saved)
 
 def wait_api():
  for _ in range(40):
@@ -141,6 +142,11 @@ def run(action,sha):
  for kind in ('frontend','backend'):
   if release['images'][kind].get('configId'):need(release['images'][kind]['configId']==release['images'][kind]['id'],'HUB_PAIR_MANIFEST_CANONICAL_MISMATCH')
  helper=m.helper_module();saved=helper.read_config(m.OPS/'.env.prod');m.plan_configuration(saved,release,control['target'],{})
+ m.execution.support(previous,saved)
+ if saved.get('HUB_EXECUTION_PROFILE')==m.execution.PROFILE:
+  BACK_TEMPLATE_CHECK=HERE/'previous-backend-compose.yml'
+  previous_args=['docker','compose','--project-name','researchhub-backend','--env-file',str(m.OPS/'.env.prod'),'-f',str(BACK_TEMPLATE_CHECK),'config','--format','json']
+  old_service=json.loads(m.command(previous_args))['services']['researchhub-api'];check_environments({},old_service.get('environment',{}),saved);m.execution.mounts(old_service,saved)
  items=m.containers();old_services=m.baseline(items);states=m.task_snapshot(helper,saved)
  need(not re.search(r'^\s*env_file:',(HERE/'frontend-compose.yml').read_text(),re.M),'HUB_PAIR_FRONTEND_ENV_FILE_REJECTED')
  need(m.command(front_args()+['config','--services']).split()==['researchhub'],'HUB_PAIR_FRONTEND_SCOPE_REJECTED');need(m.command(back_args()+['config','--services']).split()==['researchhub-api'],'HUB_PAIR_BACKEND_SCOPE_REJECTED')

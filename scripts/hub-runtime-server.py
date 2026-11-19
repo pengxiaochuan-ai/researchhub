@@ -9,11 +9,20 @@ class Stop(Exception):pass
 def need(ok,code):
  if not ok:raise Stop(code)
 
+_spec=importlib.util.spec_from_file_location('hub_execution',str(PACKAGE/('execution-profile.py' if (PACKAGE/'execution-profile.py').exists() else 'hub-execution-profile.py')))
+execution=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(execution);execution.need=need
+EXECUTION_SAVED={}
+
 def unquote(value):
  value=value.strip()
  return value[1:-1] if len(value)>1 and value[0] in ('"',"'") and value[-1]==value[0] else value
 
 def plan_configuration(existing,release,target,inherited):
+ global EXECUTION_SAVED
+ EXECUTION_SAVED=dict(existing)
+ state=execution.support(release,existing)
+ if 'executionPolicy' in release:
+  policy=release['executionPolicy'];need(policy.get('profile')==state['HUB_EXECUTION_PROFILE'] and (state['HUB_EXECUTION_PROFILE']=='disabled' or policy.get('admissionSha256')==state['HUB_CHAT_ADMISSION_SHA256']),'HUB_EXECUTION_POLICY_MISMATCH')
  expected={'HUB_DATABASE_NAME':target['database'],'HUB_DATABASE_APP_ROLE':'researchhub_demo_app','HUB_DATABASE_OWNER_ROLE':'researchhub_demo_owner','HUB_DATABASE_MARKER_SHA256':target['markerSha256'],'HUB_SCHEMA_FINGERPRINT':target['schemaFingerprint'],'DEFAULT_TENANT_ID':TENANT,'ALLOWED_TENANT_IDS':TENANT,'DEPLOYMENT_PRODUCT':'researchhub','VITE_AUTH_TENANT_SLUG':release['tenantSlug']}
  need(target.get('database')=='researchhub' and target.get('tenantId')==TENANT,'HUB_RUNTIME_TARGET_REJECTED')
  need(all(existing.get(k)==v for k,v in expected.items()),'HUB_RUNTIME_SAVED_BINDING_MISMATCH')
@@ -21,6 +30,7 @@ def plan_configuration(existing,release,target,inherited):
  need(re.fullmatch('[a-f0-9]{64}',release.get('coreDigest','')),'HUB_RUNTIME_CORE_DIGEST_REJECTED')
  need(re.fullmatch(r'hub-runtime-[a-f0-9]{8}-[0-9]+',release.get('tag','')) and release.get('backendImage')=='researchhub-backend:'+release['tag'],'HUB_RUNTIME_IMAGE_REJECTED')
  out={'NODE_ENV':'production','HUB_RUNTIME_PROFILE':'full','HUB_REQUIRE_PRIVATE_CORE':'true','HUB_CORE_DIR':'/opt/researchhub/core','HUB_CORE_MANIFEST_SHA256':release['coreDigest'],'HUB_APP_ORIGIN':'https://hub.pengxc.com','HUB_AUTH_COOKIE_SECURE':'true','HUB_API_HOST':'0.0.0.0','HUB_API_PORT':'19612','HUB_API_AUTHORITY':'hub.pengxc.com','HUB_API_UPSTREAM':'http://researchhub-api:19612','CONTROL_PLANE_ENABLED':'false','ENABLED_WORKER_KINDS':'','OFFICIAL_JOB_KINDS':'','HUB_PAID_AI_ENABLED':'false','HUB_EMBEDDING_MODE':'keyword-only','HUB_MAIL_MODE':'disabled','HUB_ASSET_MARKDOWN_EXPORT_ENABLED':'false','HUB_BACKEND_IMAGE':release['backendImage']}
+ out.update(state)
  jwt=unquote(existing.get('JWT_SECRET',''))
  if jwt:need(len(jwt)>=32 and jwt.strip()==jwt and not any(ord(c)<32 for c in jwt),'HUB_EXISTING_JWT_INVALID')
  else:out['JWT_SECRET']=secrets.token_urlsafe(48)
@@ -71,6 +81,7 @@ def load_release(control_sha):
   need(pathlib.Path(name).name==name and '/' not in name and '\\' not in name,'HUB_RUNTIME_CONTROL_PATH_REJECTED')
   path=PACKAGE/name;need(path.is_file() and not path.is_symlink() and hashlib.sha256(path.read_bytes()).hexdigest()==item['sha256'],'HUB_RUNTIME_CONTROL_FILE_MISMATCH')
  release=load_json(PACKAGE/'runtime-release.json');need(release.get('schema')=='researchhub-runtime-images.v1' and release.get('tag')==control.get('tag') and release.get('architecture')=='amd64' and release.get('workersEnabled') is False and release.get('modelsEnabled') is False and release.get('mailEnabled') is False,'HUB_RUNTIME_RELEASE_REJECTED')
+ release['executionPolicy']=control.get('executionPolicy',{'profile':'disabled'})
  need(release.get('images',{}).get('backend',{}).get('architecture')=='amd64','HUB_RUNTIME_IMAGE_ARCH_REJECTED')
  release['images']['backend']['buildId']=release['images']['backend']['id']
  release['images']['backend']['id']=canonical_image_id(backend_archive(release),release['backendImage'],release['files']['backend-image.tar.gz']['sha256'])
@@ -116,19 +127,32 @@ def task_snapshot(helper,values):
  cfg,password=helper.check_url(values['DIRECT_URL'],'researchhub_demo_owner')
  tables=('knowledge_import_task','processing_task','research_agent_run','research_artifact_export_job','knowledge_chat_job','research_method_run')
  parts=["'"+name+"',COALESCE((SELECT json_object_agg(id,md5(row_to_json(t)::text)) FROM public."+name+" t),'{}'::json)" for name in tables]
+ parts[tables.index('knowledge_chat_job')]="'knowledge_chat_job',COALESCE((SELECT json_object_agg(id,json_build_object('hash',md5(row_to_json(t)::text),'binding',json_build_object('tenantId',\"tenantId\",'accountId',\"accountId\",'sessionId',\"sessionId\",'requestKey',\"requestKey\",'createdAtMillis',floor(extract(epoch from \"createdAt\")*1000)::bigint))) FROM public.knowledge_chat_job t),'{}'::json)"
  return helper.query('psql',cfg,'researchhub_demo_owner',password,'SELECT json_build_object('+','.join(parts)+');')[0]
 
 def assert_task_snapshot(before,after,allow_new=False):
  need(set(before)==set(after),'HUB_RUNTIME_TASK_TABLES_CHANGED')
+ admitted=execution.admitted_jobs(EXECUTION_SAVED)
  for name,old in before.items():
-  need(all(after[name].get(key)==value for key,value in old.items()),'HUB_RUNTIME_HISTORICAL_TASK_CHANGED')
-  if not allow_new:need(set(old)==set(after[name]),'HUB_RUNTIME_UNEXPECTED_NEW_TASK')
+  exempt=set(admitted) if name=='knowledge_chat_job' else set()
+  for key in exempt:
+   need(isinstance(after[name].get(key),dict) and after[name][key].get('binding')==admitted[key],'HUB_RUNTIME_ADMITTED_TASK_BINDING_CHANGED')
+   if key in old:need(isinstance(old[key],dict) and old[key].get('binding')==admitted[key],'HUB_RUNTIME_ADMITTED_TASK_BINDING_CHANGED')
+  need(all(after[name].get(key)==value for key,value in old.items() if key not in exempt),'HUB_RUNTIME_HISTORICAL_TASK_CHANGED')
+  if not allow_new or EXECUTION_SAVED.get('HUB_EXECUTION_PROFILE')==execution.PROFILE:need(set(old)-exempt==set(after[name])-exempt,'HUB_RUNTIME_UNEXPECTED_NEW_TASK')
 
 def live_api(items,release,target):
  own=[x for x in items if (x['Config'].get('Labels') or {}).get('com.docker.compose.project')=='researchhub-backend']
  need(len(own)==1 and own[0]['State']['Running'] and own[0]['Image']==release['images']['backend']['id'],'HUB_RUNTIME_NEW_CONTAINER_MISMATCH')
  values=dict(line.split('=',1) for line in own[0]['Config'].get('Env') or [] if '=' in line)
  expected={'HUB_DATABASE_NAME':'researchhub','HUB_DATABASE_APP_ROLE':'researchhub_demo_app','HUB_DATABASE_OWNER_ROLE':'researchhub_demo_owner','HUB_DATABASE_MARKER_SHA256':target['markerSha256'],'HUB_SCHEMA_FINGERPRINT':target['schemaFingerprint'],'DEFAULT_TENANT_ID':TENANT,'ALLOWED_TENANT_IDS':TENANT,'HUB_CORE_MANIFEST_SHA256':release['coreDigest'],'ENABLED_WORKER_KINDS':'','OFFICIAL_JOB_KINDS':'','CONTROL_PLANE_ENABLED':'false','HUB_PAID_AI_ENABLED':'false','HUB_EMBEDDING_MODE':'keyword-only','HUB_MAIL_MODE':'disabled'}
+ if EXECUTION_SAVED:expected.update(execution.support(release,EXECUTION_SAVED))
+ if expected.get('HUB_EXECUTION_PROFILE')=='disabled' and 'bounded-hub-chat-v1' not in release.get('supportedExecutionProfiles',[]):expected.pop('HUB_EXECUTION_PROFILE',None)
+ if expected.get('HUB_EXECUTION_PROFILE')==execution.PROFILE:
+  execution.sealed(EXECUTION_SAVED)
+  mounts={x.get('Destination'):x for x in own[0].get('Mounts',[])}
+  for target_path,name,rw in [('/run/researchhub-admission','admission',False),('/run/researchhub-ai-ledger','ledger',True)]:
+   row=mounts.get(target_path,{});need(row.get('Type')=='bind' and row.get('Source')==str(execution.ROOT/name) and row.get('RW') is rw,'HUB_CHAT_LIVE_MOUNT_MISMATCH')
  need(all(values.get(k)==v for k,v in expected.items()),'HUB_RUNTIME_CONTAINER_BINDING_MISMATCH')
  aliases=own[0].get('NetworkSettings',{}).get('Networks',{}).get('researchhub_default',{}).get('Aliases') or [];need('researchhub-api' in aliases,'HUB_RUNTIME_NETWORK_ALIAS_MISSING')
  return own[0]
@@ -146,9 +170,9 @@ def api_status():
  return r.stdout.decode() if r.returncode==0 else 'unavailable'
 
 def diagnostic(image):
- js="""import{bootResearchRuntime}from'./server/research-runtime/main.mjs';let detail={code:'HUB_RUNTIME_STARTUP_UNCLASSIFIED'};try{const r=await bootResearchRuntime(process.env,{listen:false,onStartupError:e=>{const m=String(e.message||'');const known=m.match(/^(CORE_[A-Z_]+|RESEARCH_[A-Z_]+|RUNTIME_[A-Z_]+)(?::([A-Z0-9_]+))?$/);const field=m.match(/^Invalid (?:research runtime|deployment) configuration: ([A-Z0-9_]+)$/);detail={code:known?known[0]:field?'CONFIG_'+field[1]:/^P[0-9]{4}$/.test(e.code||'')?e.code:'HUB_RUNTIME_STARTUP_UNCLASSIFIED',kind:e.name||'Error'};}});await r.close();console.log('HUB_DIAG:'+JSON.stringify({code:'HUB_RUNTIME_DIAGNOSTIC_READY',kind:'Ready'}));}catch{console.log('HUB_DIAG:'+JSON.stringify(detail));}"""
+ js="""import{readResearchRuntimeConfig}from'./server/research-runtime/config.mjs';import{runtimeDependencies}from'./server/research-runtime/dependencies.mjs';import{bindRuntimeTransactions,withDeploymentTransaction}from'./server/database/transactions.mjs';let p;try{const c=readResearchRuntimeConfig(process.env),{load}=runtimeDependencies(c.core);p=new(load('prisma/prisma.service','PrismaService'))();await p.app.$connect();await p.elevated.$connect();const env=bindRuntimeTransactions({prisma:p,expected:c.identity});await withDeploymentTransaction(env,'app',tx=>tx.$queryRawUnsafe('SELECT 1'),{readOnly:true});console.log('HUB_DIAG:'+JSON.stringify({code:'HUB_RUNTIME_DIAGNOSTIC_READY',kind:'Ready'}));}catch(e){const x=String(e.message||''),m=x.match(/^(CORE_[A-Z_]+|RESEARCH_[A-Z_]+|RUNTIME_[A-Z_]+)(?::([A-Z0-9_]+))?$/);console.log('HUB_DIAG:'+JSON.stringify({code:m?m[0]:/^P[0-9]{4}$/.test(e.code||'')?e.code:'HUB_RUNTIME_STARTUP_UNCLASSIFIED',kind:e.name||'Error'}));}finally{if(p)await p.onModuleDestroy();}"""
  name='hub-runtime-diagnostic-'+image.split(':')[-1]
- args=['docker','run','--name',name,'--label','researchhub.runtime-diagnostic=true','--rm','--network','researchhub_default','--read-only','--tmpfs','/tmp:rw,size=128m,mode=1777','--memory','768m','--cpus','0.75','--cap-drop','ALL','--env-file',str(OPS/'.env.prod'),'--entrypoint','node',image,'--input-type=module','-e',js]
+ args=['docker','run','--name',name,'--label','researchhub.runtime-diagnostic=true','--rm','--network','researchhub_default','--read-only','--tmpfs','/tmp:rw,size=128m,mode=1777','--memory','768m','--cpus','0.75','--cap-drop','ALL','--env-file',str(OPS/'.env.prod'),'--env','HUB_EXECUTION_PROFILE=disabled','--env','HUB_PAID_AI_ENABLED=false','--env','ENABLED_WORKER_KINDS=','--env','OFFICIAL_JOB_KINDS=','--env','CONTROL_PLANE_ENABLED=false','--entrypoint','node',image,'--input-type=module','-e',js]
  try:
   text=command(args,90)
   for line in text.splitlines():
@@ -210,7 +234,9 @@ def activate_front(helper,saved,control,release,items,before):
  print(json.dumps({'status':'hub-frontend-api-connected','tag':release['tag'],'apiStatus':401,'healthStatus':200,'frontendSecretsAbsent':True,'oldServicesUnchanged':True,'historicalTasksUnchanged':True,'workersStarted':False}))
 
 def run(action,control_sha):
+ global EXECUTION_SAVED
  need(os.geteuid()==0,'HUB_RUNTIME_ROOT_REQUIRED');control,release=load_release(control_sha);helper=helper_module();config=OPS/'.env.prod';saved=helper.read_config(config);items=containers();before=baseline(items)
+ EXECUTION_SAVED=dict(saved)
  if action=='activate-front':return activate_front(helper,saved,control,release,items,before)
  need(any((x['Config'].get('Labels') or {}).get('com.docker.compose.project')=='researchhub' and x['State']['Running'] for x in items),'HUB_FRONTEND_NOT_RUNNING')
  own=[x for x in items if (x['Config'].get('Labels') or {}).get('com.docker.compose.project')=='researchhub-backend']

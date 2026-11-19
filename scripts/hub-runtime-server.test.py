@@ -1,6 +1,18 @@
 import importlib.util,pathlib,unittest,json
 s=importlib.util.spec_from_file_location('m',str(pathlib.Path(__file__).with_name('hub-runtime-server.py')));m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 class ServerPlan(unittest.TestCase):
+ def test_enabled_task_changes_preserve_binding_and_never_allow_deletion(self):
+  from unittest.mock import patch
+  binding={'tenantId':'t','accountId':'a','sessionId':'s','requestKey':'r','createdAtMillis':1}
+  before={'knowledge_chat_job':{'old':'frozen','new':{'hash':'queued','binding':binding}},'research_method_run':{}}
+  after={'knowledge_chat_job':{'old':'frozen','new':{'hash':'done','binding':binding}},'research_method_run':{}}
+  with patch.object(m,'EXECUTION_SAVED',{'HUB_EXECUTION_PROFILE':m.execution.PROFILE}),patch.object(m.execution,'admitted_jobs',return_value={'new':binding}):
+   m.assert_task_snapshot(before,after)
+   for wrong in ({'old':'frozen'},{'old':'frozen','new':{'hash':'done','binding':dict(binding,accountId='other')}},{'old':'changed','new':after['knowledge_chat_job']['new']},{**after['knowledge_chat_job'],'unapproved':'new'}):
+    with self.assertRaises(m.Stop):m.assert_task_snapshot(before,dict(after,knowledge_chat_job=wrong),allow_new=True)
+ def test_diagnostic_never_boots_nest_or_worker_lifecycles(self):
+  import inspect
+  source=inspect.getsource(m.diagnostic);self.assertNotIn('bootResearchRuntime',source);self.assertIn('readOnly:true',source);self.assertIn('ENABLED_WORKER_KINDS=',source)
  def current(self):return {'HUB_DATABASE_NAME':'researchhub','HUB_DATABASE_APP_ROLE':'researchhub_demo_app','HUB_DATABASE_OWNER_ROLE':'researchhub_demo_owner','HUB_DATABASE_MARKER_SHA256':'a'*64,'HUB_SCHEMA_FINGERPRINT':'b'*32,'DEFAULT_TENANT_ID':m.TENANT,'ALLOWED_TENANT_IDS':m.TENANT,'DEPLOYMENT_PRODUCT':'researchhub','DEPLOYMENT_ID':'researchhub-demo-20261119','HUB_SOURCE_REVIEWER_ACCOUNT_ID':'rh-kb-local-b0e2af9d-admin','VITE_AUTH_TENANT_SLUG':m.TENANT,'DATABASE_URL':'private-app','DIRECT_URL':'private-owner','CUSTOM_SETTING':'preserve'}
  def release(self):return {'tag':'hub-runtime-12345678-1','backendImage':'researchhub-backend:hub-runtime-12345678-1','coreDigest':'c'*64,'tenantSlug':m.TENANT}
  def target(self):return {'database':'researchhub','tenantId':m.TENANT,'markerSha256':'a'*64,'schemaFingerprint':'b'*32}
@@ -75,13 +87,15 @@ class ServerPlan(unittest.TestCase):
   config=json.dumps({'architecture':'amd64','os':'linux','rootfs':{'type':'layers','diff_ids':[]}}).encode();sha=hashlib.sha256(config).hexdigest();name='blobs/sha256/'+sha
   with tempfile.TemporaryDirectory() as d:
    archive=pathlib.Path(d)/'image.tar.gz'
-   def write(config_name=name,tag='researchhub-backend:approved',extra=None):
+   def write(config_name=name,tag='researchhub-backend:approved',extra=None,attestation=False):
     with tarfile.open(str(archive),'w:gz') as tf:
      for filename,data in [(config_name,config),('manifest.json',json.dumps([{'Config':config_name,'RepoTags':[tag],'Layers':[]}]).encode())]:
       member=tarfile.TarInfo(filename);member.size=len(data);tf.addfile(member,io.BytesIO(data))
      if extra is not None:tf.addfile(extra,io.BytesIO(b''))
+     if attestation:
+      metadata=json.dumps({'architecture':'unknown','os':'unknown','rootfs':{'diff_ids':[]}}).encode();item=tarfile.TarInfo('blobs/sha256/'+hashlib.sha256(metadata).hexdigest());item.size=len(metadata);tf.addfile(item,io.BytesIO(metadata))
     return hashlib.sha256(archive.read_bytes()).hexdigest()
-   digest=write();self.assertEqual(m.canonical_image_id(archive,'researchhub-backend:approved',digest),'sha256:'+sha)
+   digest=write(attestation=True);self.assertEqual(m.canonical_image_id(archive,'researchhub-backend:approved',digest),'sha256:'+sha)
    with self.assertRaisesRegex(m.Stop,'IMAGE_DIGEST_MISMATCH'):m.canonical_image_id(archive,'researchhub-backend:approved','0'*64)
    with self.assertRaisesRegex(m.Stop,'IMAGE_TAG_REJECTED'):m.canonical_image_id(archive,'other:tag',digest)
    for filename,kind in [('../escape',tarfile.REGTYPE),('/absolute',tarfile.REGTYPE),('manifest.json',tarfile.REGTYPE),('link',tarfile.SYMTYPE),('hardlink',tarfile.LNKTYPE)]:

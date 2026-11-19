@@ -16,5 +16,8 @@
   "coreSourceGuards": {
     "deploy/core-bundle.mjs": "68ce1bee577e911980be050964cb708398acb20d9ad06fa994829230364f63b9",
     "deploy/knowledge-admin-adaptation.mjs": "8fa147d13a02e6d165da4e83d42ede36776377222fee393afc572427e0d6d24f"
+  },
+  "executionPolicy": {
+    "profile": "disabled"
   }
 }

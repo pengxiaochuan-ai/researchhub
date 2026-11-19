@@ -6,9 +6,10 @@ services:
       - /srv/researchhub/ops/.env.prod
     environment:
       CONTROL_PLANE_ENABLED: 'false'
-      ENABLED_WORKER_KINDS: ''
+      ENABLED_WORKER_KINDS: ${ENABLED_WORKER_KINDS:-}
       OFFICIAL_JOB_KINDS: ''
-      HUB_PAID_AI_ENABLED: 'false'
+      HUB_PAID_AI_ENABLED: ${HUB_PAID_AI_ENABLED:-false}
+      HUB_EXECUTION_PROFILE: ${HUB_EXECUTION_PROFILE:-disabled}
       HUB_EMBEDDING_MODE: keyword-only
       HUB_MAIL_MODE: disabled
     ports:
@@ -19,6 +20,16 @@ services:
     init: true
     restart: unless-stopped
     read_only: true
+    volumes:
+      - type: bind
+        source: /srv/researchhub/ops/chat-runtime/admission
+        target: /run/researchhub-admission
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: /srv/researchhub/ops/chat-runtime/ledger
+        target: /run/researchhub-ai-ledger
+        bind: {create_host_path: false}
     tmpfs:
       - /tmp:size=128m,mode=1777
     cap_drop: [ALL]

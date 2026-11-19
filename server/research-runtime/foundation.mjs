@@ -17,6 +17,7 @@ import{createMyResearchController}from'../../scripts/my-research-overview.mjs';
 import{boundWorkerLifecycle}from'./worker-lifecycle.mjs';
 import{createRuntimeChat,createRuntimeChatController}from'./chat.mjs';
 import{createPmcObjectReader}from'./pmc-storage.mjs';
+import{loadChatAdmission,createChatBudget}from'./chat-budget.mjs';
 const field=(env,key,pattern)=>{if(!pattern.test(env[key]??''))throw Error('RESEARCH_RUNTIME_CONFIGURATION_REQUIRED:'+key);return env[key];};
 export async function createRuntimeFoundation({config,env,load,require,prisma,jwt}){
  if(config.scope.allowedTenantIds.length!==1)throw Error('RESEARCH_RUNTIME_SINGLE_HUB_TENANT_REQUIRED');
@@ -32,6 +33,12 @@ export async function createRuntimeFoundation({config,env,load,require,prisma,jw
  if(config.scope.enabledWorkerKinds.some(kind=>!['knowledge-import','raw-processing','knowledge-chat'].includes(kind)))throw Error('RESEARCH_RUNTIME_WORKER_NOT_ADAPTED');
  if(env.HUB_PAID_AI_ENABLED==='false'&&config.scope.enabledWorkerKinds.some(kind=>!['knowledge-import','raw-processing'].includes(kind)))throw Error('RESEARCH_RUNTIME_WORKER_ADMISSION_REQUIRED');
  const stopGates=[];
+ let chatBudget;
+ if(config.executionProfile==='bounded-hub-chat-v1'){
+  const admission=loadChatAdmission(env.HUB_CHAT_ADMISSION_FILE,env.HUB_CHAT_ADMISSION_SHA256);
+  if(admission.database!==config.identity.database||admission.tenantId!==config.scope.defaultTenantId||admission.coreDigest!==config.core.digest)throw Error('HUB_CHAT_ADMISSION_BINDING_CHANGED');
+  chatBudget=createChatBudget({admission,admissionSha:env.HUB_CHAT_ADMISSION_SHA256,directory:env.HUB_CHAT_LEDGER_DIR});
+ }
  const storage=createRuntimeStorage({load,require,settings:storageSettings(env)});
  const lock=load('common/worker-publication','lockAuthorizationMutation');
  const bound=(tx,tenant)=>({withTenantTransaction:(t,_g,_p,fn)=>{if(t!==tenant)throw Error('RESEARCH_RUNTIME_TENANT_REJECTED');return fn(tx);}});
@@ -47,7 +54,7 @@ export async function createRuntimeFoundation({config,env,load,require,prisma,jw
   await createDirectoryController({env:transactionEnv,ids,require,runtimePolicy}),await createReferenceController({env:transactionEnv,require,runtimePolicy}),await createResearchIdentityController({env:transactionEnv,ids,load,require,runtimePolicy}),
   createGovernanceAuditController({env:transactionEnv,ids,require,load}),createGovernanceSystemController({env:transactionEnv,ids,require,readState}),createGovernanceUsersController({require,service:users,origin:config.origin}),
   createMyResearchController({ids,prisma,load,require,runtime:true})];
- const providers=createRuntimeProviders({load,require,prisma,scope:config.scope,cookieName:config.cookieName,jwt,storage,embeddingMode,stopGates,modelEnabled:env.HUB_PAID_AI_ENABLED==='true',createChat:services=>(chat=createRuntimeChat({config,env,transactionEnv,prisma,load,services}))});
+ const providers=createRuntimeProviders({load,require,prisma,scope:config.scope,cookieName:config.cookieName,jwt,storage,embeddingMode,stopGates,modelEnabled:env.HUB_PAID_AI_ENABLED==='true',chatBudget,coreDigest:config.core.digest,createChat:services=>(chat=createRuntimeChat({config,env,transactionEnv,prisma,load,services,chatBudget}))});
  return{Controllers,providers,storage,transactionEnv,runtimePolicy,ids,
   bindWorkers:app=>{queue=app.get(load('sessions/knowledge-chat-queue.service','KnowledgeChatQueueService'));for(const[path,name]of [['knowledge/knowledge-import.service','KnowledgeImportService'],['ingest/raw-processing.service','RawProcessingService']])boundWorkerLifecycle(app.get(load(path,name)),stopGates);},
   stop:()=>stopGates.forEach(stop=>stop())};

@@ -62,7 +62,8 @@ def main():
  if a.action=='collect':
   context=directory.parent/'hub-backend-context';tag=os.environ['HUB_RELEASE_TAG'];artifacts.collect(argparse.Namespace(directory=str(directory),tag=tag,context=str(context),source_sha=policy['coreSourceSha256']))
   path=directory/'runtime-release.json';r=json.loads(path.read_text());r.pop('contextSha256',None);r.update(releaseGit=os.environ['GITHUB_SHA'],privateCoreSourceArchiveSha256=policy['coreSourceSha256'],databaseDigest=plan['databaseDigest'],databaseSources=plan['databaseSources'],databaseFingerprint=policy['target']['schemaFingerprint'],previousRelease=json.loads((directory/'baseline-pointer.json').read_text()),components={kind:provenance(previous,kind,plan['build'][kind],os.environ['GITHUB_SHA']) for kind in ('frontend','backend')})
-  if not plan['build']['backend']:r['hubDigest']=previous['hubDigest']
+  if not plan['build']['backend']:
+   r['hubDigest']=previous['hubDigest'];r['supportedExecutionProfiles']=previous.get('supportedExecutionProfiles',['disabled'])
   for kind,name in [('frontend','researchhub.tar.gz'),('backend','backend-image.tar.gz')]:r['images'][kind]['configId']=runtime.canonical_image_id(directory/name,r[kind+'Image'],r['files'][name]['sha256'])
   path.write_text(json.dumps(r,indent=2)+'\n');output({'tag':tag,'manifest_sha':digest(path.read_bytes())});return
 

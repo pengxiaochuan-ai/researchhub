@@ -13,7 +13,7 @@ def main():
  if hashlib.sha256(raw).hexdigest()!=a.manifest_sha:raise ValueError('HUB_IMAGE_MANIFEST_DIGEST_MISMATCH')
  release=json.loads(raw)
  if release.get('tag')!=a.tag or release.get('architecture')!='amd64' or release.get('tenantSlug')!=TARGET['tenantId']:raise ValueError('HUB_IMAGE_RELEASE_REJECTED')
- sources={'server.py':HERE/'hub-runtime-server.py','database-config.py':HERE.parent/'deploy/demo-database-config.py','run-server.py':HERE.parent/'deploy/manual-rds-server.py','backend-compose.yml':HERE.parent/'deploy/backend-demo.compose.yml','ecs-release.sh':HERE/'ecs-release.sh'}
+ sources={'server.py':HERE/'hub-runtime-server.py','execution-profile.py':HERE/'hub-execution-profile.py','database-config.py':HERE.parent/'deploy/demo-database-config.py','run-server.py':HERE.parent/'deploy/manual-rds-server.py','backend-compose.yml':HERE.parent/'deploy/backend-demo.compose.yml','ecs-release.sh':HERE/'ecs-release.sh'}
  if a.previous:sources.update({'pair.py':HERE/'hub-release-pair.py','frontend-compose.yml':HERE.parent/'docker-compose.ecs.yml','previous-release.json':pathlib.Path(a.previous)})
  bodies={name:path.read_bytes() for name,path in sources.items()};bodies['runtime-release.json']=raw
  if a.previous:
@@ -37,6 +37,7 @@ def main():
    bodies['previous-'+kind+'-compose.yml']=template(previous,kind)
  files={name:{'sha256':hashlib.sha256(body).hexdigest(),'bytes':len(body)} for name,body in bodies.items()}
  control={'schema':'researchhub-runtime-controls.v1','tag':a.tag,'imageManifestSha256':a.manifest_sha,'target':TARGET,'files':files,'controlGit':os.environ['GITHUB_SHA']}
+ policy=json.loads((HERE.parent/'deploy/release-policy.json').read_text());control['executionPolicy']=policy.get('executionPolicy',{'profile':'disabled'})
  if a.previous:
   previous=json.loads(bodies['previous-release.json']);control.update(paired=True,previousManifestSha256=hashlib.sha256(bodies['previous-release.json']).hexdigest(),previousTag=previous['tag'],previousBackendComposeSha256=hashlib.sha256(bodies['previous-backend-compose.yml']).hexdigest())
  content=(json.dumps(control,indent=2)+'\n').encode();sha=hashlib.sha256(content).hexdigest();prefix='releases/researchhub/'+a.tag+'/runtime-controls-'+sha[:16]+'/'

@@ -7,13 +7,15 @@ import {isHubConversation,projectHubMessages} from '../../scripts/hub-agent-cont
 import {hubHistoryQuery,projectHubHistoryPage} from '../../scripts/hub-conversation-history.mjs';
 import {agentQuestionError} from '../../src/agent-question.js';
 import {createHubTurnRuntime,fenceHubQueue} from './hub-turn.mjs';
+import {AsyncLocalStorage} from 'node:async_hooks';
 
 export const HUB_CHAT=Symbol.for('researchhub.runtime.chat');
 const unavailable=()=>{throw Object.assign(Error('科研问答尚未配置，请联系管理员。'),{status:503,code:'HUB_CHAT_NOT_CONFIGURED'});};
 const invalid=()=>{throw Object.assign(Error('问答参数或会话范围无效，请重新打开。'),{status:400,code:'HUB_CHAT_INPUT_INVALID'});};
-export function createRuntimeChat({config,env,transactionEnv,prisma,load,services}){
+export function createRuntimeChat({config,env,transactionEnv,prisma,load,services,chatBudget}){
  const tenantId=config.scope.defaultTenantId,agentId=tenantId+'-kb-research';
  const scope=(db,principal)=>({db,principal,tenantId,hubKey:'lingshu-xinyu'});
+ const sessionAdmission=new AsyncLocalStorage();
  const read=(user,fn)=>withDeploymentTransaction(transactionEnv,'app',async tx=>{
   if(user?.tenantId!==tenantId)invalid();
   if(user.studyGroupId&&user.researchProjectId)await tx.$executeRawUnsafe("SELECT set_config('app.study_group_id',$1,true),set_config('app.research_project_id',$2,true)",user.studyGroupId,user.researchProjectId);
@@ -41,7 +43,8 @@ export function createRuntimeChat({config,env,transactionEnv,prisma,load,service
    if(!config.scope.enabledWorkerKinds.includes('knowledge-chat'))result.push('HUB_CHAT_CONSUMER_DISABLED');
    return result;
   });
-  return{enabled:reasons.length===0,readOnly:true,code:reasons.length?'HUB_CHAT_NOT_CONFIGURED':null,reasons,materialUpload:{enabled:false,analysisReady:false}};
+  if(chatBudget&&!chatBudget.admission.accounts.includes(user.accountId)&&!reasons.includes('HUB_CHAT_ACCESS_NOT_GRANTED'))reasons.push('HUB_CHAT_ACCESS_NOT_GRANTED');
+  return{enabled:reasons.length===0,readOnly:true,code:reasons.length?'HUB_CHAT_NOT_CONFIGURED':null,reasons,...chatBudget&&{quota:chatBudget.quota(user.accountId)},materialUpload:{enabled:false,analysisReady:false}};
  }
  async function requireReady(user){if(!(await status(user)).enabled)unavailable();}
  async function authorize(user,tx){
@@ -60,12 +63,24 @@ export function createRuntimeChat({config,env,transactionEnv,prisma,load,service
  },async(tx,user,result)=>{
   if(!result?.id)invalid();
   await load('common/worker-authorization','assertWorkerAuthorized')(tx,config.scope,{kind:'knowledge-chat',taskId:result.id,tenantId:user.tenantId});
+  if(chatBudget){const job=await tx.knowledgeChatJob.findFirst({where:{id:result.id,tenantId:user.tenantId,accountId:user.accountId}});if(!job)invalid();chatBudget.admitJob(user.accountId,job);}
  });
  const runtime=createHubTurnRuntime({prisma,agentId,NativeSessions:load('sessions/sessions.service','SessionsService'),NativeOrchestrator:load('orchestrator/orchestrator.service','OrchestratorService'),...services,
   mutate:(user,fn)=>load('common/worker-publication','withAuthorizationMutation')(prisma,user.tenantId,fn,{studyGroupId:user.studyGroupId,researchProjectId:user.researchProjectId}),
   adminToolKeys:(kind,configured)=>load('common/tool-catalog','effectiveRuntimeToolKeys')(kind,configured,load('common/hub-knowledge-admin','hubChatAdminToolPermissions')()).filter(key=>key==='knowledge.search'),
-  authorize,retrieve:(user,query)=>read(user,db=>runHubSourceSearch({...scope(db,user),query})),revalidate:current});
- return{...runtime,status,requireReady,agentId,current,read,queueFence};
+  authorize,retrieve:(user,query)=>read(user,db=>runHubSourceSearch({...scope(db,user),query})),revalidate:current,
+  onSessionEnsured:chatBudget?async(tx,user,result)=>{
+   const admitted=sessionAdmission.getStore();if(!admitted||admitted.accountId!==user.accountId)invalid();
+   const session=await tx.session.findFirst({where:{id:result.id,tenantId:user.tenantId,accountId:user.accountId,agentId,channel:'knowledge',deletedAt:null},select:{id:true,accountId:true,tenantId:true,createdAt:true,contextKey:true}});
+   if(!session||!isHubConversation(session.contextKey))invalid();chatBudget.bindSession(user.accountId,admitted.key,session);
+  }:undefined});
+ const withSessionAdmission=async(user,key,fn)=>{
+  if(!chatBudget)return fn();
+  const slot=chatBudget.reserveSession(user.accountId,key);
+  if(slot.sessionId){try{await runtime.sessions.assertKnowledgeSession(user,slot.sessionId);}catch(e){if((e.status??e.getStatus?.())===404)throw Object.assign(Error('HUB_CHAT_COMMIT_PENDING'),{code:'HUB_CHAT_COMMIT_PENDING',status:409});throw e;}return{id:slot.sessionId};}
+  return sessionAdmission.run({accountId:user.accountId,key},fn);
+ };
+ return{...runtime,status,requireReady,agentId,current,read,queueFence,chatBudget,withSessionAdmission};
 }
 
 export function createRuntimeChatController({require,load,getChat,getQueue}){
@@ -75,10 +90,11 @@ export function createRuntimeChatController({require,load,getChat,getQueue}){
  class HubChatController{
   async agents(req){const chat=getChat();return(await chat.status(req.user)).enabled?[{id:chat.agentId,type:'research',name:'岐研科研 Agent'}]:[];}
   async status(req){return getChat().status(req.user);}
-  async ensureHub(req,input){const chat=getChat();body(input,['agentId','hubKey','conversationKey']);await chat.requireReady(req.user);if(input.agentId!==chat.agentId||input.hubKey!=='lingshu-xinyu')invalid();return ensureHubConversation({sessions:chat.sessions,authorize:chat.requireReady,user:req.user,agentId:chat.agentId,conversationKey:input.conversationKey});}
+   async ensureHub(req,input){const chat=getChat();body(input,['agentId','hubKey','conversationKey']);await chat.requireReady(req.user);if(input.agentId!==chat.agentId||input.hubKey!=='lingshu-xinyu')invalid();return chat.withSessionAdmission(req.user,input.conversationKey,()=>ensureHubConversation({sessions:chat.sessions,authorize:chat.requireReady,user:req.user,agentId:chat.agentId,conversationKey:input.conversationKey}));}
   async history(req,q){const chat=getChat();await chat.requireReady(req.user);const args=hubHistoryQuery(req.user,chat.agentId,q);return chat.read(req.user,async db=>{const rows=await db.session.findMany(args);return{items:await projectHubHistoryPage(rows,req.user,db,Number(q.limit??20)),hasMore:rows.length>Number(q.limit??20),page:Number(q.page??1)};});}
-  async state(req,id,q){const chat=getChat();await chat.requireReady(req.user);await own(chat,req.user,id);if(Object.keys(q).some(k=>!['limit','before'].includes(k)))invalid();const limit=Number(q.limit??60);if(!Number.isSafeInteger(limit)||limit<1||limit>100)invalid();const result=await getQueue().state(req.user,id,{limit,...(q.before?{before:q.before}:{})});return{...result,messages:await projectHubMessages(result.messages,s=>chat.current(req.user,s)),hubContext:{kind:'hub',sessionId:id}};}
+  async state(req,id,q){const chat=getChat();await chat.requireReady(req.user);await own(chat,req.user,id);if(Object.keys(q).some(k=>!['limit','before'].includes(k)))invalid();const limit=Number(q.limit??60);if(!Number.isSafeInteger(limit)||limit<1||limit>100)invalid();const result=await getQueue().state(req.user,id,{limit,...(q.before?{before:q.before}:{})});return{...result,...chat.chatBudget&&{quota:chat.chatBudget.isAdmittedSession(req.user.accountId,id)?chat.chatBudget.quota(req.user.accountId):{blocked:true,message:'此历史会话仅供查看，请使用新对话提问。'}},messages:await projectHubMessages(result.messages,s=>chat.current(req.user,s)),hubContext:{kind:'hub',sessionId:id}};}
   async send(req,id,input){const chat=getChat();body(input,['text','requestKey','kbIds','networkIntent']);await chat.requireReady(req.user);await own(chat,req.user,id);
+    if(chat.chatBudget){chat.chatBudget.assertAdmittedSession(req.user.accountId,id);chat.chatBudget.assertCanEnqueue(req.user.accountId,{sessionId:id,requestKey:input.requestKey});}
    if(agentQuestionError(input.text)||!/^[A-Za-z0-9_-]{8,160}$/.test(input.requestKey??'')||!Array.isArray(input.kbIds)||input.kbIds.length)invalid();
    if(input.networkIntent&&(![false,undefined].includes(input.networkIntent.enabled)||Object.keys(input.networkIntent).some(k=>k!=='enabled')))unavailable();
    return getQueue().enqueue(req.user,id,{text:input.text,requestKey:input.requestKey,kbIds:[]});
@@ -93,7 +109,7 @@ export function createRuntimeChatController({require,load,getChat,getQueue}){
   const name='unavailable'+routes.length;HubChatController.prototype[name]=HubChatController.prototype.notConfigured;routes.push([name,verb,path,[]]);
  }
  for(const [method,verb,path,params]of routes){
-  const original=HubChatController.prototype[method];HubChatController.prototype[method]=async function(...args){try{return await original.apply(this,args);}catch(e){if(e.getStatus)throw e;throw new HttpException({code:e.code??'HUB_CHAT_UNAVAILABLE',message:e.status===400?e.message:e.code==='HUB_CHAT_NOT_CONFIGURED'?'科研问答尚未配置，请联系管理员。':'当前会话或来源暂不可用，请重新核对后重试。'},e.status??503);}};
+  const original=HubChatController.prototype[method];HubChatController.prototype[method]=async function(...args){try{return await original.apply(this,args);}catch(e){if(e.getStatus)throw e;throw new HttpException({code:e.code??'HUB_CHAT_UNAVAILABLE',message:e.status===400?e.message:e.code==='HUB_CHAT_NOT_CONFIGURED'?'科研问答尚未配置，请联系管理员。':e.code==='HUB_CHAT_COMMIT_PENDING'?'前次请求状态待核对，请联系管理员，暂勿重复提交。':e.code==='HUB_CHAT_SESSION_NOT_ADMITTED'?'此历史会话仅供查看，请使用新对话提问。':/^HUB_CHAT_(BUDGET_|SESSION_LIMIT)/.test(e.code??'')?'当前AI使用额度不可用，请联系管理员。':'当前会话或来源暂不可用，请重新核对后重试。'},e.status??503);}};
   const p=HubChatController.prototype;verb(path)(p,method,Object.getOwnPropertyDescriptor(p,method));Req()(p,method,0);params.forEach((d,i)=>d(p,method,i+1));
   if(!['status','agents'].includes(method))for(const decorate of [load('common/decorators','RequireStudyGroup')(),load('common/decorators','RequireResearchProject')(),load('common/decorators','RequireStudyGroupMenu')('workbench'),load('common/decorators','RequireStudyGroupPermission')('chat.use')])decorate(p,method,Object.getOwnPropertyDescriptor(p,method));
  }

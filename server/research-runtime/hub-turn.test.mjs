@@ -18,7 +18,7 @@ test('assistant fence covers elevated/app/tenant callbacks in the original trans
  assert.throws(()=>fenced.elevated.$transaction([]),/CONTEXT_REJECTED/);
 });
 
-function harness({revoke=false}={}){
+function harness({revoke=false,modelFailure=false}={}){
  const user={tenantId:'t',accountId:'a',studyGroupId:'g',researchProjectId:'p'},execution={claim:{kind:'knowledge-chat',taskId:'job'}};
  const opts={requestKey:'request-key',existingUserMessageId:'message',execution,kbIds:[],kbAgent:true};
  const source={sourceRecordId:'rhsr-'+'a'.repeat(40),snippetHash:'b'.repeat(64)},calls=[];
@@ -28,7 +28,7 @@ function harness({revoke=false}={}){
   async assertKnowledgeSession(){return{agentId:'agent',contextKey:HUB_CONTEXT_KEY};}
   async sendMessage(u,sid,text,options){
    calls.push('native-session');
-   const result=await this.orchestrator.run({user:u,userMessage:text,history:[],ctx:{...u,sessionId:sid,requestKey:options.requestKey,execution:options.execution,assertExecution:async()=>calls.push('claim'),onProviderUsage:()=>calls.push('usage'),abortSignal:new AbortController().signal}},()=>{});
+   const result=await this.orchestrator.run({user:u,userMessage:text,history:[],ctx:{...u,sessionId:sid,requestKey:options.requestKey,execution:options.execution,assertExecution:async()=>calls.push('claim'),onProviderUsage:sample=>calls.push(sample?'known-usage':'usage'),abortSignal:new AbortController().signal}},()=>{});
    return this.db.elevated.$transaction(t=>t.message.create({data:{sessionId:sid,role:'assistant',content:result.finalText,meta:{provenance:result.provenance}}}));
   }
  }
@@ -38,12 +38,14 @@ function harness({revoke=false}={}){
    assert.equal(ctx.execution,execution);assert.equal(userMessage,hubCoreQuestion);assert.equal(ctx.kbIds[0],HUB_TOOL_KB_ID);
    assert(ctx.abortSignal);assert(ctx.onProviderUsage);assert(ctx.assertExecution);
    await this.tools.execute(user,'kb_search',JSON.stringify({query:userMessage,kbId:HUB_TOOL_KB_ID}));
-   await this.provider.chat([{role:'system',content:'evidence'},{role:'user',content:'用户问题：'+hubCoreQuestion+'\nsource'}],{},{});
+   try{await this.provider.chat([{role:'system',content:'evidence'},{role:'user',content:'用户问题：'+hubCoreQuestion+'\nsource'}],{},{});}catch(e){if(!modelFailure)throw e;}
    ctx.onProviderUsage();return{finalText:'来源支持此说明[1]',usage:{totalTokens:1},providerOutcome:'known',usedMock:false};
   }
  }
  const runtime=createHubTurnRuntime({prisma,NativeSessions,NativeOrchestrator,agentId:'agent',tools:{toolDefs:()=>[{function:{name:'kb_search'}}]},
-  provider:{chat:async messages=>{assert.match(messages[1].content,/实际问题/);calls.push('provider');}},
+  provider:{chat:async messages=>{assert.match(messages[1].content,/实际问题/);calls.push('provider');if(modelFailure){const e=Error('REAL_PROVIDER_FAILED');if(modelFailure==='known')e.knownUsage={model:'deepseek-v4-pro',promptTokens:100,completionTokens:20,totalTokens:120};throw e;}return{usedMock:false};}},
+  modelExecution:modelFailure?(_proof,fn)=>fn():undefined,
+  knownUsageSample:u=>({...u,cost:0.001}),
   authorize:async(_u,db)=>{if(db)calls.push('tx-authorization');},
   retrieve:async()=>({mutated:false,result:'[1] 已审核证据',meta:{toolName:'hub_source_search',sources:[source]}}),
   revalidate:async(_u,_s,db)=>{if(db){assert.equal(db,tx);calls.push('tx-source');if(revoke)throw Error('SOURCE_REVOKED');}},
@@ -59,6 +61,8 @@ test('source revoked after provider prevents assistant delivery in native public
  const {runtime,user,opts,calls}=harness({revoke:true});await assert.rejects(runtime.sessions.sendMessage(user,'session','实际问题',opts),/SOURCE_REVOKED/);
  assert(calls.includes('provider'));assert(!calls.includes('assistant'));
 });
+test('native deterministic fallback cannot disguise a failed paid model execution',async()=>{const {runtime,user,opts,calls}=harness({modelFailure:true});await assert.rejects(runtime.sessions.sendMessage(user,'session','实际问题',opts),/REAL_PROVIDER_FAILED/);assert(!calls.includes('assistant'));});
+test('known usage survives a settlement failure and reaches native reconciliation exactly once',async()=>{const{runtime,user,opts,calls}=harness({modelFailure:'known'});await assert.rejects(runtime.sessions.sendMessage(user,'session','实际问题',opts),/REAL_PROVIDER_FAILED/);assert.equal(calls.filter(x=>x==='known-usage').length,1);assert(!calls.includes('assistant'));});
 test('bare send/virtual KB passed into worker options cannot bypass the native claim path',async()=>{
  const {runtime,user,opts,calls}=harness();await assert.rejects(runtime.sessions.sendMessage(user,'session','实际问题',{...opts,execution:undefined}),/CONTEXT_REJECTED/);
  await assert.rejects(runtime.sessions.sendMessage(user,'session','实际问题',{...opts,kbIds:[HUB_TOOL_KB_ID]}),/CONTEXT_REJECTED/);assert.deepEqual(calls,[]);

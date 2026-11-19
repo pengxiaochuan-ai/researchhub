@@ -18,6 +18,9 @@ export function readResearchRuntimeConfig(env=process.env){
  if(env.DEPLOYMENT_PRODUCT!=='researchhub')invalid('DEPLOYMENT_PRODUCT');
  const scope=parseDeploymentScope(env),cookieName=resolveAuthCookieName(scope,env);
  const profile=env.HUB_RUNTIME_PROFILE??'minimal';
+ const executionProfile=env.HUB_EXECUTION_PROFILE??'disabled';
+ if(!['disabled','bounded-hub-chat-v1'].includes(executionProfile)||env.HUB_PAID_AI_ENABLED==='true'&&executionProfile!=='bounded-hub-chat-v1'||executionProfile==='bounded-hub-chat-v1'&&(env.HUB_PAID_AI_ENABLED!=='true'||scope.enabledWorkerKinds.length!==1||scope.enabledWorkerKinds[0]!=='knowledge-chat'))invalid('HUB_EXECUTION_PROFILE');
+ if(executionProfile==='bounded-hub-chat-v1'&&(env.HUB_CHAT_ADMISSION_FILE!=='/run/researchhub-admission/admission.json'||env.HUB_CHAT_LEDGER_DIR!=='/run/researchhub-ai-ledger'||!/^[a-f0-9]{64}$/.test(env.HUB_CHAT_ADMISSION_SHA256??'')))invalid('HUB_CHAT_ADMISSION_FILE');
  const assetMarkdownExport=env.HUB_ASSET_MARKDOWN_EXPORT_ENABLED??'false';if(!['true','false'].includes(assetMarkdownExport))invalid('HUB_ASSET_MARKDOWN_EXPORT_ENABLED');
  if(!['minimal','full'].includes(profile)||env.NODE_ENV==='production'&&profile!=='full')invalid('HUB_RUNTIME_PROFILE');
  if(profile==='minimal'&&scope.enabledWorkerKinds.length)invalid('ENABLED_WORKER_KINDS');
@@ -38,5 +41,5 @@ export function readResearchRuntimeConfig(env=process.env){
   for(const [url,role]of [[database,env.HUB_DATABASE_APP_ROLE],[direct,env.HUB_DATABASE_OWNER_ROLE]]){const u=new URL(url);if(decodeURIComponent(u.pathname.slice(1))!==env.HUB_DATABASE_NAME||decodeURIComponent(u.username)!==role)invalid('HUB_DATABASE_NAME');}
   identity=Object.freeze({database:env.HUB_DATABASE_NAME,appRole:env.HUB_DATABASE_APP_ROLE,directRole:env.HUB_DATABASE_OWNER_ROLE,markerDigest:env.HUB_DATABASE_MARKER_SHA256,deploymentId:scope.deploymentId,tenantId:scope.defaultTenantId});
  }
- return Object.freeze({databaseUrl:database,directUrl:direct,jwtSecret:env.JWT_SECRET,scope,cookieName,origin:parsed.origin,secureCookie:env.HUB_AUTH_COOKIE_SECURE==='true',host,port:Number(portValue),core,profile,identity,assetMarkdownExportEnabled:assetMarkdownExport==='true'});
+ return Object.freeze({databaseUrl:database,directUrl:direct,jwtSecret:env.JWT_SECRET,scope,cookieName,origin:parsed.origin,secureCookie:env.HUB_AUTH_COOKIE_SECURE==='true',host,port:Number(portValue),core,profile,executionProfile,identity,assetMarkdownExportEnabled:assetMarkdownExport==='true'});
 }

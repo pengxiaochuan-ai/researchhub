@@ -42,7 +42,7 @@ def main():
   need(part.is_dir() and not part.is_symlink() and part.stat().st_uid==0 and part.stat().st_mode&0o077==0,'HUB_RUNTIME_DIRECTORY_NOT_PRIVATE')
  prefix='releases/researchhub/'+tag+'/runtime-controls-'+sha[:16]+'/'
  fetch(store,prefix+'control-manifest.json',directory/'control-manifest.json',sha);control=json.loads((directory/'control-manifest.json').read_text())
- expected={'server.py','database-config.py','run-server.py','backend-compose.yml','runtime-release.json','ecs-release.sh'}
+ expected={'server.py','execution-profile.py','database-config.py','run-server.py','backend-compose.yml','runtime-release.json','ecs-release.sh'}
  if action.startswith('pair-'):
   need(control.get('paired') is True,'HUB_PAIR_CONTROL_REQUIRED');expected.update({'pair.py','frontend-compose.yml','previous-release.json','previous-frontend-compose.yml','previous-backend-compose.yml'})
  need(control.get('schema')=='researchhub-runtime-controls.v1' and control.get('tag')==tag and set(control.get('files',{}))==expected,'HUB_RUNTIME_CONTROL_INVENTORY_REJECTED')
