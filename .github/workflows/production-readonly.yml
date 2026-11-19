@@ -5,7 +5,7 @@ on:
       profile:
         description: Readonly inspection profile
         type: choice
-        options: [catalog, rds-demo]
+        options: [catalog, rds-demo, hub-runtime]
         default: catalog
 permissions:
   contents: read

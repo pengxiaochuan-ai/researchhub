@@ -2,10 +2,14 @@ import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
+import { createApiProxy } from './api-proxy.mjs';
 
 const host = process.env.HOST ?? '0.0.0.0';
 const port = Number(process.env.PORT ?? 3000);
 const distRoot = resolve('dist');
+const apiProxy = process.env.HUB_API_UPSTREAM
+  ? createApiProxy({ upstream: process.env.HUB_API_UPSTREAM, authority: process.env.HUB_API_AUTHORITY ?? 'hub.pengxc.com' })
+  : null;
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -32,6 +36,8 @@ const server = createServer(async (request, response) => {
       }).end('{"ok":true}');
       return;
     }
+
+    if (apiProxy?.(request, response)) return;
 
     let filePath = resolve(distRoot, `.${pathname}`);
     if (filePath !== distRoot && !filePath.startsWith(`${distRoot}${sep}`)) {
