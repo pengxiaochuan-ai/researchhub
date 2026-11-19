@@ -1,6 +1,12 @@
 name: ResearchHub production readonly preflight
 on:
   workflow_dispatch:
+    inputs:
+      profile:
+        description: Readonly inspection profile
+        type: choice
+        options: [catalog, rds-demo]
+        default: catalog
 permissions:
   contents: read
 concurrency:
@@ -22,4 +28,5 @@ jobs:
           ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
           ALIYUN_ECS_INSTANCE_ID: ${{ secrets.ALIYUN_ECS_INSTANCE_ID }}
           ALIYUN_REGION_ID: cn-hangzhou
+          HUB_READONLY_PROFILE: ${{ inputs.profile || 'catalog' }}
         run: bash scripts/production-readonly-run.sh
