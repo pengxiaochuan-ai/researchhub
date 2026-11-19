@@ -132,7 +132,7 @@ def main(action):
      if run(['curl','--silent','--max-time','4','--output','/dev/null','--write-out','%{http_code}','--header','Host: hub.pengxc.com','http://127.0.0.1:19612/api/auth/me'])=='401':ready=True;break
     except ValueError:pass
     time.sleep(2)
-   need(ready,'CHAT_ACTIVATION_STATE_RECHECK_REQUIRED');container=current();r=metadata(container);need(r['queueSnapshot']==a['initialQueueSnapshot'],'CHAT_ACTIVATION_HISTORICAL_QUEUE_CHANGED')
+   need(ready,'CHAT_ACTIVATION_STATE_RECHECK_REQUIRED');container=current();saved=m.read_config(OPS/'.env.prod');r=metadata(container);need(r['queueSnapshot']==a['initialQueueSnapshot'],'CHAT_ACTIVATION_HISTORICAL_QUEUE_CHANGED')
   live={line.split('=',1)[0]:line.split('=',1)[1] for line in container['Config'].get('Env',[]) if '=' in line}
   result={'status':'chat-runtime-inspected' if action=='inspect' else 'chat-runtime-enabled','admissionSha256':sha,'modelsEnabled':live.get('HUB_PAID_AI_ENABLED')=='true','configuredModelsEnabled':saved.get('HUB_PAID_AI_ENABLED')=='true','workerKinds':live.get('ENABLED_WORKER_KINDS',''),'sessions':len(ledger['sessions']),'jobs':len(ledger['jobs']),'actualRequests':len(ledger['dispatches']),'feeUpperMicros':sum(d.get('feeUpperMicros',d['reservedMicros']) for d in ledger['dispatches']),'dispatchStates':[d['state'] for d in ledger['dispatches']]}
   if action=='inspect':result['resolvedMounts']=json.loads(run(['docker','compose','--project-name','researchhub-backend','--env-file',str(OPS/'.env.prod'),'-f',str(p/'backend-compose.yml'),'config','--format','json']))['services']['researchhub-api'].get('volumes',[])
