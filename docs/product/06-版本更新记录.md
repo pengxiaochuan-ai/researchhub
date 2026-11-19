@@ -1,3 +1,11 @@
+## 2026-11-19 · 前后端统一成对发布已实测
+
+ResearchHub独立演示环境已运行`hub-runtime-8f5aee04-44525278754001`，前后端发布源码均为`8f5aee0`。main普通push自动进入唯一发布流水线，按上一成功版本识别累计差额；只重建有变更的组件，另一端从受审归档复用并保留真实源码版本，两端仍以同一发布tag成对部署。文档/测试独有差额跳过镜像构建和服务器切换；数据库模型/SQL差额停在独立确认门禁，流水线不执行迁移或授权。
+
+实际运行[44525278754](https://github.com/pengxiaochuan-ai/researchhub/actions/runs/44525278754)成功：原生amd64构建、旧镜像复用校验、五项独立Docker/PG升级回退演练、Hub切换、公开真实浏览器和成功指针写入/回读均通过。旧系统、官网及六类历史任务未变；RDS仍使用独立`researchhub`库，配置统一`/srv/researchhub/ops/.env.prod`并保留原参数。AI、邮件及Worker仍关闭，未执行数据库迁移。
+
+独立Chrome另验证owner/admin登录和P01/H01/E01/K01/A01读取，12项检查、12截图/2录屏，无页面脚本异常或非认证接口失败。A01当前正式目录真实为空；历史测试资产不自动转换。K01仅证明目录读取，资料正文/原件/解析与AI能力另验。用户业务签收仍待体验，不能由部署验证代签。[发布规格](../technical/unified-release-pipeline-2026-11-19.md) · [验证记录](../testing/unified-release-pipeline-2026-11-19.md)。
+
 ## 2026-11-19 · 独立演示后端与线上前端接通
 
 ResearchHub已连接现有RDS中的独立`researchhub`数据库，配置唯一`/srv/researchhub/ops/.env.prod`，保留原参数；不连接或迁移旧`aisci`。linux/amd64构建44502950789、独立API启用44508811755、前端接通44509082815成功。Hub使用自身同源API代理，前端不注入DB/JWT/S3/SMTP秘密；旧ops/official-site容器identity/image/status未变，新库六类历史任务摘要未变。

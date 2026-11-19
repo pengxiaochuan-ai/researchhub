@@ -2,9 +2,11 @@
 
 ## 当前仓库交付与数据库部署
 
-本仓库保存ResearchHub自身的前后端实现、适配器、测试及设计。现有Docker/Compose只发布静态前端，完整后端仍有旧项目服务依赖，不能仅clone后即部署全部能力。数据库沿用已确认的“共享PG实例/库/公共表＋租户隔离”，正式迁移需从目标基线另行审定；不要恢复本机合成数据库或运行本机夹具脚本。
+本仓库保存ResearchHub自身的前后端实现、适配器、测试及设计。独立演示环境已接通现有RDS中的`researchhub`库，保留获准资料和明确标识的合成样例；不改旧`aisci`或官网。合并数据库留待12月以后重新评估。
 
-详见[独立仓库与数据库部署边界](docs/technical/repository-and-database-delivery-2026-11-18.md)和[无凭据配置模板](deploy/researchhub.env.example)。现有main代码推送会触发自动发布；本次源码交付用`[skip ci]`避免生产发布，后续发布仍须明确确认。生成证据、原始资料和本机运行配置保留本地，不在公开仓库提供。
+main普通push自动进入[前后端统一发布流水线](docs/technical/unified-release-pipeline-2026-11-19.md)：按上一成功版本识别变更，重建有变组件、复用未变组件，两端用同一版本成对发布；文档/测试独有差额不切服务。数据库模型/SQL差额必须独立确认，流水线不执行迁移或授权。当前实际成对版本`hub-runtime-8f5aee04-44525278754001`已完成构建、合成升级回退演练、线上切换、浏览器与成功指针验证。
+
+完整后端仍依赖受审的私有core封存包，不能仅clone公开仓库部署全部能力；私有材料、凭据、快照和生成证据不公开。运行配置唯一为`/srv/researchhub/ops/.env.prod`。AI/邮件/Worker尚未启用；本次验证为登录和主要页面只读，不代表全部科研功能验收。[验证记录](docs/testing/unified-release-pipeline-2026-11-19.md) · [独立数据库边界](docs/technical/repository-and-database-delivery-2026-11-18.md) · [用户操作手册](docs/product/用户验证与操作手册.md)。历史[手动建库步骤](docs/technical/manual-rds-setup-2026-11-19.md)仅供准确阶段核对，已完成的恢复不要重复执行。
 
 本工程将各个高保真页面保持为独立路由与入口，在同一个 Vite 服务中访问。已有压缩包页面保留各自的 `src`，后续同一产品线页面可复用 `pages/shared/` 中的平台组件，但页面编号、入口和母版映射始终独立，因此同名文件不会覆盖。
 
