@@ -142,6 +142,12 @@ jobs:
           HUB_FIXTURE_NODE_IMAGE: researchhub-backend:${{ env.HUB_RELEASE_TAG }}
           HUB_REHEARSAL_OUTPUT: ${{ runner.temp }}/hub-rehearsal
         run: python3 scripts/hub-release-rehearsal.py
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.artifacts.outcome == 'success'
+        with:
+          name: synthetic-release-rehearsal
+          path: ${{ runner.temp }}/hub-rehearsal/*.json
+          retention-days: 7
       - name: Bind paired controls to the exact manifest
         id: control
         if: steps.prepare.outputs.release_required == 'true' && env.MODE != 'plan'

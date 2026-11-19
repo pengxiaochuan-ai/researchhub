@@ -98,12 +98,11 @@ def canonical_image_id(archive,reference,expected_sha,architecture='amd64'):
    except (ValueError,UnicodeError):continue
    if name=='manifest.json':entries=body
    elif isinstance(body,dict) and 'rootfs' in body:
-    need(body.get('architecture')==architecture and body.get('os')=='linux','HUB_RUNTIME_IMAGE_CONFIG_ARCH_REJECTED')
-    digest=hashlib.sha256(raw).hexdigest();need(name.split('/')[-1].split('.')[0]==digest,'HUB_RUNTIME_IMAGE_CONFIG_DIGEST_MISMATCH');configs[name]='sha256:'+digest
+    digest=hashlib.sha256(raw).hexdigest();need(name.split('/')[-1].split('.')[0]==digest,'HUB_RUNTIME_IMAGE_CONFIG_DIGEST_MISMATCH');configs[name]={'id':'sha256:'+digest,'architecture':body.get('architecture'),'os':body.get('os')}
  need(isinstance(entries,list) and len(entries)==1,'HUB_RUNTIME_IMAGE_MANIFEST_REJECTED')
  entry=entries[0];tags=entry.get('RepoTags') or []
  need(tags.count(reference)==1,'HUB_RUNTIME_IMAGE_TAG_REJECTED')
- config=entry.get('Config');need(config in configs,'HUB_RUNTIME_IMAGE_CONFIG_MISSING');return configs[config]
+ config=entry.get('Config');need(config in configs,'HUB_RUNTIME_IMAGE_CONFIG_MISSING');selected=configs[config];need(selected['architecture']==architecture and selected['os']=='linux','HUB_RUNTIME_IMAGE_CONFIG_ARCH_REJECTED');return selected['id']
 
 def backend_archive(release):
  local=PACKAGE/'backend-image.tar.gz'

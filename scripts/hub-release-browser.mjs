@@ -9,7 +9,7 @@ let passed=false;
 try{
  await page.goto(base+'/pages/p003/',{waitUntil:'domcontentloaded'});await page.getByLabel('邮箱',{exact:true}).waitFor();await page.screenshot({path:out+'/login.png',fullPage:true});
  assert.equal((await context.request.get(base+'/api/auth/me')).status(),401);
- const overview=await context.request.get(base+'/api/hubs/lingshu-xinyu/overview');assert.equal(overview.status(),200);assert((await overview.json()).schemaVersion??true);
+ const overview=await context.request.get(base+'/api/hubs/lingshu-xinyu/overview');assert.equal(overview.status(),200);const data=await overview.json();assert.equal(data.hub?.key,'lingshu-xinyu');assert(Array.isArray(data.clinicalRegistries)&&data.clinicalRegistries.length>0,'Approved registry rows are missing');
  await page.goto(base+'/pages/h01/',{waitUntil:'domcontentloaded'});await page.getByText('针灸治疗情志病',{exact:true}).first().waitFor();await page.waitForTimeout(1500);
  assert(requests.some(r=>r.path==='/api/hubs/lingshu-xinyu/overview'&&r.status===200));assert(!requests.some(r=>r.status>=500));assert.equal(errors.length,0);await page.screenshot({path:out+'/domain.png',fullPage:true});passed=true;
 }finally{fs.writeFileSync(out+'/result.json',JSON.stringify({passed,checks:['login-form','anonymous-401','database-overview-200','domain-render'],errors,requests,authenticatedLoginTested:false,modelsCalled:false,mailSent:false},null,2));await context.close();await browser.close();}

@@ -78,7 +78,7 @@ def apply_images(helper,release,template=None,backend_template=None):
  m.command(front_args()+['up','-d','--no-deps','researchhub'],120);healthy()
 
 
-def publish_pointer(control,release,previous):
+def release_storage():
  import oss2
  values={}
  for line in (m.OPS/'.env.release').read_text().splitlines():
@@ -86,7 +86,24 @@ def publish_pointer(control,release,previous):
   if sep and key in ('S3_ACCESS_KEY','S3_SECRET_KEY','S3_ENDPOINT','S3_BUCKET'):
    need(key not in values,'HUB_PAIR_STORAGE_DUPLICATE');values[key]=m.unquote(value)
  need(len(values)==4,'HUB_PAIR_STORAGE_REQUIRED')
- store=oss2.Bucket(oss2.Auth(values['S3_ACCESS_KEY'],values['S3_SECRET_KEY']),values['S3_ENDPOINT'],values['S3_BUCKET'],connect_timeout=15);key='releases/researchhub/current-release.json'
+ return oss2.Bucket(oss2.Auth(values['S3_ACCESS_KEY'],values['S3_SECRET_KEY']),values['S3_ENDPOINT'],values['S3_BUCKET'],connect_timeout=15)
+
+def preflight_pointer(control,release,previous):
+ store=release_storage()
+ try:current=json.loads(store.get_object('releases/researchhub/current-release.json').read())
+ except Exception as error:
+  if getattr(error,'status',None)!=404:raise
+  current=None
+ need(current is None and previous['tag']=='hub-runtime-1e0d7087-44502950789' or current and current.get('tag')==previous['tag'] and current.get('manifestSha256')==control['previousManifestSha256'],'HUB_PAIR_SUCCESS_POINTER_CHANGED')
+ key='releases/researchhub/'+release['tag']+'/storage-preflight-'+control['imageManifestSha256'][:16]+'.json';raw=json.dumps({'syntheticDeploymentProbe':True,'tag':release['tag']}).encode()
+ try:
+  store.put_object(key,raw,headers={'x-oss-object-acl':'private'});need(store.get_object(key).read()==raw,'HUB_PAIR_STORAGE_PROBE_MISMATCH')
+ except Exception as error:
+  if getattr(error,'status',None)==403:raise m.Stop('HUB_PAIR_STORAGE_WRITE_NOT_AUTHORIZED')
+  raise
+
+def publish_pointer(control,release,previous):
+ store=release_storage();key='releases/researchhub/current-release.json'
  desired={'schema':'researchhub-release-pointer.v1','tag':release['tag'],'manifestSha256':control['imageManifestSha256'],'releaseGit':release.get('releaseGit',release['controlGit']),'components':release.get('components',{})}
  try:current=json.loads(store.get_object(key).read())
  except Exception as error:
@@ -113,9 +130,9 @@ def run(action,sha):
  items=m.containers();old_services=m.baseline(items);states=m.task_snapshot(helper,saved)
  need(not re.search(r'^\s*env_file:',(HERE/'frontend-compose.yml').read_text(),re.M),'HUB_PAIR_FRONTEND_ENV_FILE_REJECTED')
  need(m.command(front_args()+['config','--services']).split()==['researchhub'],'HUB_PAIR_FRONTEND_SCOPE_REJECTED');need(m.command(back_args()+['config','--services']).split()==['researchhub-api'],'HUB_PAIR_BACKEND_SCOPE_REJECTED')
- target=control['target'];journal=HERE/'pair-receipt.json';previous_template=HERE/'previous-frontend-compose.yml';previous_backend=HERE/'previous-backend-compose.yml'
+ target=control['target'];journal=HERE/'pair-receipt.json';baseline_file=HERE/'pair-baseline.json';previous_template=HERE/'previous-frontend-compose.yml';previous_backend=HERE/'previous-backend-compose.yml'
  if action=='pair-finalize':
-  pair_matches(items,release,target);healthy();need(journal.is_file() and json.loads(journal.read_text()).get('status') in ('applied','promoted'),'HUB_PAIR_APPLIED_RECEIPT_REQUIRED');publish_pointer(control,release,previous);save(journal,{'status':'promoted','tag':release['tag']});print(json.dumps({'status':'paired-release-complete','tag':release['tag'],'databaseMigrationExecuted':False}));return
+  pair_matches(items,release,target);healthy();need(baseline_file.is_file(),'HUB_PAIR_BASELINE_RECEIPT_REQUIRED');baseline=json.loads(baseline_file.read_text());need(m.baseline(m.containers())==baseline['services'],'HUB_OTHER_SERVICES_CHANGED');m.assert_task_snapshot(baseline['tasks'],m.task_snapshot(helper,saved));need(journal.is_file() and json.loads(journal.read_text()).get('status') in ('applied','promoted'),'HUB_PAIR_APPLIED_RECEIPT_REQUIRED');publish_pointer(control,release,previous);save(journal,{'status':'promoted','tag':release['tag']});print(json.dumps({'status':'paired-release-complete','tag':release['tag'],'databaseMigrationExecuted':False}));return
  if action=='pair-verify':pair_matches(items,release,target);healthy();print(json.dumps({'status':'paired-release-verified','tag':release['tag']}));return
  need(previous_backend.is_file() and m.file_sha(previous_backend)==control['previousBackendComposeSha256'],'HUB_PAIR_PREVIOUS_BACKEND_TEMPLATE_MISMATCH')
  if action=='pair-rollback':
@@ -124,6 +141,7 @@ def run(action,sha):
   owned_pair(items,release);need(previous_template.is_file() and m.file_sha(previous_template)==previous['files']['docker-compose.ecs.yml']['sha256'],'HUB_PAIR_ROLLBACK_TEMPLATE_REQUIRED');apply_images(helper,previous,previous_template,previous_backend);(m.OPS/'docker-compose.ecs.yml').write_bytes(previous_template.read_bytes());pair_matches(m.containers(),previous,target)
   need(m.baseline(m.containers())==old_services,'HUB_OTHER_SERVICES_CHANGED');m.assert_task_snapshot(states,m.task_snapshot(helper,saved));save(journal,{'status':'rolled-back','tag':previous['tag']});print(json.dumps({'status':'paired-rollback-complete','tag':previous['tag']}));return
  pair_matches(items,previous,target)
+ preflight_pointer(control,release,previous)
  recorded=helper.read_config(m.OPS/'current.env');need(recorded.get('RESEARCHHUB_IMAGE')==previous['frontendImage'] and saved.get('HUB_BACKEND_IMAGE')==previous['backendImage'],'HUB_PAIR_CURRENT_REFERENCE_MISMATCH')
  compose=m.OPS/'docker-compose.ecs.yml';need(compose.is_file() and not compose.is_symlink() and m.file_sha(compose)==previous['files']['docker-compose.ecs.yml']['sha256'],'HUB_PAIR_PREVIOUS_FRONTEND_TEMPLATE_MISMATCH')
  need(previous_template.is_file() and m.file_sha(previous_template)==previous['files']['docker-compose.ecs.yml']['sha256'],'HUB_PAIR_PREVIOUS_FRONTEND_TEMPLATE_MISMATCH')
@@ -131,6 +149,9 @@ def run(action,sha):
  for kind,name in [('backend','backend-image.tar.gz'),('frontend','researchhub.tar.gz')]:
   image=load_image(HERE/name,release[kind+'Image'],release['images'][kind]['id'])
   if kind=='frontend':m.assert_frontend_environment(image)
+ if baseline_file.exists():
+  baseline=json.loads(baseline_file.read_text());need(baseline['services']==old_services,'HUB_OTHER_SERVICES_CHANGED');m.assert_task_snapshot(baseline['tasks'],states)
+ else:save(baseline_file,{'services':old_services,'tasks':states})
  save(journal,{'status':'prepared','tag':release['tag'],'previousTag':previous['tag'],'manifestSha256':control['imageManifestSha256']})
  accepted=False
  try:

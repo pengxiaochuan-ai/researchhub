@@ -22,3 +22,12 @@
 4. 独立合成环境验证配对升级、任一组件故障整组回退、中断/锁/过期基线、不自动迁移。
 5. 独立总评后接main生产入口；用当前获准独立演示环境验证实际工作流与Chrome登录/目录读取，无模型/邮件/新业务写。不扩大样例和权限。
 6. 产品基线、版本记录、操作手册与Notion同步；四层状态分别记录，不把演练等同生产执行。
+
+## 实施细化
+
+- 每次构建候选tag以run_id×1000＋run_attempt编码，重跑不覆盖旧候选。每个组件保留sourceGit、built/reusedFrom，模板和归档均从该版本manifest绑定的私有对象取回，不能用当前checkout模板代替历史模板。
+- 成对发布会短暂暂停Hub前端并依次替换API和前端；即使只重建一端，部署仍使用一份成对版本。不承诺瞬时原子切换/零停机，不引入蓝绿基础设施。旧系统和官网始终不参与停止。
+- pair-finalize仅在目标HTTP及浏览器验证后，在服务器双锁下写成功指针并回读，随后原子保存本机成功记录。OSS普通PutObject默认覆盖，未依赖未经确认的If-Match CAS；遵循现有串行发布锁和现场版本核对。[OSS官方PutObject契约](https://www.alibabacloud.com/help/en/oss/developer-reference/putobject)。
+- finalize已经开始后若失败/取消或网络响应不明，不自动回退，保留成对运行和回执待核对；避免成功指针已推进后又退组件。可在服务器准确的`runtime-releases/<tag>/control-<sha前16>/`目录重验后执行`python3 pair.py pair-finalize --control-sha <完整sha>`，此操作重验版本/HTTP/基线，不触数据库迁移。不得用新run覆盖旧候选恢复。
+- 数据库批准摘要覆盖非测试SQL、模型、已识别的DDL执行模块；仅扫描新增/变更模块及其旧版以识别嵌入DDL，保留databaseSources，避免全仓逐文件读取。Python注释不作为DDL，实际字符串仍检查；动态拼接需代码评审，扫描不是SQL解析器。新独立测试PG夹具仅脚本hub-release-rehearsal.py明确豁免，不放开其他SQL。
+- 不执行自动GRANT/DDL、不写HUB_DATABASE_APPROVED_DIGEST。遇待确认摘要，先用户独立确认SQL和目标schema证据、人工执行及更新准确运行配置/策略后，运维才设置生产环境同名批准变量。原core摘要/适配源码及后端nodemailer依赖契约不允许在刷新Hub时静默改变，需另行封存/评审。
