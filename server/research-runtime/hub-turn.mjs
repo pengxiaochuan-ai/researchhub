@@ -27,6 +27,21 @@ export function fenceAssistantTransactions(prisma,context,beforeAssistant){
  }});
 }
 
+// Preserve the existing answer contract. Persist only static rejection reasons,
+// never rejected output, scientific values or credential material.
+export function assertHubAnswer(result,sources){
+ try{assertAnswer(result,sources);}catch(error){
+  if(error?.message!=='QA_MODEL_NOT_DELIVERABLE')throw error;
+  const p=result?.provenance,reasons=[
+   [result?.providerOutcome!=='known','OUTCOME'],[result?.usedMock!==false,'MOCK'],
+   [!result?.usage,'USAGE'],[!sources.length,'SOURCES'],
+   [p?.deterministicSynthesisFallback,'FALLBACK'],[p?.dataBoundaryBlocked,'DATA_BOUNDARY'],
+   [p?.numericBoundaryBlocked,'NUMERIC_BOUNDARY'],
+  ].filter(([failed])=>failed).map(([,reason])=>reason);
+  throw Error('HUB_ANSWER_NOT_DELIVERABLE:'+reasons.join('+'));
+ }
+}
+
 export async function bindHubTransactionScope(tx,user){
  if(!['tenantId','studyGroupId','researchProjectId','accountId'].every(k=>typeof user?.[k]==='string'&&/^[A-Za-z0-9_-]{1,160}$/.test(user[k]))||!Number.isSafeInteger(user.authVersion)||user.authVersion<0)reject();
  await tx.$executeRawUnsafe("SELECT set_config('app.tenant_id',$1,true),set_config('app.study_group_id',$2,true),set_config('app.research_project_id',$3,true),set_config('app.account_id',$4,true),set_config('app.auth_version',$5,true)",user.tenantId,user.studyGroupId,user.researchProjectId,user.accountId,String(user.authVersion));
@@ -87,7 +102,7 @@ export function createHubTurnRuntime({prisma,NativeSessions,NativeOrchestrator,p
   // The native core may catch Provider errors and return a deterministic fallback.
   // A bounded production turn must propagate that error, never publish it as AI.
   if(modelExecution&&(turn.modelError||!turn.modelCompleted))throw turn.modelError??Error('HUB_MODEL_NOT_EXECUTED');
-  if(!turn.toolExecuted)reject();assertAnswer(result,turn.sources);await revalidate(turn.user,turn.sources);
+  if(!turn.toolExecuted)reject();assertHubAnswer(result,turn.sources);await revalidate(turn.user,turn.sources);
   const {syntheticOnly:_legacyFixtureFlag,...provenance}=hubAnswerProvenance(turn.sources,turn.tools);
   result.provenance={...result.provenance,...provenance};
   turn.accepted=result;return result;

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {AsyncLocalStorage} from 'node:async_hooks';
-import {fenceAssistantTransactions,createHubTurnRuntime,fenceHubQueue} from './hub-turn.mjs';
+import {fenceAssistantTransactions,createHubTurnRuntime,fenceHubQueue,assertHubAnswer} from './hub-turn.mjs';
 import {HUB_CONTEXT_KEY,HUB_TOOL_KB_ID,hubCoreQuestion} from '../../scripts/hub-agent-contract.mjs';
 
 test('assistant fence covers elevated/app/tenant callbacks in the original transaction, with no unguarded array path',async()=>{
@@ -86,4 +86,18 @@ test('Hub admin tool intersection remains inside native worker publication and o
  const{sessions,context}=createHubTurnRuntime({prisma:{},NativeSessions,NativeOrchestrator:class{},agentId:'agent',authorize:async(actor,actual)=>{assert.equal(actor,user);assert.equal(actual,tx);},adminToolKeys:(_kind,configured)=>configured.filter(k=>k==='knowledge.search')});
  await assert.rejects(sessions.effectiveToolsForMember({}, {...user,role:'researcher'},'research',['knowledge.search']),/NATIVE_MEMBER_PATH/);
  await context.run({user,sessionId:'session',options:{execution:{claim:{kind:'knowledge-chat'}}}},async()=>{assert.deepEqual(await sessions.effectiveToolsForMember({},user,'research',['knowledge.search','knowledge.write']),['knowledge.search']);});assert(checked);
+});
+
+// No response text or rejected scientific values enter the persisted diagnosis.
+test('Hub answer rejects every original delivery gate with safe reason enums and no content',()=>{
+ const good={finalText:'原证据支持的说明[1]',usage:{totalTokens:1},providerOutcome:'known',usedMock:false},sources=[{}];
+ assert.doesNotThrow(()=>assertHubAnswer(good,sources));
+ for(const [patch,reason] of [
+  [{providerOutcome:'none'},'OUTCOME'],[{usedMock:true},'MOCK'],[{usage:undefined},'USAGE'],
+  [{provenance:{deterministicSynthesisFallback:true}},'FALLBACK'],
+  [{provenance:{dataBoundaryBlocked:true}},'DATA_BOUNDARY'],
+  [{provenance:{numericBoundaryBlocked:true,rejectedNumericTokens:['secret-number']}},'NUMERIC_BOUNDARY']
+ ]) assert.throws(()=>assertHubAnswer({...good,...patch},sources),e=>e.message==='HUB_ANSWER_NOT_DELIVERABLE:'+reason&&!e.message.includes('secret-number'));
+ assert.throws(()=>assertHubAnswer(good,[]),/HUB_ANSWER_NOT_DELIVERABLE:SOURCES/);
+ assert.throws(()=>assertHubAnswer({...good,finalText:'没有引用'},sources),/QA_CITATION_INVALID/);
 });

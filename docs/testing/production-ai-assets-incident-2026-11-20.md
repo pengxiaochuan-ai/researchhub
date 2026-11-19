@@ -25,3 +25,13 @@
 - 免费生产预检44579796787通过：两账号各4474字节，保守预占172692微元/次；原623任务hash不变，旧服务身份不变。仅私有admission/ledger及原.env.prod封存路径写入，模型/Worker仍OFF。
 - 前三轮免费预检在建campaign前停止，保留失败记录：原长查询没有命中；精确ChiCTR2300073486也没有当前获准命中。实际HTTP只读核对ChiCTR2300077209对当前账号返回1份来源，因此两角色采用该当前获准来源测试，不放宽用途。实际付费调用/持续ON及用户业务签收仍待后续证据。
 
+
+## 生产持续ON及最新真实结果（2026-11-20）
+
+- 同版发布68485cd／44591439969成功，无数据库迁移。独立总评无新增P1/P2；持续ON及原ledger挂载在普通发布中实际保留。
+- 前后只读44592505628、44592783480：researchhub模型true、唯一knowledge-chat，原623条任务MD5均735bdccbbc401c67285f0dd9714a2bed；原175 queued未被认领；旧资产六类计数/hash与旧服务/官网身份均不变。
+- 真实Chrome原admin/owner：A01分别31／14份，业务14／4、严格旧原创17／10；A02固定版正文200，合成标识可见；无页面异常、无只读详情自动files/reuse-options/recommendations请求、无alert。真实管理GET及完整actor/authVersion/Study/Origin/请求标记的POST均403、ASSET_CATALOG_LEGACY_READ_ONLY。截图和录屏：`.tmp/production-ai-assets-20261120/assets-final/`。
+- 唯一付费管理员请求原session cmwnvm0a70004t707r5hv4rk7／原requestKey重放，首次有效入队201、新job cmwnwt3ao0006r107l7h5yqqu被认领。dispatch已知：1023+667=1690 tokens，feeUpperMicros27216；native任务failed、QA_MODEL_NOT_DELIVERABLE，无assistant。首次质量拒绝具体分项未持久化，不猜测为某一种原因，不能称专业问答通过。
+- 原失败脚本/初始化/缺Study头/前置503及本次失败证据均保留，未覆盖。已消耗管理员1任务/1实际请求，owner未创建；不会自动重试、清账或续额；配置保持ON。
+- 免费最小诊断仅先调用原assertAnswer，再将统一拒绝转为7个固定枚举，无正文/被拒数值。红→绿记录：answer-reasons-red.log、answer-reasons-green.log；37相关回归通过。独立合成容器原sealed NativeCore的valid/empty/unsupported-numeric/raw-data-request四例通过，4次假Provider、0外部模型、0数据库写；native-answer-reasons.log。此测试不替代生产真实成功回答。
+- 四层验收：代码与目标启用已举证，真实调用已发生；最终业务回答未通过。用户业务签收仍待反馈。新增第3任务/请求已提出确认，未获批准不执行。
