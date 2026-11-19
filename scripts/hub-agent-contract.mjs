@@ -9,8 +9,12 @@ export const HUB_TOOL_KB_ID='rh_hub_lingshu_xinyu';
 export const hubCoreQuestion='请依据当前授权资料回答科研问题。';
 export function bindHubSynthesisQuestion(messages,question){
  const prefix='用户问题：'+hubCoreQuestion+'\n';
- if(messages.length!==2||messages[1]?.role!=='user'||!messages[1].content?.startsWith(prefix))throw Error('HUB_SYNTHESIS_INPUT_CHANGED');
- return [messages[0],{...messages[1],content:'用户问题：'+question+'\n'+messages[1].content.slice(prefix.length)}];
+ if(messages.length!==2||messages[0]?.role!=='system'||typeof messages[0].content!=='string'||messages[1]?.role!=='user'||!messages[1].content?.startsWith(prefix))throw Error('HUB_SYNTHESIS_INPUT_CHANGED');
+ return [{...messages[0],content:messages[0].content+'\n'+[
+  'Hub固定来源引用规则：每个实质结论须引用下方工具证据中已有的[n]来源标识，例如[1]；不得编造、遗漏或使用越界来源编号。',
+  '只陈述本轮工具证据支持的事实。资料未报告的年份、样本量、疗程、阈值或统计结果须明确写“未报告”，不得凭常识补全、计算或改写数值。',
+  '注册资料只代表登记信息，不能据此推定研究已完成或干预有效；不足以作答时明确局限，仍用原来源编号标注已有依据。',
+ ].join('\n')},{...messages[1],content:'用户问题：'+question+'\n'+messages[1].content.slice(prefix.length)}];
 }
 export const isHubSession=session=>isHubConversation(session?.contextKey)||session?.contextKey?.startsWith('hub-article:')===true;
 

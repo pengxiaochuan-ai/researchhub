@@ -5,7 +5,7 @@ test('readonly Hub routing cannot mistake a negated creation request for write p
  assert.equal(typeof contract.hubCoreQuestion,'string');assert.equal(typeof contract.bindHubSynthesisQuestion,'function');
  const query='请概括这篇研究局限，不新增计算。';
  const messages=[{role:'system',content:'保持系统指令'},{role:'user',content:'用户问题：'+contract.hubCoreQuestion+'\n\n【确定性知识库工具证据】\n[1] 来源'}];
- const bound=contract.bindHubSynthesisQuestion(messages,query);assert(bound[1].content.startsWith('用户问题：'+query+'\n'));assert(bound[1].content.endsWith('[1] 来源'));assert.equal(bound[0].content,messages[0].content);
+ const bound=contract.bindHubSynthesisQuestion(messages,query);assert(bound[1].content.startsWith('用户问题：'+query+'\n'));assert(bound[1].content.endsWith('[1] 来源'));assert(bound[0].content.startsWith(messages[0].content+'\n'));assert.match(bound[0].content,/工具证据.*\[n\]/);assert.match(bound[0].content,/不得.*编造.*编号/);assert.match(bound[0].content,/未报告/);
  assert.throws(()=>contract.bindHubSynthesisQuestion([{role:'user',content:'其他输入'}],query));
 });
 import { HUB_CONTEXT_KEY, HUB_TOOL_KB_ID, isHubSession, assertHubToolResult, hubAnswerProvenance, projectHubMessages } from './hub-agent-contract.mjs';

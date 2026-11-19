@@ -35,3 +35,13 @@
 - 原失败脚本/初始化/缺Study头/前置503及本次失败证据均保留，未覆盖。已消耗管理员1任务/1实际请求，owner未创建；不会自动重试、清账或续额；配置保持ON。
 - 免费最小诊断仅先调用原assertAnswer，再将统一拒绝转为7个固定枚举，无正文/被拒数值。红→绿记录：answer-reasons-red.log、answer-reasons-green.log；37相关回归通过。独立合成容器原sealed NativeCore的valid/empty/unsupported-numeric/raw-data-request四例通过，4次假Provider、0外部模型、0数据库写；native-answer-reasons.log。此测试不替代生产真实成功回答。
 - 四层验收：代码与目标启用已举证，真实调用已发生；最终业务回答未通过。用户业务签收仍待反馈。新增第3任务/请求已提出确认，未获批准不执行。
+
+## 第二次真实结果与引用提示最小修补
+
+1546ac1／44593900870发布成功；只读44594585254确认持续ON、原1次账本未变。owner新会话cmwnxbhox0002n5076tuuzpdu／新任务cmwnxbjhc0007n507qvln60gv原生提交201、真实认领及模型执行，终态QA_CITATION_INVALID，无assistant。只读44595366888确认2会话/2任务/2known请求：第二次1023输入＋671输出＝1694 tokens，峰价27324微元；累计54540微元（0.05454元）。原623/hash、旧资产摘要、旧服务与官网仍不变，模型/唯一knowledge-chat仍ON。
+
+定位到实际送出的Reporter system并未携带ctx.kbGrounding要求的[n]契约，原绑定只替换问题。仅Hub最终提示追加原引用规则与缺失数值不补要求，保持原system、原问题/证据、assertAnswer及数值/来源校验；无模型补造引用、无取消拦截。红→绿citation-prompt-red/green.log，38项相关回归通过；sealed NativeCore原路径实际最终提示捕获加四反例通过（native-citation-prompt.log），0额外网络模型/0DB写。修补只能证明提示契约已送达，尚无修后付费真实回答，不代签业务通过。
+
+资产另经两角色实际鼠标/下拉切历史版：admin v3→v2，owner v4→v3及返回正文均成功200、无alert/脚本异常；assets-navigation-verified/保留截图与录屏。首轮精确label测试定位器超时，未产生业务写入，原失败assets-navigation/保留。管理员失败问题、额度禁用及“不自动重试”页面回读通过（readback/），未恢复权限误报。
+
+原两次任务/请求已全部消耗。先前3次提议尚未获答，不执行任何扩额；若两账号均需修后真实复验，准确需求是累计4任务/4请求、仍1元，需用户新确认，保留全部原任务和账本。最终专业验收与用户签收仍未通过。
