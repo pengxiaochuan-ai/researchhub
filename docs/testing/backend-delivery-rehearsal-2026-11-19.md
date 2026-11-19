@@ -34,3 +34,9 @@ ResearchHub仓库根为独立Git仓库。公开提交包含代码/文档/迁移�
 生产仍须单独确认：真实共享库基线/现有角色/ACL/RLS和扫描兼容、备份恢复、准确增量与GRANT、目标CPU架构、私有包传递与环境配置、对象数据同步、停线/回退及正式发布。基线不符必须停，不改指纹绕过，不把本机schema-only结构恢复到生产，不恢复合成账号/任务/额度。
 
 详细证据索引：[本轮进度](backend-deployment-progress-2026-11-18.md)。用户操作与专业反馈：[统一手册](../product/用户验证与操作手册.md)。
+
+## 源码交付结果
+
+代码及增量候选已推远程main：[e72748e](https://github.com/pengxiaochuan-ai/researchhub/commit/e72748e1c8950be4ea8ae1164f8d01657f3789fb)。155个最终暂存文件经独立总评，无阻断P1/P2，119个JS/MJS语法检查通过；提交tree与受审index相同，远端SHA已核一致，工作树干净。提交含skip-ci，核验时该SHA匹配工作流为0，未手动dispatch。
+
+私有交付为researchhub-backend-v33.tar.gz，10,483,760字节，SHA256 `8cab98a4ca99ae3efd392fde7241da3614c60388ab1f7a7d30dd93f8c9187477`，Linux/arm64。core摘要85a0f5c5e7b5155b1593e04baaebd534322d8cb2b41d2847e394e54a5ad75135；Hub摘要da01e52f5bf5cd31b35898f0cf5b4e6fd0b7be946e78a574ebf7bf65adde210e。归档及准确receipt仍只在本机私有忽略目录，不含运行配置或业务数据，不提交公开Git。最终镜像重启28表hash一致，Chrome再次确认管理员503/科研403及零新增。文档交付回执随后以仅文档skip-ci提交记录，不改变代码、数据库或运行环境。

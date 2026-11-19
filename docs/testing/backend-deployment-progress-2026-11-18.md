@@ -180,3 +180,5 @@ v30候选补记：私有构建归档已生成并核manifest与SHA256，10,481,57
 证据：chat-admin-native-rollback-result.json、browser-chat-admin/result.json及截图/录屏、chat-admin-red/green-v4、pmc-review-storage-red/green、migration-driver-gates、final-consolidated-free-gates，均在本轮私有忽略目录。原5份源码hash保持。初次临时校验脚本字符串错误未进入事务、AI01脚本错误参数曾进入invalid分支，均保留失败，修正标准入口后才计入界面结果。产品基线/版本/手册/技术规格及Notion原页同步，最终交付说明已登记测试目录。
 
 本轮允许付费能力明确未启用，不再把生产SMTP、真实模型、生产基线或amd64检查作为此次main源码交付前置；这些列为正式执行前单独确认。剩余仅最终包hash、重启、暂存区独立评审和安全push，不恢复旧排空或新AI专项。
+
+收尾结果：v33归档/镜像内容hash核验通过，28表重启hash不变，真实Chrome再验管理员503/科研403、登录有效/原知识读取200，0新增。155文件最终index由新上下文独立总评通过，119个JS/MJS语法检查通过；代码提交e72748e1c8950be4ea8ae1164f8d01657f3789fb带skip-ci，已推ResearchHub远程main并核SHA一致，核验时匹配工作流为0。工作树干净，私有归档/配置/数据/证据均未纳入Git；后续仅补文档交付回执，不改变代码。生产、云、付费模型、停线及发布均未执行。
