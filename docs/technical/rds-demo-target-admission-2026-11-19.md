@@ -1,6 +1,6 @@
 # 独立RDS演示库：准确目标与下一步确认清单
 
-2026-11-19。用户选择现有RDS实例新建独立数据库，保留获准Hub资料和合成样例；不是合并aisci。**本清单待确认，尚未建库/建角色/恢复或切换入口。**
+2026-11-19。用户选择现有RDS实例新建独立数据库，保留获准Hub资料和合成样例；不是合并aisci。**用户已批准G0，数据库名改为researchhub；角色仍按本清单四个专用名称。尚未建库/建角色/恢复或切换入口。**
 
 ## 只读实证
 
@@ -12,7 +12,7 @@
 
 | 对象 | 最小动作与权限 | 限制 |
 | --- | --- | --- |
-| researchhub_demo | 在现有RDS新建独立库，所有权为专用owner，使用UTF8；库级CONNECT/TEMP/CREATE按准确恢复需求设置 | 不改aisci/旧库owner/ACL/参数，不创建或扩容RDS实例；先核已有可用容量 |
+| researchhub | 在现有RDS新建独立库，所有权为专用owner，使用UTF8；库级CONNECT/TEMP/CREATE按准确恢复需求设置 | 不改aisci/旧库owner/ACL/参数，不创建或扩容RDS实例；先核已有可用容量 |
 | researchhub_demo_owner | 新独立登录owner：NOSUPERUSER、NOCREATEDB、NOCREATEROLE；源elevated依赖BYPASSRLS，所需属性/可授能力单列验证 | 不继承aisci_control/aisci_owner/aisci_app，不将运维账号给应用；不能授该属性时停，不改旧角色或放松RLS |
 | researchhub_demo_app | 新独立登录app：NOSUPERUSER、NOBYPASSRLS、NOCREATEDB、NOCREATEROLE | 仅新库中映射后的原应用对象/列/函数权限，不授全局GRANT ALL |
 | researchhub_demo_analysis_reader | 如恢复源SECURITY DEFINER函数确需，新建NOLOGIN、NOBYPASSRLS的窄读角色，替代源rh_analysis_job_candidate_reader | 仅对应分析函数/表的必要权限，不为app提供SET ROLE/成员提权 |
@@ -41,3 +41,7 @@ G0若获准，只做新库/专用角色及该新库的恢复兼容验证，不�
 ## 本轮独立复核
 
 源选择规则4项、RDS探针2项、既有只读探针6项及语法检查通过；实际只读源导出与RDS元数据查询另有证据。独立评审无当前文档交付阻断，强调四角色占用和新LOGIN前PUBLIC权限前置已补。未把源快照、纯测或管理标志代替目标恢复／浏览器／客户验收。
+
+## G0执行准入（用户已批准，2026-11-19）
+
+仅将数据库名改为researchhub，四个角色名保持researchhub_demo_owner/app/analysis_reader/pmc_collector，避免把用户库名修正扩为额外命名决策。现有readonly探针更新为核新库名与四角色，并在aisci只读查询PUBLIC目录权限（表/列、可直接调用SECURITY DEFINER函数，不读取业务行）作为新增LOGIN前置；若有未知可读写入口先审查，未证明安全不创建角色。容量、TLS和vector兼容继续为前置，不扩容/改旧权限/切入口/调用模型或发邮件。
