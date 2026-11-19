@@ -30,7 +30,7 @@ def main():
     keys=[]
     if source.is_file() and not source.is_symlink() and source.stat().st_size<65536:
         keys=sorted({line.partition('=')[0] for line in source.read_text().splitlines()}&{'S3_ENDPOINT','S3_ACCESS_KEY','S3_SECRET_KEY','S3_BUCKET'})
-    result={'schema':'hub-runtime-preflight.v1','architecture':platform.machine(),'python':platform.python_version(),'memory':mem,'diskFreeBytes':disk.free,'containers':containers,'databaseConfig':config_metadata(pathlib.Path('/srv/researchhub/ops/backend-private/database.env')),'releaseStorageKeysPresent':keys,'releaseTransferPresent':pathlib.Path('/srv/researchhub/ops/oss-release-transfer.py').is_file(),'databaseQueries':0,'writes':0}
+    result={'schema':'hub-runtime-preflight.v1','architecture':platform.machine(),'python':platform.python_version(),'memory':mem,'diskFreeBytes':disk.free,'containers':containers,'databaseConfig':config_metadata(pathlib.Path('/srv/researchhub/ops/.env.prod')),'releaseStorageKeysPresent':keys,'releaseTransferPresent':pathlib.Path('/srv/researchhub/ops/oss-release-transfer.py').is_file(),'databaseQueries':0,'writes':0}
     print(json.dumps(result))
 
 if __name__=='__main__':
