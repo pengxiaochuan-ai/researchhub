@@ -27,3 +27,5 @@
 ## 2026-11-19续行：身份已统一，首次远端核对失败
 
 CLI已使用keyring中的jerryshichina；Git协议SSH，Hub实际admin/push=true，未改仓库或机构角色。已成功手动启动运行44437894517，UTC 01:34（北京时间09:34）。Cloud Assistant返回PRODUCTION_READONLY_PROBE_FAILED，流程非零失败；尚不能据此认定生产结构或部署状态。仅补充只读脚本阶段、Python/CPU版本、白名单异常类别与数值退出码，不回显命令、stdout/stderr、异常文本或凭证；测试与独立复核后再跑同一范围，不扩大权限或运维动作。
+
+第二次只读运行44438223230定位：container_inventory阶段TypeError，目标x86_64、Python3.6.8。源码subprocess.run(capture_output=True,text=True)参数为Python3.7新增，尚未读取docker库存或PG。最小兼容仅将参数改为stdout/stderr=PIPE、universal_newlines=True；不升级服务器Python，不改变远端命令或数据库查询范围。增加Python3.6签名模拟及真实本机子进程回归，独立复核后重跑。

@@ -11,7 +11,9 @@ PHASE = "initialization"
 
 
 def command(args, timeout=20):
-    return subprocess.run(args, capture_output=True, text=True, timeout=timeout, check=True).stdout
+    # Production host still uses Python 3.6; capture_output/text require 3.7.
+    return subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                          universal_newlines=True, timeout=timeout, check=True).stdout
 
 
 def main():

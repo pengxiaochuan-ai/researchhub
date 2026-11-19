@@ -2,8 +2,11 @@ import contextlib
 import importlib.util
 import io
 import json
+import sys
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location("probe", Path(__file__).with_name("production-readonly-probe.py"))
 probe = importlib.util.module_from_spec(spec)
@@ -11,6 +14,21 @@ spec.loader.exec_module(probe)
 
 
 class ProbeTest(unittest.TestCase):
+    def test_subprocess_uses_python36_compatible_signature(self):
+        def legacy_run(args, *, stdout, stderr, universal_newlines, timeout, check):
+            self.assertEqual(stdout, probe.subprocess.PIPE)
+            self.assertEqual(stderr, probe.subprocess.PIPE)
+            self.assertTrue(universal_newlines)
+            self.assertTrue(check)
+            self.assertEqual(timeout, 20)
+            return SimpleNamespace(stdout="synthetic metadata")
+        with patch.object(probe.subprocess, "run", legacy_run):
+            self.assertEqual(probe.command(["synthetic-command"]), "synthetic metadata")
+
+    def test_real_local_subprocess_capture(self):
+        self.assertEqual(probe.command([sys.executable, "-c", "print('synthetic metadata')"]),
+                         "synthetic metadata\n")
+
     def test_inventory_failure_reports_only_sanitized_phase_and_kind(self):
         old_command = probe.command
         secret = "SYNTHETIC_ERROR_MUST_NEVER_APPEAR"
