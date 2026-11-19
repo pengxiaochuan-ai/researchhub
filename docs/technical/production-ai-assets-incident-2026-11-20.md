@@ -51,3 +51,9 @@ admin登录岐研AI显示“当前账号没有此会话的使用权限”，科�
 OFF守门基线ad12d2f的生产44580528496已通过，未开启模型。再核对确认岐研AI工作台原组件使用commands而独立API只接knowledge-messages；补GET/POST commands为同一原生消息队列的读投影与严格提交别名，不新增指令队列或权限。关闭联网开关的原格式归一后复用send的全部门禁，终态保留在items/recent供刷新与原key核对。前端仅发送禁用条件补quota.blocked，不带入未发布的采集/离开保护改动。
 
 旧27样例先恢复能严格核验的原创只读子集，非作者来源不静默通过：原loader对author且空bindings已有校验，KB/copy/旧报告保持排除。独立legacy-assets.json精确封存原ID、父范围、owner、原key、revision/版本及contentHash/policyHash，不改变chat admission SHA/账本。每次实际读取仍执行当前app主体授权、原family、父对象与固定版hash检查。只允许详情/固定版/预览/活动/比较，管理GET、全部POST/其他方法、模型、复用、下载和导出拒绝。实际可见数量与原合成标识须由部署后浏览器证明，不把42登记总数当可见数。
+
+## 服务器Compose输出差异
+
+ed68bdf的生产44582141051成功，独立legacy准入44582263824封存17份原创候选，数据库无写入。两次启用在复制密钥前被挂载门禁拦住，原生只读inspect44584673629确认旧Compose将显式false序列化为bind:{}；模型/Worker仍OFF，账本0/0/0。
+
+不能把遗漏字段直接当false：[Docker规范](https://docs.docker.com/reference/compose-file/services/#long-syntax-5)的create_host_path默认true。兼容仅在同一已封存模板的对应长语法source/target块明确写false时接受序列化遗漏，显式true、路径/只读位变化仍拒绝。正向及旧版回滚模板均传入本次封存正文，门禁不依赖猜测默认值。先对当前镜像只更新并验证封存控制文件，不重建/切容器、不开启消费者，再执行原启用步骤。

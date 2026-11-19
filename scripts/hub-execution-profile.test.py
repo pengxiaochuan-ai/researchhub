@@ -14,4 +14,10 @@ class ProfileTests(unittest.TestCase):
   rows=[{'type':'bind','source':str(m.ROOT/name),'target':target,'read_only':ro,'bind':{'create_host_path':False}} for name,target,ro in [('admission','/run/researchhub-admission',True),('ledger','/run/researchhub-ai-ledger',False)]]
   m.mounts({'volumes':rows},self.enabled());rows[1]['source']='/srv/researchhub/ops'
   with self.assertRaises(ValueError):m.mounts({'volumes':rows},self.enabled())
+ def test_old_compose_omission_requires_the_exact_sealed_false_bind(self):
+  rows=[{'type':'bind','source':str(m.ROOT/name),'target':target,'read_only':ro,'bind':{}} for name,target,ro in [('admission','/run/researchhub-admission',True),('ledger','/run/researchhub-ai-ledger',False)]]
+  with self.assertRaises(ValueError):m.mounts({'volumes':rows},self.enabled())
+  template=(pathlib.Path(__file__).parent.parent/'deploy/backend-demo.compose.yml').read_text();m.mounts({'volumes':rows},self.enabled(),template)
+  rows[1]['bind']['create_host_path']=True
+  with self.assertRaises(ValueError):m.mounts({'volumes':rows},self.enabled(),template)
 if __name__=='__main__':unittest.main()

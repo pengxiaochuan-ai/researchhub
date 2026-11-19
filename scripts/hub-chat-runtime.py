@@ -120,7 +120,7 @@ def main(action):
    need(container['Image']==release['images']['backend'].get('configId') and live.get('HUB_CORE_MANIFEST_SHA256')==CORE and live.get('HUB_EXECUTION_PROFILE')=='disabled' and live.get('HUB_PAID_AI_ENABLED')=='false' and live.get('ENABLED_WORKER_KINDS')=='','CHAT_LIVE_GUARDED_BASELINE_MISMATCH')
    need('execution-profile.py' in json.loads((p/'control-manifest.json').read_text())['files'],'CHAT_EXECUTION_CONTROL_REQUIRED')
    spec=importlib.util.spec_from_file_location('activation_execution',str(p/'execution-profile.py'));execution=importlib.util.module_from_spec(spec);spec.loader.exec_module(execution)
-   resolved=json.loads(run(['docker','compose','--project-name','researchhub-backend','--env-file',str(OPS/'.env.prod'),'-f',str(p/'backend-compose.yml'),'config','--format','json']))['services']['researchhub-api'];execution.mounts(resolved,saved)
+   resolved=json.loads(run(['docker','compose','--project-name','researchhub-backend','--env-file',str(OPS/'.env.prod'),'-f',str(p/'backend-compose.yml'),'config','--format','json']))['services']['researchhub-api'];execution.mounts(resolved,saved,(p/'backend-compose.yml').read_text())
    need(all(resolved.get('environment',{}).get(k)==v for k,v in execution.values(saved).items()),'CHAT_LIVE_COMPOSE_STATE_MISMATCH')
    need(not ledger['sessions'] and not ledger['jobs'] and not ledger['dispatches'],'CHAT_ENABLE_ALREADY_USED_NO_RESET')
    r=metadata(container);need(r['queueSnapshot']==a['initialQueueSnapshot'],'CHAT_HISTORICAL_QUEUE_CHANGED')

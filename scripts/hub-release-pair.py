@@ -54,7 +54,7 @@ def validate_templates(saved):
  front=json.loads(m.command(front_args()+['config','--format','json']))['services']['researchhub'].get('environment',{})
  service=json.loads(m.command(back_args()+['config','--format','json']))['services']['researchhub-api']
  check_environments(front,service.get('environment',{}),saved)
- if saved.get('HUB_EXECUTION_PROFILE')==m.execution.PROFILE:m.execution.mounts(service,saved)
+ if saved.get('HUB_EXECUTION_PROFILE')==m.execution.PROFILE:m.execution.mounts(service,saved,BACK_TEMPLATE.read_text())
 
 def wait_api():
  for _ in range(40):
@@ -146,7 +146,7 @@ def run(action,sha):
  if saved.get('HUB_EXECUTION_PROFILE')==m.execution.PROFILE:
   BACK_TEMPLATE_CHECK=HERE/'previous-backend-compose.yml'
   previous_args=['docker','compose','--project-name','researchhub-backend','--env-file',str(m.OPS/'.env.prod'),'-f',str(BACK_TEMPLATE_CHECK),'config','--format','json']
-  old_service=json.loads(m.command(previous_args))['services']['researchhub-api'];check_environments({},old_service.get('environment',{}),saved);m.execution.mounts(old_service,saved)
+  old_service=json.loads(m.command(previous_args))['services']['researchhub-api'];check_environments({},old_service.get('environment',{}),saved);m.execution.mounts(old_service,saved,BACK_TEMPLATE_CHECK.read_text())
  items=m.containers();old_services=m.baseline(items);states=m.task_snapshot(helper,saved)
  need(not re.search(r'^\s*env_file:',(HERE/'frontend-compose.yml').read_text(),re.M),'HUB_PAIR_FRONTEND_ENV_FILE_REJECTED')
  need(m.command(front_args()+['config','--services']).split()==['researchhub'],'HUB_PAIR_FRONTEND_SCOPE_REJECTED');need(m.command(back_args()+['config','--services']).split()==['researchhub-api'],'HUB_PAIR_BACKEND_SCOPE_REJECTED')

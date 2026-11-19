@@ -50,12 +50,17 @@ def admitted_jobs(saved):
  need(len(result)==len(jobs) and len({x['accountId'] for x in jobs})==len(jobs),'HUB_CHAT_LEDGER_JOB_REJECTED')
  return result
 
-def mounts(service,saved):
+def mounts(service,saved,template=None):
  expected={'/run/researchhub-admission':(str(ROOT/'admission'),True),'/run/researchhub-ai-ledger':(str(ROOT/'ledger'),False)}
  found={}
  for row in service.get('volumes',[]):
   target=row.get('target')
   need(target in expected and target not in found and row.get('type')=='bind','HUB_CHAT_MOUNT_REJECTED')
   source,readonly=expected[target]
-  need(row.get('source')==source and bool(row.get('read_only',False))==readonly and row.get('bind',{}).get('create_host_path') is False,'HUB_CHAT_MOUNT_REJECTED');found[target]=True
+  create=row.get('bind',{}).get('create_host_path')
+  # Older Compose serializes an explicitly false bind field as {}. Missing is
+  # accepted only with the same sealed long-form source/target block, never by
+  # assuming Docker's (true) default or trusting a short-form mount.
+  explicitFalse=bool(template and re.search(r'source:\s*'+re.escape(source)+r'\s+target:\s*'+re.escape(target)+r'(?:\s+read_only:\s*true)?\s+bind:\s*\{\s*create_host_path:\s*false\s*\}',template))
+  need(row.get('source')==source and bool(row.get('read_only',False))==readonly and (create is False or create is None and explicitFalse),'HUB_CHAT_MOUNT_REJECTED');found[target]=True
  need(set(found)==set(expected),'HUB_CHAT_MOUNT_REQUIRED')
