@@ -16,4 +16,18 @@ class FrontendRollback(unittest.TestCase):
    if ok:
     self.assertEqual((p/'compose').read_text(),previous if copied else current);self.assertIn('previous',(p/'current-env').read_text());self.assertTrue((p/'up-called').exists())
    else:self.assertFalse((p/'up-called').exists())
+ def test_pinned_download_and_loaded_image_rejected_before_activation(self):
+  import hashlib
+  text=pathlib.Path('scripts/ecs-release.sh').read_text();body=text[text.index('verify_pinned_frontend_artifacts() {'):text.index('\nactivate_release() {')]
+  with tempfile.TemporaryDirectory() as d:
+   p=pathlib.Path(d);archive=p/'image';compose=p/'compose';archive.write_bytes(b'approved image');compose.write_bytes(b'approved compose')
+   env=dict(os.environ,HUB_EXPECTED_FRONTEND_SHA256=hashlib.sha256(archive.read_bytes()).hexdigest(),HUB_EXPECTED_COMPOSE_SHA256=hashlib.sha256(compose.read_bytes()).hexdigest(),HUB_EXPECTED_FRONTEND_IMAGE_ID='sha256:'+'a'*64,IMAGE_REF='approved:tag',ARCHIVE=str(archive),COMPOSE=str(compose))
+   script='set -eu\n'+body+'\nverify_pinned_frontend_artifacts "$ARCHIVE" "$COMPOSE"\ndocker(){ echo "sha256:'+'a'*64+'"; }\nverify_pinned_frontend_image\n'
+   run=lambda code,e:subprocess.run(['bash','-c',code],env=e,stdout=subprocess.PIPE,stderr=subprocess.PIPE).returncode
+   self.assertEqual(run(script,env),0)
+   archive.write_bytes(b'drifted with a separately updated checksum file');self.assertNotEqual(run(script,env),0)
+   archive.write_bytes(b'approved image');compose.write_bytes(b'drifted compose');self.assertNotEqual(run(script,env),0)
+   compose.write_bytes(b'approved compose');self.assertNotEqual(run(script.replace('echo "sha256:'+'a'*64,'echo "sha256:'+'b'*64),env),0)
+   self.assertLess(text.index('verify_pinned_frontend_artifacts "${image_archive}"'),text.index('gzip -dc "${image_archive}"'))
+   self.assertLess(text.index('verify_pinned_frontend_image || return 1'),text.index('=== Activating researchhub release ==='))
 if __name__=='__main__':unittest.main()
