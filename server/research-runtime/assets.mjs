@@ -1,4 +1,5 @@
 import{withDeploymentTransaction}from'../database/transactions.mjs';
+import{readAssetOverviewScopes}from'../research-assets/overview-scopes.mjs';
 import{authorizeBusinessAssetStudy}from'../research-assets/business-access.mjs';
 import{createBusinessAssetRegistration}from'../research-assets/business-registration.mjs';
 import{createReportSourceService}from'../research-assets/report-source-service.mjs';
@@ -90,15 +91,15 @@ export function createRuntimeAssets({config,foundation,load,require,readReport})
  const files=createAssetDetailFiles({...readOptions,storage:foundation.storage,runtimeBusiness:true,exportEnabled:config.assetMarkdownExportEnabled===true,renderMarkdown:input=>load('research-artifacts/research-artifact-export','renderResearchArtifact')('markdown',input),parseRange:load('knowledge/knowledge-source-content','parseKnowledgeSourceRange')});
  const details=createAssetDetailReader({...readOptions,readFixed:(tx,p,id,v)=>createAssetCatalogReader({...readOptions,withAccess:(_user,_permission,run)=>run(tx,p)}).detail({},id,v)});
  const overview={async read(user,input){
-  const parsed=parseAssetOverviewQuery(input),projects=await withDeploymentTransaction(env,'direct',tx=>tx.$queryRawUnsafe('SELECT study_group_id AS "studyGroupId",execution_project_id AS "researchProjectId" FROM rh_research.study_binding WHERE tenant_id=$1 ORDER BY execution_project_id',user.tenantId),{readOnly:true});
+  const parsed=parseAssetOverviewQuery(input),projects=await withDeploymentTransaction(env,'direct',tx=>readAssetOverviewScopes(tx,user.tenantId),{readOnly:true});
   return transaction(user,async tx=>{
    const a=await tx.account.findFirst({where:{id:user.accountId,tenantId:user.tenantId},include:{tenant:true}});if(!a||a.status!=='active'||a.tenant.status!=='active'||a.authVersion!==user.authVersion||a.role!==user.role||a.isTenantAdmin!==(a.role==='tenant_admin'))fail('AUTHORIZATION_REVOKED',401);
    const parts=[],clock=Date.now();let selectedAsset;
-   for(const s of projects){await context(tx,s);let p;try{p=await authorizeBusinessAssetStudy({tx,user,scope:{tenantId:user.tenantId,...s},permission:'artifact.read'});}catch(e){if(e.status===403)continue;throw e;}
+   for(const candidate of projects){const s=candidate.scope;await context(tx,s);let p;try{p=await authorizeBusinessAssetStudy({tx,user,scope:{tenantId:user.tenantId,...s},permission:'artifact.read'});}catch(e){if(e.status===403)continue;throw e;}
     const records=await loadRecords(tx,p,assertSources),query={...parsed.query,page:'1',pageSize:'50'},catalog=presentAssetCatalog({records,principal:p,query,now:clock,allItems:true}),contextRows=presentAssetCatalog({records,principal:p,query:{page:'1',pageSize:'50'},now:clock,allItems:true}).items;
     if(parsed.selection){const r=records.find(r=>r.registry.assetId===parsed.selection.id);if(r)selectedAsset=visibleCatalogAsset(r,p,clock,parsed.selection.version,records)?.row;}
     const view=parsed.tab==='list'?null:parsed.tab==='collaborations'?await readAssetCollaborations({tx,p,records,query:{...query,collaborationView:parsed.collaborationView},now:()=>clock,allItems:true,runtimeBusiness:true}):presentAssetViews({type:parsed.tab,records,principal:p,query,now:clock,allItems:true,knowledgeDocuments:await sourceNames(tx,p,records.flatMap(r=>r.policies))});
-    parts.push({scope:s,identityRevision:p.identityRevision,label:p.projectName,canCreate:p.permissions.includes('artifact.create'),catalog,contextRows,view,trend:presentAssetViews({type:'usage',records,principal:p,query,now:clock})});
+    parts.push({scope:s,identityRevision:p.identityRevision,label:p.projectName,canCreate:candidate.canCreate&&p.permissions.includes('artifact.create'),catalog,contextRows,view,trend:presentAssetViews({type:'usage',records,principal:p,query,now:clock})});
    }return presentAssetOverview({parts,user,...parsed,selectedAsset,now:clock});
   });
  }};

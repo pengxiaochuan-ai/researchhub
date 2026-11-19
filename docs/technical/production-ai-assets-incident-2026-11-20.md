@@ -29,3 +29,9 @@ admin登录岐研AI显示“当前账号没有此会话的使用权限”，科�
 先用既有Cloud Assistant在Hub自身容器内执行固定只读统计（事务READ ONLY、researchhub/租户/角色/marker身份重验），仅输出资产ID/状态/绑定、队列计数与摘要、两账号当前授权及模型路由/密钥存在布尔，不输出正文/凭据，不启动应用或Worker。旧配置仅只读匹配DeepSeek字段是否存在。诊断与发布共用锁；不对aisci查询或写入，不改旧服务配置。
 
 独立评审确认原生knowledge-chat的resumePending会恢复同租户历史任务；现有enqueue围栏不足。后续必须在生命周期前绑定精确获准job ID/账号/会话的认领范围，并对真实Provider dispatch持久预占次数/费用，任何绕过上下文的模型或Opencode调用默认拒绝。不能只按时间/账号筛选，也不能以两个前台请求代替实际调用上限。
+
+## 已取得生产元数据与第一项资产修正
+
+真实只读inspection 44569366507：researchhub内42登记（15 business、27 legacy）；历史knowledge-chat 623条，其中175 queued，当前模型/Worker关闭；两账号Access启用，配置v2路由DeepSeek V4 Pro存在，Hub密钥缺失，旧服务密钥存在。数据未丢失。
+
+实际原生scoped catalog：admin在原Project可读10、Study B可读4，owner各可读2；默认overview却只枚举Study binding，遗漏这些已可读业务资产。因此先把登记真实Group/Project范围并入只读overview，仍逐范围app角色授权；新增读取范围不进入creationScopes，不创建绑定/Study或权限。旧legacy家族兼容仍单独保留原分类/来源校验，不用取消过滤替代。

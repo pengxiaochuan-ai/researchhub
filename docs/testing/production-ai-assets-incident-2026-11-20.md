@@ -11,3 +11,9 @@
 实际Chrome以候选HTTP dist替换静态资源，保留生产域名，API真实请求生产：原两账号各一次disabled显示准确提示，输入/新建禁用、history和knowledge-state请求均0；另以受控Access拒绝响应验证原权限提示与禁用仍保留。共3检查、3截图/2录屏，无页面异常和非预期请求失败，无新科研会话/任务、模型调用或费用。受控拒绝不冒称生产权限已改变。证据`.tmp/production-ai-assets-20261120/preview/`。
 
 独立只读评审未见新增P1/P2；确认未ready不提前读历史，旧资产仍需只读兼容而非取消过滤，既有enqueue围栏不能代签仅新任务认领。免费修补main/生产回执待后续追加。当前AI实际启用与旧资产显示尚未恢复，需按专项准确范围确认实施，不以本次UI测试签署两项业务已恢复。
+
+## 第一项资产修正准备
+
+真实生产原catalog按scope返回：admin原Project10/StudyB4，owner各2；default overview遗漏这些scope。readAssetOverviewScopes将binding与registry范围去重合并，继续app角色逐范围原授权/来源校验，新增未绑定范围不开放创建。11相关测试及独立PG只读SQL通过，0写/0模型/0Worker；独立总评无P1/P2。仅恢复已支持的business资产统计，27份legacy尚未恢复。发布后与上述原生可见集合逐ID比较，不能把42原始登记当可见数。
+
+免费AI误报修补95d9a73/44566718840已实际生产成功，原两账号真实静态/API均复验准确提示、输入/新建禁用、历史请求0，未调模型；不能据此说AI已启用。
