@@ -15,10 +15,11 @@ export function isResearchDesignRoute(pageId,search){return['q02','s02','s07'].i
 export function readResearchDesignLocation(pageId,search){
  const p=new URLSearchParams(search);
  if(!isResearchDesignRoute(pageId,search)||p.get('designWorkspace')!=='1'||p.has('projectId')||p.has('protocolId'))fail();
- for(const key of ['designWorkspace','studyGroupId','researchProjectId','researchPlanId'])if(p.getAll(key).length>1)fail();
+ for(const key of ['designWorkspace','studyGroupId','researchProjectId','researchPlanId','assetApplied'])if(p.getAll(key).length>1)fail();
  const scope={studyGroupId:p.get('studyGroupId'),researchProjectId:p.get('researchProjectId')},planId=p.get('researchPlanId');
  if(!valid(scope.studyGroupId)||!valid(scope.researchProjectId)||(pageId==='s07'&&!valid(planId))||(pageId==='s02'&&planId)||(planId&&!valid(planId)))fail();
- return{pageId,scope,planId};
+ if(p.has('assetApplied')&&(pageId!=='s07'||p.get('assetApplied')!=='1'))fail();
+ return{pageId,scope,planId,...(p.has('assetApplied')?{assetApplied:true}:{})};
 }
 export function makeDesignWorkspaceUrl(pageId,scope,planId){
  if(!['q01','q02','s02','s07'].includes(pageId)||!valid(scope?.studyGroupId)||!valid(scope?.researchProjectId)||(pageId==='s02'&&planId)||(!['q02','s02'].includes(pageId)&&!valid(planId)))fail();

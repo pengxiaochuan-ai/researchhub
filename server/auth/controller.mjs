@@ -1,6 +1,6 @@
 import {createHubSession,readSessionToken,assertSessionOrigin,sessionCookie,sessionError} from './session.mjs';
 // ResearchHub owns its HTTP/guard policy; the old authentication service stays unchanged.
-export function createHubAuth({require,load,jwt,prisma,scope,cookieName,origin,secureCookie}){
+export function createHubAuth({require,load,jwt,prisma,scope,cookieName,origin,secureCookie,profileProjection=async p=>p}){
  const {Controller,Get,Post,Req,Res,Body,HttpCode,HttpException,SetMetadata}=require('@nestjs/common');
  if(new URL(origin).origin!==origin||(!origin.startsWith('https://')&&!/^http:\/\/(?:127\.0\.0\.1|localhost):\d+$/.test(origin)))throw Error('RESEARCHHUB_SESSION_ORIGIN_REQUIRED');
  const session=createHubSession({jwt,scope,transaction:fn=>prisma.elevated.$transaction(fn),lockAuthorization:load('common/worker-publication','lockAuthorizationMutation')}),auth=new(load('auth/auth.service','AuthService'))(prisma,jwt,scope);
@@ -11,11 +11,11 @@ export function createHubAuth({require,load,jwt,prisma,scope,cookieName,origin,s
  Controller('auth')(HubAuthController);
  for(const [name,verb,publicRoute]of [['login',Post,true],['logout',Post,true],['renew',Post,true],['me',Get,false]]){
   HubAuthController.prototype[name]=function(req,res,body){return invoke(res,async()=>{
-   if(name==='me')return {...await auth.me(req.user),authVersion:req.user.authVersion};
+   if(name==='me')return {...await profileProjection(await auth.me(req.user),req.user),authVersion:req.user.authVersion};
    assertSessionOrigin(req,origin);
    if(name==='login'){
     if(!body||Object.keys(body).some(x=>!['tenantSlug','username','password'].includes(x))||['tenantSlug','username','password'].some(x=>typeof body[x]!=='string'||!body[x])||body.tenantSlug.length>160||body.username.length>320||body.password.length>64)throw sessionError(400,'请填写有效的账号和密码。');
-    const result=await auth.login(body),claims=await jwt.verifyAsync(result.token),value=await session.issue(claims);setCookie(req,res,value);return{user:result.user,expiresAt:value.expiresAt};
+    const result=await auth.login(body),claims=await jwt.verifyAsync(result.token),value=await session.issue(claims);setCookie(req,res,value);return{user:await profileProjection(result.user,claims),expiresAt:value.expiresAt};
    }
    if(body&&Object.keys(body).length)throw sessionError(400,'会话请求不接受额外字段。');
    const token=readSessionToken(req,cookieName);

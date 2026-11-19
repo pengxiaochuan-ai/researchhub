@@ -1,3 +1,4 @@
+import{assertDeploymentRequest}from'../server/http/deployment-request.mjs';
 import {catalogError} from './research-assets-catalog-contract.mjs';
 import {REPORT_CONTEXT} from './research-assets-report-context.mjs';
 import {assetVersionInRange} from './research-assets-business-identity.mjs';
@@ -9,14 +10,15 @@ export function assertAssetHttpContext(req,{origin,mutation=false}={}){
  if(typeof actor!=='string'||typeof version!=='string'||!/^(0|[1-9][0-9]*)$/.test(version)||!Number.isSafeInteger(Number(version)))fail('INPUT_INVALID',400,'操作身份上下文不完整，请重新打开。');
  if(actor!==req.user?.accountId||Number(version)!==req.user?.authVersion)fail('IDENTITY_CHANGED',409,'账号或会话已变化，未继续执行原操作，请重新读取。');return true;
 }
-export function createAssetRegistrationController({root,require,registration,reportContext,reportSource,governance,usage,lifecycle,uploads,afterCommit,afterGovernanceCommit,afterUsageCommit,afterLifecycleCommit,scopedUser,origin='http://127.0.0.1:19501'}){
+export function createAssetRegistrationController({root,require,registration,reportContext,reportSource,materialBasis,governance,usage,lifecycle,uploads,afterCommit,afterGovernanceCommit,afterUsageCommit,afterLifecycleCommit,scopedUser,load,runtimePolicy,origin='http://127.0.0.1:19501'}){
  const {Controller,Get,Post,Req,Param,Body,UploadedFile,UseInterceptors,HttpException,SetMetadata}=require('@nestjs/common');
  const {FileInterceptor}=require('@nestjs/platform-express');
- const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(root+'app/server/src/common/decorators.ts');
+ const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=(load?Object.fromEntries(['RequireStudyGroup','RequireResearchProject','RequireStudyGroupMenu','RequireStudyGroupPermission'].map(name=>[name,load('common/decorators',name)])):require(root+'app/server/src/common/decorators.ts'));
+ const assertContext=(req,options={})=>{if(runtimePolicy)assertDeploymentRequest(req,runtimePolicy,{json:false});return assertAssetHttpContext(req,options);};
  class AssetRegistrationController{
   async run(req,mutation,execute){
    req.res?.setHeader('Cache-Control','no-store');
-   try{assertAssetHttpContext(req,{origin,mutation});if(scopedUser)req.user=scopedUser(req);return await execute();}catch(e){if(e.code?.startsWith('ASSET_CATALOG_'))throw new HttpException({code:e.code,message:e.message},e.status);throw e;}
+   try{assertContext(req,{origin,mutation});if(scopedUser)req.user=await scopedUser(req);return await execute();}catch(e){if(e.code?.startsWith('ASSET_CATALOG_'))throw new HttpException({code:e.code,message:e.message},e.status);throw e;}
   }
   noQuery(req){if(Object.keys(req.query??{}).length)fail('INPUT_INVALID',400,'此操作不接受额外查询条件。');}
   reportPreview(req){return this.run(req,false,()=>{this.noQuery(req);return reportContext.preview(req.user);});}
@@ -26,6 +28,8 @@ export function createAssetRegistrationController({root,require,registration,rep
   sourcePreview(req,id){return this.run(req,false,()=>reportSource.preview(req.user,this.reportRef(req,id)));}
   sourceRegister(req,id,body){return this.run(req,true,()=>reportSource.register(req.user,this.reportRef(req,id),body));}
   sourceRevise(req,id,body){return this.run(req,true,()=>reportSource.revise(req.user,this.reportRef(req,id),body));}
+  materialApprove(req,id,body){return this.run(req,true,()=>{if(!body||!Number.isSafeInteger(body.version)||body.version<1)fail('INPUT_INVALID',400,'请选择固定报告版本。');const {version,...input}=body;return materialBasis.approve(req.user,{...this.reportRef(req,id),version},input);});}
+  materialRevoke(req,id,body){return this.run(req,true,()=>{this.noQuery(req);return materialBasis.revoke(req.user,id,body);});}
   requireOriginalRegistrationScope(req){if(req.user?.researchProjectId===REPORT_CONTEXT.projectId)fail('FORBIDDEN',403,'请从原方法报告登记或完善资产说明。');}
   options(req){return this.run(req,false,()=>{const q=req.query??{};if(Object.keys(q).length&&!(Object.keys(q).length===1&&typeof q.assetId==='string'&&/^[A-Za-z0-9_-]{1,160}$/.test(q.assetId)))fail('INPUT_INVALID',400,'登记来源查询无效。');return registration.options(req.user,q.assetId);});}
   operation(req,key){return this.run(req,false,()=>{this.noQuery(req);return registration.operation(req.user,key);});}
@@ -52,6 +56,7 @@ export function createAssetRegistrationController({root,require,registration,rep
   upload(req,body,file){return this.run(req,true,()=>{this.noQuery(req);if(!body||Object.keys(body).length!==1||typeof body.requestKey!=='string')fail('INPUT_INVALID',400,'上传请求字段无效。');return uploads.stage(req.user,file,body.requestKey);});}
  }
  Controller('research-assets')(AssetRegistrationController);RequireStudyGroup()(AssetRegistrationController);RequireResearchProject()(AssetRegistrationController);RequireStudyGroupMenu('artifacts')(AssetRegistrationController);RequireStudyGroupPermission('artifact.read')(AssetRegistrationController);
+ if(materialBasis)for(const[method,path]of[['materialApprove','report-sources/:id/material-ai-approvals'],['materialRevoke','material-ai-basis/:id/revocations']]){Post(path)(AssetRegistrationController.prototype,method,Object.getOwnPropertyDescriptor(AssetRegistrationController.prototype,method));Req()(AssetRegistrationController.prototype,method,0);Param('id')(AssetRegistrationController.prototype,method,1);Body()(AssetRegistrationController.prototype,method,2);}
  if(scopedUser)for(const method of ['options','operation','edit','register','revise','governance','submit','review','lifecycle','trashAsset','restoreAsset'])SetMetadata('requireStudyGroup',false)(AssetRegistrationController.prototype,method,Object.getOwnPropertyDescriptor(AssetRegistrationController.prototype,method));
  for(const [method,path,write]of [['reportPreview','report-context-source',false],['reportRegister','report-context-registrations',true],['reportRevise','report-context-revisions',true]]){
   (write?Post:Get)(path)(AssetRegistrationController.prototype,method,Object.getOwnPropertyDescriptor(AssetRegistrationController.prototype,method));Req()(AssetRegistrationController.prototype,method,0);if(write)Body()(AssetRegistrationController.prototype,method,1);
@@ -81,5 +86,6 @@ export function createAssetRegistrationController({root,require,registration,rep
  // Busboy emits partsLimit on equality, so two permitted parts require a sentinel of three.
  // The exact one-file/one-field limits and body-key check still reject any third field/file.
  UseInterceptors(FileInterceptor('file',{limits:{fileSize:5*1024*1024,files:1,fields:1,parts:3}}))(AssetRegistrationController.prototype,'upload',Object.getOwnPropertyDescriptor(AssetRegistrationController.prototype,'upload'));
+ if(runtimePolicy)for(const method of Object.getOwnPropertyNames(AssetRegistrationController.prototype).filter(k=>k!=='constructor'))SetMetadata('requireStudyGroup',false)(AssetRegistrationController.prototype,method,Object.getOwnPropertyDescriptor(AssetRegistrationController.prototype,method));
  return AssetRegistrationController;
 }

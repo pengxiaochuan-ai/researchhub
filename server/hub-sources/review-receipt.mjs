@@ -12,7 +12,11 @@ const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex
 const receiptId=({principal,tenantId,hubKey},key)=>'rh-source-review-'+hash([tenantId,hubKey,principal.accountId,key]);
 const canonical=input=>Object.keys(input).sort().map(key=>[key,input[key]]);
 const fields={pmc:['versionId','rawSha256','visibility','expectedVersion','expectedAssetFingerprint','operationId'],external:['kind','documentId','mode','visibility','expectedFingerprint','operationId'],workbook:['kind','batchId','sourceRegistryId','sourceRecordId','visibility','expectedFingerprint','operationId']};
-async function authorize(args){assertNamedReviewer(args.principal,args.tenantId,args.reviewerAccountId);await assertCurrentReviewer(args);}
+async function authorize(args){
+ assertNamedReviewer(args.principal,args.tenantId,args.reviewerAccountId);await assertCurrentReviewer(args);
+ // Only the already authenticated and revalidated principal is bound here.
+ await args.db.$executeRaw`SELECT set_config('app.account_id',${args.principal.accountId},true),set_config('app.auth_version',${String(args.principal.authVersion)},true)`;
+}
 async function find(args,id){
  const {db,tenantId,principal}=args;
  let row;

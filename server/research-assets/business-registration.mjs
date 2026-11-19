@@ -15,7 +15,7 @@ function businessReceipt(receipt){if(receipt)assertId(receipt.assetId);return re
 /** Normal business registration. Authorization and the transaction belong to
  * withAccess; there is no fixture ID, account label or one-per-kind admission.
  * Source adapters and local fixture budgets must be explicit dependencies. */
-export function createBusinessAssetRegistration({withAccess,assertSources=async()=>false,listSources,listRecipients=async(_tx,p)=>[{accountId:p.accountId,displayName:p.displayName??'本人',isSelf:true}],resolveSource,beforeCommit=async()=>{},syntheticOnly=false}={}){
+export function createBusinessAssetRegistration({withAccess,assertSources=async()=>false,listSources,listRecipients=async(_tx,p)=>[{accountId:p.accountId,displayName:p.displayName??'本人',isSelf:true}],resolveSource,uploads,beforeCommit=async()=>{},syntheticOnly=false}={}){
  if(typeof withAccess!=='function')throw new TypeError('Current business asset authorization required');
  const validate=(input,revision=false)=>validateAssetRegistration(input,{revision,family:'business',allowedRecipients:input?.policy?.discoveryRecipients??[]});
  async function recipients(tx,p,value){
@@ -23,7 +23,12 @@ export function createBusinessAssetRegistration({withAccess,assertSources=async(
   if(value.policy.discoveryRecipients.some(id=>!allowed.has(id)))fail('RIGHTS_REQUIRED',422,'可发现范围不在当前研究授权内。');
  }
  async function resolved(tx,p,value,context){
-  const full=resolveSource?await resolveSource(tx,p,value,context):value;
+  let full=resolveSource?await resolveSource(tx,p,value,context):value;
+  if(value.sourceKind==='upload'){
+   if(!uploads)fail('UPLOAD_UNAVAILABLE',503);full=await uploads.resolve(tx,p,full,context);
+   if(full.sourceKind!=='upload'||!full.uploadBinding||!full.file||full.sourceBindings.length!==1||full.sourceBindings[0].id!==value.uploadId||full.sourceBindings[0].kind!=='upload'||full.sourceBindings[0].version!==1||full.sourceBindings[0].contentHash!==full.file.sha256||typeof full.contentMd!=='string'||assetDigest(full.contentMd)!==full.file.sha256||Buffer.byteLength(full.contentMd)!==full.file.sizeBytes)fail('SOURCE_INVALID');
+   return full;
+  }
   if(value.sourceKind==='author'){
    if(full.sourceKind!=='author'||full.sourceBindings.length)fail('SOURCE_INVALID');
   }else if(!await assertSources(tx,p,{sourceKind:full.sourceKind,sourceBindings:full.sourceBindings,metadata:full.metadata,rightsEvidence:full.policy.rightsEvidence,discoveryRecipientCeiling:full.policy.discoveryRecipients}))fail('SOURCE_INVALID',409,'来源或允许用途当前不可用；输入已保留，未提交草稿。');
@@ -45,28 +50,30 @@ export function createBusinessAssetRegistration({withAccess,assertSources=async(
   options:user=>withAccess(user,'artifact.read',async(tx,p)=>{
    const ownAssets=await tx.$queryRawUnsafe("SELECT asset_id AS id,asset_kind AS kind,working_version_no AS version FROM rh_asset.asset_registry WHERE tenant_id=$1 AND study_group_id=$2 AND research_project_id=$3 AND owner_account_id=$4 AND asset_id LIKE 'rhab-%' ORDER BY asset_id",p.tenantId,p.studyGroupId,p.researchProjectId,p.accountId);
    const canCreate=p.isTenantAdmin||p.permissions?.includes('artifact.create');
-   return{schemaVersion:'rh-asset-registration-options.v2',family:'business',scope:scope(p),identityRevision:p.identityRevision,actors:await listRecipients(tx,p),ownAssets,admission:{canCreate:Boolean(canCreate),reason:canCreate?null:'当前账号没有登记权限，请联系研究管理员。'},sourcesStatus:listSources?'ready':'unavailable',sources:listSources?await listSources(tx,p):[],uploadsStatus:'unavailable',pendingUploads:[]};
+   return{schemaVersion:'rh-asset-registration-options.v2',family:'business',scope:scope(p),identityRevision:p.identityRevision,actors:await listRecipients(tx,p),ownAssets,admission:{canCreate:Boolean(canCreate),reason:canCreate?null:'当前账号没有登记权限，请联系研究管理员。'},sourcesStatus:listSources?'ready':'unavailable',sources:listSources?await listSources(tx,p):[],uploadsStatus:uploads?'ready':'unavailable',pendingUploads:uploads?await uploads.list(p):[]};
   }),
   async register(user,input){
    const value=validate(input);
-   return withAccess(user,'artifact.create',async(tx,p)=>{
+   const receipt=await withAccess(user,'artifact.create',async(tx,p)=>{
     const requestHash=businessRegistrationRequestHash(value,p),old=businessReceipt(await findCatalogOperation(tx,p,value.requestKey,requestHash));
     if(old)return old;
     await recipients(tx,p,value);
     const full=await resolved(tx,p,value,{version:1,requestHash});
     await beforeCommit(tx,p,{action:'create',value:full});
-    const id='rhab-'+randomUUID(),idempotencyKey=businessAssetKey(id);
+    if(full.uploadBinding)await uploads.prepare(tx,p,full);
+    const id=full.reservedAssetId??'rhab-'+randomUUID(),idempotencyKey=businessAssetKey(id);
     await tx.researchArtifact.create({data:{id,...scope(p),typeKey:'research_report',title:full.metadata.title,status:'draft',ownerAccountId:p.accountId,createdBy:p.accountId,idempotencyKey,creationRequestHash:requestHash}});
     const r={assetId:id,...scope(p),ownerAccountId:p.accountId,kind:full.kind,revision:1,workingVersionNo:1};
     await tx.$executeRawUnsafe('INSERT INTO rh_asset.asset_registry(asset_id,tenant_id,study_group_id,research_project_id,owner_account_id,asset_kind) VALUES($1,$2,$3,$4,$5,$6)',id,p.tenantId,p.studyGroupId,p.researchProjectId,p.accountId,full.kind);
     await writeAssetVersion(tx,p,r,full,{family:'business'});
-    const receipt={assetId:id,version:1,revision:1,operation:'created',status:'committed'};
+    const receipt={assetId:id,version:1,revision:1,operation:'created',status:'committed',...(full.uploadBinding?{uploadId:full.uploadBinding.uploadId,attachmentStatus:'bound'}:{})};
     await appendCatalogEvent(tx,p,{registry:r,version:1,type:'created',requestKey:value.requestKey,requestHash,receipt},{syntheticOnly});return receipt;
    });
+   return uploads?withAccess(user,'artifact.read',(tx,p)=>uploads.reconcile(tx,p,value.requestKey,receipt)):receipt;
   },
   async revise(user,id,input){
    assertId(id);const value=validate(input,true);
-   return withAccess(user,'artifact.edit',async(tx,p)=>{
+   const receipt=await withAccess(user,'artifact.edit',async(tx,p)=>{
     const r=await lock(tx,p,id),requestHash=businessRegistrationRequestHash(value,p,id),old=businessReceipt(await findCatalogOperation(tx,p,value.requestKey,requestHash));
     if(old)return old;
     if(value.kind!==r.kind)fail('INPUT_INVALID',400,'修订不能改变资产类型。');
@@ -75,14 +82,16 @@ export function createBusinessAssetRegistration({withAccess,assertSources=async(
     const record=await readRecord(tx,p,id);
     const next=assertAssetAction({registry:r,sourceValid:true,family:record.family},{action:'revise',version:r.workingVersionNo,baseVersion:value.baseVersion,expectedRevision:value.expectedRevision,requestKey:value.requestKey},p);
     await beforeCommit(tx,p,{action:'revise',id,registry:r,value:full,next});
+    if(full.uploadBinding)await uploads.prepare(tx,p,full);
     const updated=await tx.researchArtifact.updateMany({where:{...scope(p),id,status:'draft',deletedAt:null,ownerAccountId:r.ownerAccountId,currentVersionNo:r.workingVersionNo},data:{title:full.metadata.title,currentVersionNo:next.workingVersionNo}});
     if(updated.count!==1)fail('VERSION_CONFLICT');
     const changed=await tx.$executeRawUnsafe("UPDATE rh_asset.asset_registry SET working_version_no=$1,working_state='draft',submitted_version_no=NULL,approved_version_no=NULL,revision=$2,updated_at=now() WHERE asset_id=$3 AND revision=$4 AND tenant_id=$5 AND study_group_id=$6 AND research_project_id=$7",next.workingVersionNo,next.revision,id,r.revision,p.tenantId,p.studyGroupId,p.researchProjectId);
     if(changed!==1)fail('VERSION_CONFLICT');
     await writeAssetVersion(tx,p,next,full,{family:'business'});
-    const receipt={assetId:id,version:next.workingVersionNo,revision:next.revision,operation:'revised',status:'committed'};
+    const receipt={assetId:id,version:next.workingVersionNo,revision:next.revision,operation:'revised',status:'committed',...(full.uploadBinding?{uploadId:full.uploadBinding.uploadId,attachmentStatus:'bound'}:{})};
     await appendCatalogEvent(tx,p,{registry:next,version:next.workingVersionNo,type:'revised',requestKey:value.requestKey,requestHash,receipt},{syntheticOnly});return receipt;
    });
+   return uploads?withAccess(user,'artifact.read',(tx,p)=>uploads.reconcile(tx,p,value.requestKey,receipt)):receipt;
   },
   async edit(user,id,number){
    assertId(id);const version=Number(number);if(!positive(version)||String(version)!==String(number))fail('INPUT_INVALID',400);
@@ -99,7 +108,7 @@ export function createBusinessAssetRegistration({withAccess,assertSources=async(
   operation(user,key){
    if(typeof key!=='string'||!/^[A-Za-z0-9_-]{8,160}$/.test(key))fail('INPUT_INVALID',400);
    return withAccess(user,'artifact.read',async(tx,p)=>{
-    const receipt=await findCatalogOperation(tx,p,key);
+    let receipt=await findCatalogOperation(tx,p,key);if(uploads)receipt=await uploads.reconcile(tx,p,key,receipt);
     return receipt?.assetId?.startsWith('rhab-')?businessReceipt(receipt):{status:'not_found'};
    });
   }

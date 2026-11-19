@@ -1,13 +1,13 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {Button} from './Components.jsx';import ConfirmDialog from './ConfirmDialog.jsx';
-import {assertAssetReusePreview,assetReuseResultUrl} from '../../src/research-assets-reuse.js';
+import {assertAssetReusePreview,assetReuseResultUrl,canRequestAssetReuse} from '../../src/research-assets-reuse.js';
 export default function useAssetReuse(props){
  const{asset,user,scope,api,blocked,canProceed,onAccessLost,canOpen=()=>true}=props;
  const[options,setOptions]=useState({status:'loading'}),[dialog,setDialog]=useState(null),[phase,setPhase]=useState('idle'),[message,setMessage]=useState(''),[leave,setLeave]=useState(null);
  const live=useRef(null),epoch=useRef(0),request=useRef(null),trigger=useRef(null),allowLeave=useRef(false),reads=useRef(0);
  const context=JSON.stringify([user?.tenantId,user?.accountId,user?.authVersion,scope?.studyGroupId,scope?.researchProjectId,asset.id,asset.version]),storageKey='rh-a02-reuse-pending:'+context;
  live.current={...props,options,dialog,phase,context};
- const ready=()=>!live.current.blocked&&live.current.asset.family==='detail'&&live.current.asset.bodyAccess==='allowed'&&(!live.current.canProceed||live.current.canProceed());
+ const ready=()=>!live.current.blocked&&canRequestAssetReuse(live.current.asset)&&(!live.current.canProceed||live.current.canProceed());
  const pending=()=>['submitting','unknown'].includes(live.current.phase);
  async function call(method,path,input){if(!ready())throw Object.assign(Error('请先重新核对固定版本。'),{status:503});const key=live.current.context,result=await live.current.api[method](path,input);if(!ready()||key!==live.current.context)throw Object.assign(Error('身份或固定版本已变化，请核对原结果。'),{status:503});return result;}
  function clear(){sessionStorage.removeItem(storageKey);request.current=null;setPhase('idle');}

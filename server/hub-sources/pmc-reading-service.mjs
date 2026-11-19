@@ -7,7 +7,7 @@ import {parsePmcReading} from './pmc-reading.mjs';
 
 const root=fileURLToPath(new URL('../../.tmp/researchhub-pmc-local/',import.meta.url));
 const fail=code=>{throw new Error(code);};
-export async function getPmcReviewArticle({db,principal,tenantId,hubKey,reviewerAccountId,versionId,readObject=readFile}) {
+export async function getPmcReviewArticle({db,principal,tenantId,hubKey,reviewerAccountId,versionId,readObject=readFile,readPmcAsset}) {
   assertNamedReviewer(principal,tenantId,reviewerAccountId);
   await assertCurrentReviewer({db,principal,tenantId,hubKey});
   if(typeof versionId!=='string'||!/^[A-Za-z0-9_-]{4,100}$/.test(versionId))fail('HUB_SOURCE_REVIEW_INPUT_REJECTED');
@@ -25,7 +25,7 @@ export async function getPmcReviewArticle({db,principal,tenantId,hubKey,reviewer
     ORDER BY (component_ref='jats') DESC,component_ref LIMIT 1`;
   if(!asset||!/^objects\/[a-f0-9]{64}$/.test(asset.objectKey)||asset.objectKey!=='objects/'+asset.sha256||
     Number(asset.byteCount)<1||Number(asset.byteCount)>8*1024*1024)fail('HUB_SOURCE_PMC_READING_UNAVAILABLE');
-  let bytes;try{bytes=await readObject(root+asset.objectKey);}catch{fail('HUB_SOURCE_PMC_READING_UNAVAILABLE');}
+  let bytes;try{bytes=readPmcAsset?await readPmcAsset({localObjectKey:asset.objectKey,sha256:asset.sha256,byteCount:Number(asset.byteCount)}):await readObject(root+asset.objectKey);}catch{fail('HUB_SOURCE_PMC_READING_UNAVAILABLE');}
   if(!Buffer.isBuffer(bytes)||bytes.length!==Number(asset.byteCount)||createHash('sha256').update(bytes).digest('hex')!==asset.sha256)
     fail('HUB_SOURCE_PMC_READING_INVALID');
   const reading=parsePmcReading(bytes.toString('utf8'),version.pmcid);

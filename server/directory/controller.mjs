@@ -1,8 +1,7 @@
-import {withFixtureTransaction} from '../../../app/server/scripts/wp01/fixture-guard.mjs';
-import {inspectDirectorySchema,evaluateDirectorySchema,directorySchemaHash} from '../../scripts/directory-schema.mjs';
-import {inspectDirectorySourceLock,evaluateDirectorySourceLock,directorySourceLockHash} from '../../scripts/directory-source-lock-schema.mjs';
+import {assertVerifiedRuntimeSchema} from '../database/transactions.mjs';
+import {assertDeploymentRequest} from '../http/deployment-request.mjs';
+import {withFixtureTransaction} from '../database/transactions.mjs';
 import {createDirectoryService} from './commands.mjs';import {directoryError} from './contract.mjs';
-import {inspectTeamDraftSchema,evaluateTeamDraftSchema,teamDraftSchemaHash} from '../../scripts/team-draft-schema.mjs';
 export function directoryQuery(req,keys){const p=new URL(req.originalUrl??req.url,'http://127.0.0.1:19501').searchParams;if([...p.keys()].some(k=>!keys.includes(k)||p.getAll(k).length!==1))throw directoryError('DIRECTORY_INVALID_QUERY',400,'查询包含重复、未知或越界范围参数。');return Object.fromEntries(p);}
 function verifiedTeamBrowser(h){
  // A port-stripped Origin is never sufficient. Require independent browser
@@ -10,8 +9,9 @@ function verifiedTeamBrowser(h){
  if(h.origin!=='http://127.0.0.1'||h['sec-fetch-site']!=='same-origin'||h['sec-fetch-mode']!=='same-origin'||h['sec-fetch-dest']!=='empty'||h['x-researchhub-request']!=='team-workspace-v1')return false;
  try{const page=new URL(h.referer);return page.origin==='http://127.0.0.1:19501'&&!page.username&&!page.password;}catch{return false;}
 }
-export function validateDirectoryRequest(req,body,{teamWorkspaceWrite=false}={}){
+export function validateDirectoryRequest(req,body,{teamWorkspaceWrite=false,runtimePolicy}={}){
  const h=req.headers??{};
+ if(runtimePolicy){assertDeploymentRequest(req,runtimePolicy);if(body!==undefined&&Buffer.byteLength(JSON.stringify(body))>49152)throw directoryError('DIRECTORY_REQUEST_TOO_LARGE',413,'目录请求超过48KiB，请减少输入。');return{user:req.user};}
  if(!['127.0.0.1:19501','127.0.0.1:19502'].includes(h.host)||!['127.0.0.1','::ffff:127.0.0.1'].includes(req.socket?.remoteAddress)||['forwarded','x-forwarded-host','x-forwarded-proto'].some(k=>Object.hasOwn(h,k)))throw directoryError('DIRECTORY_ORIGIN_REJECTED',403,'仅允许本机合成环境请求。');
  if(!['GET','HEAD'].includes(req.method)){
   const sameOrigin=h.origin==='http://127.0.0.1:19501'||teamWorkspaceWrite&&req.method==='POST'&&verifiedTeamBrowser(h);
@@ -21,12 +21,18 @@ export function validateDirectoryRequest(req,body,{teamWorkspaceWrite=false}={})
 }
 const natural=(v,fallback)=>{if(v===undefined)return fallback;if(!/^[1-9]\d*$/.test(v)||!Number.isSafeInteger(Number(v))||Number(v)>10000)throw directoryError('DIRECTORY_INVALID_QUERY',400,'页码格式不正确。');return Number(v);};
 export const localDirectoryBudget=Object.freeze({organization:4,team:4,researcher:5});
-export async function createDirectoryController({env,ids,require}){
+export async function createDirectoryController({env,ids,require,runtimePolicy}){
+ if(runtimePolicy)assertVerifiedRuntimeSchema(env);
+ if(!runtimePolicy){
+ const {inspectDirectorySchema,evaluateDirectorySchema,directorySchemaHash}=await import('../../scripts/directory-schema.mjs');
+ const {inspectDirectorySourceLock,evaluateDirectorySourceLock,directorySourceLockHash}=await import('../../scripts/directory-source-lock-schema.mjs');
+ const {inspectTeamDraftSchema,evaluateTeamDraftSchema,teamDraftSchemaHash}=await import('../../scripts/team-draft-schema.mjs');
  evaluateDirectorySchema(await inspectDirectorySchema(env),directorySchemaHash);evaluateDirectorySourceLock(await inspectDirectorySourceLock(env),directorySourceLockHash);
  if(evaluateTeamDraftSchema(await inspectTeamDraftSchema(env),teamDraftSchemaHash)!=='existing')throw Error('DIRECTORY_TEAM_DRAFT_SCHEMA_REQUIRED');
+ }
  const db={tenantId:ids.tenant,hubKey:'lingshu-xinyu',budget:localDirectoryBudget,transaction:fn=>withFixtureTransaction(env,'app',fn)},service=createDirectoryService({db});
  const {Controller,Get,Post,Req,Res,Body,Param,HttpCode,HttpException,SetMetadata}=require('@nestjs/common');
- const invoke=async(req,res,hub,operation,browserProof)=>{res.setHeader('Cache-Control','no-store');try{if(hub!=='lingshu-xinyu')throw directoryError('DIRECTORY_NOT_FOUND',404,'该领域目录尚未开放。');validateDirectoryRequest(req,req.body,browserProof);return await operation({user:req.user});}catch(e){throw new HttpException({code:e.code??'DIRECTORY_UNAVAILABLE',message:e.status?e.message:'目录服务暂不可用，请保留输入并重新核对；不会自动重复提交。',...(Number.isInteger(e.totalPages)?{totalPages:e.totalPages}:{})},e.status??503);}};
+ const invoke=async(req,res,hub,operation,browserProof)=>{res.setHeader('Cache-Control','no-store');try{if(hub!=='lingshu-xinyu')throw directoryError('DIRECTORY_NOT_FOUND',404,'该领域目录尚未开放。');validateDirectoryRequest(req,req.body,{...browserProof,runtimePolicy});return await operation({user:req.user});}catch(e){throw new HttpException({code:e.code??'DIRECTORY_UNAVAILABLE',message:e.status?e.message:'目录服务暂不可用，请保留输入并重新核对；不会自动重复提交。',...(Number.isInteger(e.totalPages)?{totalPages:e.totalPages}:{})},e.status??503);}};
  const listKeys=['q','direction','region','organizationType','teamType','sort','page','pageSize'];
  class DirectoryController{}
  Controller('hubs/:hubKey')(DirectoryController);

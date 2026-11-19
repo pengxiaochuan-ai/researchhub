@@ -1,4 +1,4 @@
-import { withFixtureTransaction } from '../../../app/server/scripts/wp01/fixture-guard.mjs';
+import { withFixtureTransaction } from '../database/transactions.mjs';
 import { createHash } from 'node:crypto';
 import { retrieveForAi, getCurrentAiHit } from './visible-repository.mjs';
 import { retrieveExternalForAi, getCurrentExternalAiHit } from './external-visible.mjs';

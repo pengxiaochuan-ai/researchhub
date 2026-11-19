@@ -1,14 +1,18 @@
-import {withFixtureTransaction,assertFixtureTarget} from '../../../app/server/scripts/wp01/fixture-guard.mjs';
-import {inspectResearchIdentitySchema,evaluateResearchIdentitySchema,researchIdentitySchemaHash} from '../../scripts/research-identity-schema.mjs';
+import {assertVerifiedRuntimeSchema} from '../database/transactions.mjs';
+import {assertDeploymentRequest} from '../http/deployment-request.mjs';
+import {withFixtureTransaction,assertFixtureTarget} from '../database/transactions.mjs';
 import {createResearchIdentityService} from './service.mjs';
 import {identityError} from './policy.mjs';
 
 export const identityRoute=path=>/^\/api\/account-access\/(?:research-profile(?:\/.*)?|research-identity)\/?$/.test(path);
-export function validateIdentityRequest(req,body,receipt=false){
+export function validateIdentityRequest(req,body,receipt=false,runtimePolicy){
   const h=req.headers??{},deny=()=>{throw identityError('IDENTITY_ORIGIN_REJECTED',403,'仅允许本机同源合成环境请求。');};
+  if(runtimePolicy)assertDeploymentRequest(req,runtimePolicy);
+  else {
   if(!['127.0.0.1:19501','127.0.0.1:19502'].includes(h.host)||Object.keys(h).some(k=>['forwarded','x-forwarded-host','x-forwarded-proto'].includes(k)))deny();
   if(!['127.0.0.1','::ffff:127.0.0.1'].includes(req.socket?.remoteAddress))deny();
   if(!['GET','HEAD'].includes(req.method)&&(h.origin!=='http://127.0.0.1:19501'||!/^application\/json(?:\s*;.*)?$/i.test(h['content-type']??'')))deny();
+  }
   if(body!==undefined&&Buffer.byteLength(JSON.stringify(body))>49152)throw identityError('IDENTITY_REQUEST_TOO_LARGE',413,'科研资料请求超过48KiB，请减少输入。');
   const params=new URL(req.originalUrl??req.url,'http://127.0.0.1:19502').searchParams;
   let baseVersion;
@@ -17,10 +21,14 @@ export function validateIdentityRequest(req,body,receipt=false){
   return{user:req.user,baseVersion};
 }
 
-export async function createResearchIdentityController({env,ids,load,require}){
+export async function createResearchIdentityController({env,ids,load,require,runtimePolicy}){
   await assertFixtureTarget(env);
+  if(runtimePolicy)assertVerifiedRuntimeSchema(env);
+  if(!runtimePolicy){
+  const{inspectResearchIdentitySchema,evaluateResearchIdentitySchema,researchIdentitySchemaHash}=await import('../../scripts/research-identity-schema.mjs');
   const state=await inspectResearchIdentitySchema(env);
   if(evaluateResearchIdentitySchema(state,researchIdentitySchemaHash)!=='existing')throw new Error('IDENTITY_SCHEMA_NOT_PREPARED');
+  }
   const lockAuthorization=load('common/worker-publication','lockAuthorizationMutation');
   const db={tenantId:ids.tenant,transaction:fn=>withFixtureTransaction(env,'app',async tx=>{
     await tx.$executeRaw`SELECT set_config('app.tenant_id',${ids.tenant},true)`;
@@ -33,7 +41,7 @@ export async function createResearchIdentityController({env,ids,load,require}){
   const {Controller,Get,Post,Patch,Body,Req,Res,Param,HttpCode,HttpException}=require('@nestjs/common');
   const invoke=async(req,res,method,body,key)=>{
     res.setHeader('Cache-Control','no-store');
-    try{const ctx=validateIdentityRequest(req,body,method==='receipt');return await service[method](ctx,...(method==='receipt'?[key,ctx.baseVersion]:body===undefined?[]:[body]));}
+    try{const ctx=validateIdentityRequest(req,body,method==='receipt',runtimePolicy);return await service[method](ctx,...(method==='receipt'?[key,ctx.baseVersion]:body===undefined?[]:[body]));}
     catch(e){throw new HttpException({code:e.code??'IDENTITY_UNAVAILABLE',message:e.status?e.message:'科研资料服务暂不可用，请保留输入并核对。',...(e.fieldErrors?{fieldErrors:e.fieldErrors}:{})},e.status??503);}
   };
   class ResearchIdentityController{

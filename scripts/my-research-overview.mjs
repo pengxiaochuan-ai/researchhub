@@ -23,18 +23,23 @@ export function projectPermits(project,menu,button){return project.permissions.m
 export function canOpenDesignWorkspace(project,accountId,ids){return project.id===ids.project&&project.studyGroupId===ids.group&&[ids.owner,ids.admin].includes(accountId)&&['knowledge','workbench','artifacts'].every(menu=>projectPermits(project,menu))&&['chat.use','artifact.read'].every(button=>project.permissions.buttons.includes(button));}
 export function canOpenPlanFlow(draft,accountId,designAllowed){return designAllowed&&draft.typeKey==='protocol_draft'&&draft.ownerAccountId===accountId&&draft.createdBy===accountId&&draft.idempotencyKey?.startsWith('rh-plan-20261022:'+accountId+':')===true;}
 
-export function createMyResearchOverview({prisma,lockAuthorization,tenantId,ids,canOpenApplicability}){
+export function createMyResearchOverview({prisma,lockAuthorization,tenantId,ids,canOpenApplicability,runtime=false}){
  return async (user,query={})=>{
   const {draftPage,taskPage}=readOverviewPages(query),pageSize=5;
   if(user.tenantId!==tenantId)throw new Error('OVERVIEW_TENANT_REJECTED');
   return prisma.elevated.$transaction(async tx=>{
    await lockAuthorization(tx,tenantId);
-   const account=await tx.account.findFirst({where:{id:user.accountId,tenantId,status:'active',authVersion:user.authVersion,tenant:{status:'active'}},select:{displayName:true,tenant:{select:{name:true}}}});
+   const account=await tx.account.findFirst({where:{id:user.accountId,tenantId,status:'active',authVersion:user.authVersion,tenant:{status:'active'}},select:{displayName:true,role:true,isTenantAdmin:true,tenant:{select:{name:true}}}});
    if(!account)throw new Error('OVERVIEW_SESSION_REJECTED');
    const [groupMemberships,projectMemberships]=await Promise.all([
     tx.studyGroupMembership.findMany({where:{tenantId,accountId:user.accountId,status:'active'},include:{studyGroup:{select:{id:true,name:true,status:true,tenantId:true}},role:{select:{status:true,tenantId:true,menuPermissions:true,buttonPermissions:true}}},orderBy:[{isDefault:'desc'},{createdAt:'asc'}]}),
     tx.researchProjectMembership.findMany({where:{tenantId,accountId:user.accountId,status:'active'},include:{researchProject:{select:{id:true,name:true,description:true,status:true,studyGroupId:true,tenantId:true}}},orderBy:[{isDefault:'desc'},{createdAt:'asc'}]})
    ]);
+   if(runtime&&account.role==='tenant_admin'&&account.isTenantAdmin===true){
+    const all=await tx.researchProject.findMany({where:{tenantId,status:'active',studyGroup:{tenantId,status:'active'}},include:{studyGroup:{select:{id:true,name:true,status:true,tenantId:true}}},orderBy:[{createdAt:'asc'},{id:'asc'}]});
+    groupMemberships.length=0;projectMemberships.length=0;const seen=new Set();
+    for(const project of all){if(!seen.has(project.studyGroupId)){seen.add(project.studyGroupId);groupMemberships.push({tenantId,studyGroupId:project.studyGroupId,status:'active',studyGroup:project.studyGroup,role:{tenantId,status:'active',menuPermissions:['workbench','knowledge','artifacts','group_admin'],buttonPermissions:['artifact.read','artifact.create','artifact.edit','artifact.review','artifact.release','study.configure','study.execute','study.review','data.analyze','member.manage','chat.use']}});}projectMemberships.push({tenantId,studyGroupId:project.studyGroupId,status:'active',researchProject:project});}
+   }
    const groups=visibleProjects(groupMemberships,projectMemberships,tenantId),projects=groups.flatMap(g=>g.projects);
    const scoped=items=>({tenantId,OR:items.map(p=>({studyGroupId:p.studyGroupId,researchProjectId:p.id}))});
    const draftProjects=projects.filter(p=>projectPermits(p,'artifacts','artifact.read'));
@@ -68,9 +73,9 @@ export function createMyResearchOverview({prisma,lockAuthorization,tenantId,ids,
  };
 }
 
-export function createMyResearchController({root,ids,prisma,load,require,canOpenApplicability}){
+export function createMyResearchController({root,ids,prisma,load,require,canOpenApplicability,runtime=false}){
  const {Controller,Get,Req,Query,BadRequestException,UnauthorizedException}=require('@nestjs/common');
- const overview=createMyResearchOverview({prisma,tenantId:ids.tenant,ids,canOpenApplicability,lockAuthorization:load('common/worker-publication','lockAuthorizationMutation')});
+ const overview=createMyResearchOverview({prisma,tenantId:ids.tenant,ids,canOpenApplicability,runtime,lockAuthorization:load('common/worker-publication','lockAuthorizationMutation')});
  class MyResearchController{async get(req,query){req.res?.setHeader('Cache-Control','no-store');try{return await overview(req.user,query);}catch(error){if(error.message==='OVERVIEW_QUERY_INVALID')throw new BadRequestException({code:'MY_RESEARCH_QUERY_INVALID',message:'列表页码无效，请返回第一页重试。'});if(['OVERVIEW_TENANT_REJECTED','OVERVIEW_SESSION_REJECTED'].includes(error.message))throw new UnauthorizedException('登录会话已失效');throw error;}}}
  Controller('my-research')(MyResearchController);
  Get('overview')(MyResearchController.prototype,'get',Object.getOwnPropertyDescriptor(MyResearchController.prototype,'get'));

@@ -12,19 +12,19 @@ const text=x=>typeof x==='string'&&Boolean(x.trim())&&x.length<=2000;
 export const DETAIL_PURPOSES=Object.freeze(['read_body','cite','comment','download','ai','derive','apply','export']);
 const purposes=(x,detail=false)=>Array.isArray(x)&&x.length>0&&x.length<=(detail?8:2)&&new Set(x).size===x.length&&x.every(v=>(detail?DETAIL_PURPOSES:['read_body','cite']).includes(v));
 const fields={request:['actions','purpose','ttlDays'],share:['recipientAccountId','actions','purpose','ttlDays','reason'],decide:['requestId','expectedRequestRevision','conclusion','actions','reason'],revoke:['requestId','expectedRequestRevision','reason'],cite:[]};
-export function validateAssetAccessInput(v,{ids,detail=false}){
+export function validateAssetAccessInput(v,{ids,detail=false,runtimeBusiness=false}){
  const common=['action','version','expectedRevision','requestKey','contentHash','policyHash','identityRevision'];
- if(!v||Array.isArray(v)||!Object.hasOwn(fields,v.action)||Object.keys(v).some(k=>!common.includes(k)&&!fields[v.action].includes(k))||!valid(v.requestKey)||v.requestKey.length<8||!positive(v.version)||v.version>8||!positive(v.expectedRevision)||v.expectedRevision>24||!hash(v.contentHash)||!hash(v.policyHash)||typeof v.identityRevision!=='string'||!v.identityRevision||v.identityRevision.length>300)fail('INPUT_INVALID',400);
+ if(!v||Array.isArray(v)||!Object.hasOwn(fields,v.action)||Object.keys(v).some(k=>!common.includes(k)&&!fields[v.action].includes(k))||!valid(v.requestKey)||v.requestKey.length<8||!positive(v.version)||v.version>(runtimeBusiness?2147483647:8)||!positive(v.expectedRevision)||v.expectedRevision>(runtimeBusiness?2147483647:24)||!hash(v.contentHash)||!hash(v.policyHash)||typeof v.identityRevision!=='string'||!v.identityRevision||v.identityRevision.length>300)fail('INPUT_INVALID',400);
  if(['request','share'].includes(v.action)&&(!purposes(v.actions,detail)||!text(v.purpose)||!positive(v.ttlDays)||v.ttlDays>7))fail('INPUT_INVALID',400);
- if(v.action==='share'&&![ids.owner,ids.admin].includes(v.recipientAccountId))fail('INPUT_INVALID',400);
+ if(v.action==='share'&&(!valid(v.recipientAccountId)||!runtimeBusiness&&![ids.owner,ids.admin].includes(v.recipientAccountId)))fail('INPUT_INVALID',400);
  if(['share','decide','revoke'].includes(v.action)&&!text(v.reason))fail('INPUT_INVALID',400,'请填写用途核对或撤销理由。');
  if(['decide','revoke'].includes(v.action)&&(!valid(v.requestId)||!positive(v.expectedRequestRevision)))fail('INPUT_INVALID',400);
  if(v.action==='decide'&&(!['approved','rejected'].includes(v.conclusion)||!Array.isArray(v.actions)||v.conclusion==='approved'&&!purposes(v.actions,detail)||v.conclusion==='rejected'&&v.actions.length!==0))fail('INPUT_INVALID',400);
  return{...v,...(v.actions?{actions:[...v.actions].sort()}: {})};
 }
-export function assetAccessTransition(record,input,p,now=Date.now()){
+export function assetAccessTransition(record,input,p,now=Date.now(),{runtimeBusiness=false}={}){
  const r=record.registry,policy=record.policies.find(x=>x.version===input.version);
- const selected=input.actions;if(selected&&!purposes(selected,record.family?.family==='detail')&&!(input.action==='decide'&&input.conclusion==='rejected'&&selected.length===0))fail('INPUT_INVALID',400);
+ const selected=input.actions;if(selected&&!purposes(selected,record.family?.family==='detail'||runtimeBusiness&&record.family?.family==='business')&&!(input.action==='decide'&&input.conclusion==='rejected'&&selected.length===0))fail('INPUT_INVALID',400);
  if(selected?.includes('apply')&&r.kind!=='protocol')fail('RIGHTS_REQUIRED',422,'只有研究方案模板支持应用为方案。');
  if(['tenantId','studyGroupId','researchProjectId'].some(k=>r[k]!==p[k]))fail('NOT_FOUND',404);
  if(p.identityRevision!==input.identityRevision||r.revision!==input.expectedRevision||!policy||policy.contentHash!==input.contentHash||policy.policyHash!==input.policyHash)fail('VERSION_CONFLICT');
@@ -59,9 +59,9 @@ export function assetAccessTransition(record,input,p,now=Date.now()){
  return{next,type:'decided',payload:{...payload,reason:input.reason,conclusion:input.conclusion},request:{...request,state:input.conclusion,actions:input.actions,revision:request.revision+1}};
 }
 
-export function createAssetUsage({ids,withAccess,assertSources=async()=>false,now=()=>Date.now(),loadRecords=loadCatalogRecords,beforeCommit=async()=>{},auditOptions}){
+export function createAssetUsage({ids,withAccess,assertSources=async()=>false,now=()=>Date.now(),loadRecords=loadCatalogRecords,beforeCommit=async()=>{},auditOptions,runtimeBusiness=false}){
  async function assertRecipient(tx,p,accountId){
-  if(![ids.owner,ids.admin].includes(accountId))fail('RIGHTS_REQUIRED',422);
+  if(!runtimeBusiness&&![ids.owner,ids.admin].includes(accountId))fail('RIGHTS_REQUIRED',422);
   const account=await tx.account.findFirst({where:{id:accountId,tenantId:p.tenantId,status:'active'}});
   if(!account)fail('RIGHTS_REQUIRED',422,'接收人当前不可用，未新增许可。');
   if(account.role==='tenant_admin')return;
@@ -83,28 +83,28 @@ export function createAssetUsage({ids,withAccess,assertSources=async()=>false,no
  }
  return{
   collaborations(user,query){
-   return withAccess(user,'artifact.read',async(tx,p)=>readAssetCollaborations({tx,p,records:await loadRecords(tx,p,assertSources),query,ids,now}));
+   return withAccess(user,'artifact.read',async(tx,p)=>readAssetCollaborations({tx,p,records:await loadRecords(tx,p,assertSources),query,ids,now,runtimeBusiness}));
   },
   options(user,id,version){
-   if(!valid(id)||!/^[1-8]$/.test(String(version)))fail('INPUT_INVALID',400);
+   if(!valid(id)||(!runtimeBusiness?!/^[1-8]$/.test(String(version)):!/^[1-9][0-9]*$/.test(String(version))||!positive(Number(version))||Number(version)>2147483647))fail('INPUT_INVALID',400);
    return withAccess(user,'artifact.read',async(tx,p)=>{
     const {record,r,policy,manage,release}=await available(tx,p,id,Number(version));
     // Historical request names must remain resolvable so a manager can revoke an
     // inactive recipient's grant. Active status gates only new recipient choices.
-    const people=await tx.account.findMany({where:{tenantId:p.tenantId,id:{in:[ids.owner,ids.admin]}},select:{id:true,displayName:true,status:true}});
+    const people=await tx.account.findMany({where:{tenantId:p.tenantId,id:{in:runtimeBusiness?[...new Set([p.accountId,r.ownerAccountId,...policy.discoveryRecipientCeiling,...record.grants.flatMap(g=>[g.initiatorAccountId,g.recipientAccountId])])]:[ids.owner,ids.admin]}},select:{id:true,displayName:true,status:true}});
     const grants=record.grants.filter(g=>g.version===Number(version)&&(manage||g.recipientAccountId===p.accountId||g.initiatorAccountId===p.accountId));
     const allowed=release.active&&policy.sourceValid===true,live=grants.some(g=>['pending','approved'].includes(g.state)&&Date.parse(g.expiresAt)>now()&&g.recipientAccountId===p.accountId);
     const canCite=allowed&&(manage||grants.some(g=>g.state==='approved'&&g.actions.includes('cite')&&Date.parse(g.expiresAt)>now()&&g.recipientAccountId===p.accountId));
-    return{schemaVersion:'rh-asset-usage.v1',scope:scope(p),assetId:id,version:Number(version),title:policy.metadata.title,expectedRevision:r.revision,identityRevision:p.identityRevision,contentHash:policy.contentHash,policyHash:policy.policyHash,sourceValid:policy.sourceValid===true,releaseActive:release.active,releaseExpiresAt:release.expiresAt,allowedActions:record.family?.family==='detail'?DETAIL_PURPOSES.filter(a=>a!=='apply'||r.kind==='protocol'):['read_body','cite'],canManage:manage,canRequest:allowed&&!manage&&!live,canShare:allowed&&manage,canCite,actors:people.map(a=>({accountId:a.id,displayName:a.displayName})),recipients:people.filter(a=>a.status==='active'&&a.id!==p.accountId&&a.id!==r.ownerAccountId&&release.recipients.includes(a.id)&&policy.discoveryRecipientCeiling.includes(a.id)).map(a=>({accountId:a.id,displayName:a.displayName})),requests:grants};
+    return{schemaVersion:'rh-asset-usage.v1',scope:scope(p),assetId:id,version:Number(version),title:policy.metadata.title,expectedRevision:r.revision,identityRevision:p.identityRevision,contentHash:policy.contentHash,policyHash:policy.policyHash,sourceValid:policy.sourceValid===true,releaseActive:release.active,releaseExpiresAt:release.expiresAt,allowedActions:(record.family?.family==='detail'||runtimeBusiness&&record.family?.family==='business')?DETAIL_PURPOSES.filter(a=>a!=='apply'||r.kind==='protocol'):['read_body','cite'],canManage:manage,canRequest:allowed&&!manage&&!live,canShare:allowed&&manage,canCite,actors:people.map(a=>({accountId:a.id,displayName:a.displayName})),recipients:people.filter(a=>a.status==='active'&&a.id!==p.accountId&&a.id!==r.ownerAccountId&&release.recipients.includes(a.id)&&policy.discoveryRecipientCeiling.includes(a.id)).map(a=>({accountId:a.id,displayName:a.displayName})),requests:grants};
    });
   },
   async execute(user,id,input){
-   if(!valid(id))fail('INPUT_INVALID',400);const value=validateAssetAccessInput(input,{ids,detail:true});
+   if(!valid(id))fail('INPUT_INVALID',400);const value=validateAssetAccessInput(input,{ids,detail:true,runtimeBusiness});
    return withAccess(user,'artifact.read',async(tx,p)=>{
     const {record,policy}=await available(tx,p,id,value.version);
     if(p.identityRevision!==value.identityRevision)fail('IDENTITY_CHANGED');
     const requestHash=assetDigest({assetId:id,...scope(p),actor:p.accountId,...value}),prior=await findCatalogOperation(tx,p,value.requestKey,requestHash);if(prior)return projectAssetOperationReceipt(prior,record,p,now());
-    const result=assetAccessTransition(record,value,p,now()),next=result.next;
+    const result=assetAccessTransition(record,value,p,now(),{runtimeBusiness}),next=result.next;
     await beforeCommit(tx,p,{record,action:value.action,input:value});
     if(value.action==='share'||value.action==='decide'&&value.conclusion==='approved')await assertRecipient(tx,p,result.request.recipientAccountId);
     const changed=await tx.$executeRawUnsafe('UPDATE rh_asset.asset_registry SET revision=$1,updated_at=now() WHERE asset_id=$2 AND revision=$3',next.revision,id,record.registry.revision);if(changed!==1)fail('VERSION_CONFLICT');
@@ -124,7 +124,7 @@ export function createAssetUsage({ids,withAccess,assertSources=async()=>false,no
  };
 }
 
-export async function readAssetCollaborations({tx,p,records,query,ids,now=()=>Date.now(),allItems=false}){
+export async function readAssetCollaborations({tx,p,records,query,ids,now=()=>Date.now(),allItems=false,runtimeBusiness=false}){
  const {query:q,view}=parseAssetCollaborationQuery(query);
     const visible=presentAssetCatalog({records,principal:p,query:Object.fromEntries(Object.entries({...q,page:1,pageSize:50}).map(([k,v])=>[k,String(v)])),now:now()}).items;
     const rows=await tx.$queryRawUnsafe("SELECT x.*,EXISTS(SELECT 1 FROM rh_asset.asset_event e WHERE e.asset_id=x.asset_id AND e.version_no=x.version_no AND e.payload->'access'->>'requestId'=x.request_id AND e.payload->'access'->>'state'='approved') AS ever_approved,EXISTS(SELECT 1 FROM rh_asset.asset_event e WHERE e.asset_id=x.asset_id AND e.version_no=x.version_no AND e.payload->'access'->>'requestId'=x.request_id AND e.payload->'access'->>'state'='approved' AND e.actor_account_id=$4) AS approved_by_me FROM rh_asset.access_request x WHERE x.tenant_id=$1 AND x.study_group_id=$2 AND x.research_project_id=$3 ORDER BY x.updated_at DESC,x.request_id LIMIT 241",p.tenantId,p.studyGroupId,p.researchProjectId,p.accountId);if(rows.length>240)fail('CONTEXT_INVALID');
@@ -138,7 +138,7 @@ export async function readAssetCollaborations({tx,p,records,query,ids,now=()=>Da
      }
      const views=['all',...(x.approved_by_me?['sent']:[]),...(x.ever_approved&&x.recipient_account_id===p.accountId?['received']:[]),...(x.decision_mode==='request'&&x.initiator_account_id===p.accountId?['requested']:[]),...(manager&&x.state==='pending'&&Date.parse(x.expires_at)>now()?['pending']:[])];
      return[{assetId:x.asset_id,title:policy.metadata.title,version:x.version_no,requestId:x.request_id,requestRevision:x.revision,updatedAt:x.updated_at.toISOString(),recipientAccountId:x.recipient_account_id,purpose:x.purpose,actions:x.approved_actions.length?x.approved_actions:x.requested_actions,state:Date.parse(x.expires_at)<=now()&&['pending','approved'].includes(x.state)?'expired':x.state,expiresAt:x.expires_at.toISOString(),canManage:manager,canProcess:manager&&policy.sourceValid===true&&effectiveAssetRelease(record.events,x.version_no,now()).active,views}];});
-    const people=await tx.account.findMany({where:{tenantId:p.tenantId,id:{in:[ids.owner,ids.admin]}},select:{id:true,displayName:true}});
+    const people=await tx.account.findMany({where:{tenantId:p.tenantId,id:{in:runtimeBusiness?[...new Set(items.map(x=>x.recipientAccountId))]:[ids.owner,ids.admin]}},select:{id:true,displayName:true}});
     const counts=Object.fromEntries(['all','sent','received','requested','pending'].map(k=>[k,items.filter(x=>x.views.includes(k)).length])),filtered=items.filter(x=>x.views.includes(view));
     return{schemaVersion:'rh-asset-collaborations.v1',scope:scope(p),identityRevision:p.identityRevision,collaborationView:view,counts,page:q.page,pageSize:q.pageSize,total:filtered.length,items:(allItems?filtered:filtered.slice((q.page-1)*q.pageSize,q.page*q.pageSize)).map(x=>({...x,recipientName:people.find(a=>a.id===x.recipientAccountId)?.displayName??'接收人'}))};
 }

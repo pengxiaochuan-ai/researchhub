@@ -1,6 +1,6 @@
-import {createRequire} from 'node:module';
+import {coreDependencyRequire} from '../research-runtime/dependencies.mjs';
 
-const {XMLParser,XMLValidator}=createRequire(new URL('../../../app/server/package.json',import.meta.url))('fast-xml-parser');
+const {XMLParser,XMLValidator}=coreDependencyRequire()('fast-xml-parser');
 const invalid=()=>{throw new Error('HUB_SOURCE_PMC_READING_INVALID');};
 const key=node=>Object.keys(node).find(x=>x!==':@');
 const children=node=>Array.isArray(node?.[key(node||{})])?node[key(node)]:[];

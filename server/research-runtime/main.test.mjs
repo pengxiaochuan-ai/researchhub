@@ -4,13 +4,13 @@ import {runtimeDependencies} from './dependencies.mjs';
 
 const env=()=>({DATABASE_URL:'postgresql://runtime:opaque@localhost:5432/research',DIRECT_URL:'postgresql://owner:opaque@localhost:5432/research',JWT_SECRET:'b'.repeat(48),DEPLOYMENT_ID:'runtime-unit',DEPLOYMENT_PRODUCT:'researchhub',ALLOWED_TENANT_IDS:'tenant-one',DEFAULT_TENANT_ID:'tenant-one',AUTH_COOKIE_NAME:'rh_runtime_unit',HUB_APP_ORIGIN:'http://127.0.0.1:19611',HUB_AUTH_COOKIE_SECURE:'false'});
 function dependencies(){
- const {require}=runtimeDependencies(),{Controller,Get,Post,Body,SetMetadata}=require('@nestjs/common');
+ const {require}=runtimeDependencies(),{Controller,Get,Post,Body,SetMetadata,HttpException}=require('@nestjs/common');
  let connects=0,disconnects=0;
  const prisma={async onModuleInit(){connects++;},async onModuleDestroy(){disconnects++;}};
  const controllerFactory=()=>{
-  class Routes { public(){return{ok:true};} protected(){return{private:true};} echo(body){return body;} failure(){throw Error('postgresql://secret:do-not-leak@db/private');} }
+  class Routes { public(){return{ok:true};} protected(){return{private:true};} echo(body){return body;} failure(){throw Error('postgresql://secret:do-not-leak@db/private');} mail(){throw new HttpException({code:'HUB_MAIL_NOT_CONFIGURED',message:'do-not-leak'},503);} }
   Controller('runtime-check')(Routes);
-  for(const [name,verb,isPublic] of [['public',Get,true],['protected',Get,false],['echo',Post,true],['failure',Get,true]]){
+  for(const [name,verb,isPublic] of [['public',Get,true],['protected',Get,false],['echo',Post,true],['failure',Get,true],['mail',Get,true]]){
    const desc=Object.getOwnPropertyDescriptor(Routes.prototype,name);verb(name)(Routes.prototype,name,desc);if(isPublic)SetMetadata('isPublic',true)(Routes.prototype,name,desc);
   }
   Body()(Routes.prototype,'echo',0);return Routes;
@@ -29,6 +29,7 @@ test('independent assembly mounts auth and research guards, caps JSON and hides 
   res=await fetch(base+'/api/runtime-check/protected');assert.equal(res.status,401);
   res=await fetch(base+'/api/auth/me');assert.equal(res.status,401);
   res=await fetch(base+'/api/runtime-check/failure');assert.equal(res.status,500);assert.equal((await res.text()).includes('do-not-leak'),false);
+  res=await fetch(base+'/api/runtime-check/mail');assert.equal(res.status,503);assert.deepEqual(await res.json(),{code:'HUB_MAIL_NOT_CONFIGURED',message:'邮件服务尚未启用，请稍后重试或联系管理员。'});
   const post=(body,headers={})=>fetch(base+'/api/runtime-check/echo',{method:'POST',headers:{origin:env().HUB_APP_ORIGIN,'content-type':'application/json',...headers},body});
   res=await post('{"title":"allowed"}');assert.equal(res.status,201);assert.deepEqual(await res.json(),{title:'allowed'});
   res=await post(JSON.stringify({question:'研'.repeat(20000),pico:{p:'研'.repeat(10000),i:'研'.repeat(10000),c:'研'.repeat(10000),o:'研'.repeat(10000)}}));assert.equal(res.status,201);

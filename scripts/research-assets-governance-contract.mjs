@@ -14,13 +14,13 @@ const id=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,160}$/.test(x);
 const hash=x=>typeof x==='string'&&/^[a-f0-9]{64}$/.test(x);
 const reason=x=>typeof x==='string'&&x.trim().length>0&&x.length<=2000&&!/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(x);
 const fields={submit:[],review:['conclusion','reason','contentChecked','rightsChecked','selfReviewAcknowledged'],release:['reason','discoveryRecipients','ttlDays'],withdraw:['reason']};
-export function validateAssetGovernance(input,{ids,family='catalog'}){
+export function validateAssetGovernance(input,{ids,family='catalog',runtimeBusiness=false}){
  const common=['action','version','expectedRevision','requestKey','contentHash','policyHash','identityRevision'];
  if(!input||typeof input!=='object'||Array.isArray(input)||!Object.hasOwn(fields,input.action)||Object.keys(input).some(k=>!common.includes(k)&&!fields[input.action].includes(k)))fail('INPUT_INVALID',400,'操作字段无效，请重新打开。');
  if(!positive(input.version)||input.version>(family==='business'?2147483647:8)||!positive(input.expectedRevision)||input.expectedRevision>(family==='business'?2147483647:24)||!id(input.requestKey)||input.requestKey.length<8||!hash(input.contentHash)||!hash(input.policyHash)||typeof input.identityRevision!=='string'||!input.identityRevision||input.identityRevision.length>300)fail('INPUT_INVALID',400,'操作上下文不完整，请重新打开。');
  if(input.action!=='submit'&&!reason(input.reason))fail('INPUT_INVALID',400,'请填写本次操作理由。');
  if(input.action==='review'&&(!['approved','changes_requested'].includes(input.conclusion)||['contentChecked','rightsChecked','selfReviewAcknowledged'].some(k=>input[k]!==undefined&&typeof input[k]!=='boolean')))fail('INPUT_INVALID',400,'审核结论无效。');
- if(input.action==='release'&&(!positive(input.ttlDays)||input.ttlDays>7||!Array.isArray(input.discoveryRecipients)||!input.discoveryRecipients.length||input.discoveryRecipients.length>2||new Set(input.discoveryRecipients).size!==input.discoveryRecipients.length||input.discoveryRecipients.some(x=>![ids.owner,ids.admin].includes(x))))fail('INPUT_INVALID',400,'请选择有效的接收人和不超过7天的期限。');
+ if(input.action==='release'&&(!positive(input.ttlDays)||input.ttlDays>7||!Array.isArray(input.discoveryRecipients)||!input.discoveryRecipients.length||input.discoveryRecipients.length>(runtimeBusiness&&family==='business'?100:2)||new Set(input.discoveryRecipients).size!==input.discoveryRecipients.length||input.discoveryRecipients.some(x=>!id(x)||!(runtimeBusiness&&family==='business')&&![ids.owner,ids.admin].includes(x))))fail('INPUT_INVALID',400,'请选择有效的接收人和不超过7天的期限。');
  return{...input,...(input.reason!==undefined?{reason:input.reason.trim()}:{}),...(input.discoveryRecipients?{discoveryRecipients:[...input.discoveryRecipients].sort()}: {})};
 }
 

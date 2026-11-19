@@ -1,6 +1,6 @@
-import {createRequire} from 'node:module';
+import {coreDependencyRequire} from '../research-runtime/dependencies.mjs';
 import {PUBLICATION_FACETS,publicationDateBounds} from '../../src/publication-filters.js';
-const {XMLParser,XMLValidator}=createRequire(new URL('../../../app/server/package.json',import.meta.url))('fast-xml-parser');
+const {XMLParser,XMLValidator}=coreDependencyRequire()('fast-xml-parser');
 export const CLASSIFICATION_VERSION='paper-facets-rules-v1.3';
 const list=v=>v==null?[]:Array.isArray(v)?v:[v];
 export function parseArticleMetadata(xml,pmcid){

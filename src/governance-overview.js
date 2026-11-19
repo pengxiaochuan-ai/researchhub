@@ -65,7 +65,7 @@ export function safeGovernanceReturn(value){
  if(url.origin!=='http://researchhub.local'||url.pathname!=='/pages/g02/'||url.hash)return fallback;
  const p=url.searchParams,view=p.get('view'),kind=Object.keys(views).find(k=>views[k]===view);
  if(view==='asset-review'){
-  return validReportAssetReview(p)?reportAssetReviewUrl(p.get('reportId')??undefined):fallback;
+  return validReportAssetReview(p)?url.pathname+url.search:fallback;
  }
  const allowed=view?['view',selectors[kind],'overviewModule','overviewPage']:['governanceModule','governancePage','governanceAttentionPage'];
  if(view&&!kind||[...p.keys()].some(k=>!allowed.includes(k)||p.getAll(k).length!==1))return fallback;

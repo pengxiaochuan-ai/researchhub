@@ -1,9 +1,9 @@
+import {coreDependencyRequire} from '../research-runtime/dependencies.mjs';
 import {readFileSync} from 'node:fs';
-import {createRequire} from 'node:module';
 import {createHash,createHmac,timingSafeEqual} from 'node:crypto';
 import {compileHubQuery} from './search-query-plan.mjs';
 import {AGENT_QUESTION_MAX_CHARACTERS} from '../../src/agent-question.js';
-const require=createRequire(new URL('../../../app/server/package.json',import.meta.url));
+const require=coreDependencyRequire();
 export const {sql,join}=require('@prisma/client').Prisma;
 const dictionary=JSON.parse(readFileSync(new URL('./search-dictionary-v1.json',import.meta.url)));
 export const prepareHubQuery=q=>q==null||q===''?null:compileHubQuery(q,dictionary);

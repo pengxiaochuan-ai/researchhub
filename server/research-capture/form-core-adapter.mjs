@@ -1,10 +1,8 @@
 import {Module,createRequire} from 'node:module';
-import {fileURLToPath} from 'node:url';
+import {coreSourcePath} from '../research-runtime/dependencies.mjs';
 import {createResearchFormPolicy} from './form-policy.mjs';
 
-const sourcePath=name=>fileURLToPath(new URL('../../../app/server/src/study-operations/'+name+'.ts',import.meta.url));
-const privateModules=new Set(['formal-response-writer','formal-response-commands','study-outreach.service'].map(sourcePath));
-const policyPath=sourcePath('study-forms-policy');
+
 
 /**
  * Reuse the existing authorized transaction core with ResearchHub's policy.
@@ -13,6 +11,9 @@ const policyPath=sourcePath('study-forms-policy');
  * `policy` is trusted in-process composition, never an HTTP input.
  */
 export function createResearchFormAdapter({require,load,policy}){
+ const sourcePath=name=>coreSourcePath('study-operations/'+name);
+ const privateModules=new Set(['formal-response-writer','formal-response-commands','study-outreach.service'].map(sourcePath));
+ const policyPath=sourcePath('study-forms-policy');
  const legacy=require(policyPath),researchPolicy=policy??createResearchFormPolicy(legacy),cache=new Map();
  const compile=require.extensions?.['.ts'];
  if(typeof compile!=='function')throw new Error('FORM_ADAPTER_TYPESCRIPT_UNAVAILABLE');

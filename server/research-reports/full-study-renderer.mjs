@@ -1,5 +1,5 @@
+import{coreDependencyRequire,coreSourcePath}from'../research-runtime/dependencies.mjs';
 import {Module,createRequire} from 'node:module';
-import {fileURLToPath} from 'node:url';
 import {FULL_STUDY_REPORT_SCHEMA,FULL_STUDY_PRESENTATION_SCHEMA} from './full-study-content.mjs';
 import {canonicalReportJson} from '../research-analysis/t17-report-content.mjs';
 
@@ -32,9 +32,9 @@ function docxContent(input,docx){
 
 /** Private copy of the existing business renderer: only its trusted DOCX-content dependency differs. */
 export function createFullStudyRenderer({require:providedRequire}={}){
- const require=providedRequire??createRequire(new URL('../../../app/server/package.json',import.meta.url));
- const exportPath=fileURLToPath(new URL('../../../app/server/src/research-artifacts/research-artifact-export.ts',import.meta.url));
- const formalPath=fileURLToPath(new URL('../../../app/server/src/research-artifacts/formal-report-docx.ts',import.meta.url));
+ const require=providedRequire??coreDependencyRequire();
+ const exportPath=coreSourcePath('research-artifacts/research-artifact-export');
+ const formalPath=coreSourcePath('research-artifacts/formal-report-docx');
  const legacy=require(formalPath),docx=require('docx'),compile=require.extensions?.['.ts'];
  if(typeof compile!=='function')throw new Error('FULL_STUDY_RENDERER_RUNTIME_REQUIRED');
  const injected={...legacy,formalReportDocxContent:input=>input.contentBlocks?.[0]?.schemaVersion===FULL_STUDY_REPORT_SCHEMA?docxContent(input,docx):legacy.formalReportDocxContent(input)};

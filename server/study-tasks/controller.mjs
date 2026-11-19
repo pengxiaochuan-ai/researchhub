@@ -1,4 +1,4 @@
-import {withFixtureTransaction,assertFixtureTarget} from '../../../app/server/scripts/wp01/fixture-guard.mjs';
+import {withFixtureTransaction,assertFixtureTarget} from '../database/transactions.mjs';
 import {assertStudyTaskFixtureBoundary} from '../../scripts/study-tasks-fixture.mjs';
 import {createTaskAuthorization,taskError} from './authorization.mjs';
 import {parseTaskQuery,createTaskCursor,readTaskPage,readTaskDetail,readTaskReceipt} from './repository.mjs';

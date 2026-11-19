@@ -1,4 +1,4 @@
-import { withFixtureTransaction } from '../../../app/server/scripts/wp01/fixture-guard.mjs';
+import { withFixtureTransaction } from '../database/transactions.mjs';
 import { getFollow, getHub, listHubs, setFollow } from './repository.mjs';
 import { readOverviewSources } from './overview-sources.mjs';
 import { readOverviewMetrics } from './metrics.mjs';

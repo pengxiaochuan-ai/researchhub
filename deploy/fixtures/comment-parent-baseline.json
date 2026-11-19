@@ -1,0 +1,10 @@
+[
+  {
+    "name": "asset_comment_event_check",
+    "definition": "CHECK ((((parent_comment_id IS NULL) AND (parent_revision IS NULL)) OR ((parent_comment_id IS NOT NULL) AND (parent_revision = 1) AND (parent_comment_id <> comment_id))))"
+  },
+  {
+    "name": "asset_comment_event_parent_revision_check",
+    "definition": "CHECK ((parent_revision = 1))"
+  }
+]

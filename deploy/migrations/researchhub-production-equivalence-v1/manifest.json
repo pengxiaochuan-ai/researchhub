@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "id": "researchhub-production-equivalence-v1",
+  "managedSchemas": [
+    "public",
+    "rh_academic",
+    "rh_admission",
+    "rh_ai",
+    "rh_analysis",
+    "rh_asset",
+    "rh_directory",
+    "rh_hub",
+    "rh_reference",
+    "rh_research",
+    "rh_source",
+    "rh_study_tasks"
+  ],
+  "steps": [
+    {
+      "id": "001-assets-business",
+      "file": "001-assets-business.sql",
+      "sha256": "cdcae4f48daf272122767b8fdcb1b59f9b8a1260e4017fb817089dfa62f18309",
+      "before": "1636304ae3b092949aed8dc978f8373a",
+      "after": "1db1c5e3ddb5bbc0ed78bcbaa2970ed5"
+    },
+    {
+      "id": "002-receipts",
+      "file": "002-receipts.sql",
+      "sha256": "616fe604734d7fec1d99dba21a3ab942929dbb4085f51a7bb3423121efc66c95",
+      "before": "1db1c5e3ddb5bbc0ed78bcbaa2970ed5",
+      "after": "d31a4fb9e4ec25a55f35b2eaf6204d6c",
+      "dependsOn": [
+        "001-assets-business"
+      ]
+    },
+    {
+      "id": "003-material-ai",
+      "file": "003-material-ai.sql",
+      "sha256": "304ac3bbf9525acc1cb30b522e3258f62283be3f675a7a462ee5ecb37d4b6f83",
+      "before": "d31a4fb9e4ec25a55f35b2eaf6204d6c",
+      "after": "6008480b5b467e13d4bbe2f6e53173fa",
+      "dependsOn": [
+        "002-receipts"
+      ]
+    },
+    {
+      "id": "004-comment-parent",
+      "file": "004-comment-parent.sql",
+      "sha256": "ecae09295cd2ee425a163793571db403615e66af91d4835b5042d1b9fada51b4",
+      "before": "6008480b5b467e13d4bbe2f6e53173fa",
+      "after": "469902fbca03bbb97e27235a8886a7c8",
+      "dependsOn": [
+        "003-material-ai"
+      ]
+    },
+    {
+      "id": "005-copy-target-and-current-role",
+      "file": "005-copy-target-and-current-role.sql",
+      "sha256": "520b216c60aa4e643a0e3f75e82268178ccff760ca48f4b651e00fa10df794d3",
+      "before": "469902fbca03bbb97e27235a8886a7c8",
+      "after": "e69a720d93bed67c868f9941bc69089c",
+      "dependsOn": [
+        "004-comment-parent"
+      ]
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import {withFixtureTransaction} from '../../../app/server/scripts/wp01/fixture-guard.mjs';
+import {withFixtureTransaction} from '../database/transactions.mjs';
 import {createGovernanceAudit} from './service.mjs';
 export function createGovernanceAuditController({env,ids,require,load}){
  const {Controller,Get,Req,Res,Param,Query,HttpException}=require('@nestjs/common');

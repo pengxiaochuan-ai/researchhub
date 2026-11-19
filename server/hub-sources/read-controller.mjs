@@ -1,4 +1,4 @@
-import { withFixtureTransaction } from '../../../app/server/scripts/wp01/fixture-guard.mjs';
+import { withFixtureTransaction } from '../database/transactions.mjs';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -12,7 +12,7 @@ import {normalizePublicationFilters,matchesPublicationFilters,publicationFacets}
 
 const pmcObjectRoot = fileURLToPath(new URL('../../.tmp/researchhub-pmc-local/', import.meta.url));
 
-export function createHubSourceReadController({ env, ids, require, secret }) {
+export function createHubSourceReadController({ env, ids, require, secret, readPmcAsset }) {
   const { Controller, Get, Query, Param, Req, Res, SetMetadata, BadRequestException, NotFoundException,
     ForbiddenException, ServiceUnavailableException } = require('@nestjs/common');
   const transact = operation => withFixtureTransaction(env, 'app', async db => {
@@ -176,7 +176,7 @@ export function createHubSourceReadController({ env, ids, require, secret }) {
           if (mode.endsWith('inline') && asset.assetKind !== 'image')
             throw new NotFoundException({ code: 'HUB_PMC_IMAGE_UNSUPPORTED' });
           let raw;
-          try { raw = readFileSync(pmcObjectRoot + asset.localObjectKey); }
+          try { raw = readPmcAsset ? await readPmcAsset(asset) : readFileSync(pmcObjectRoot + asset.localObjectKey); }
           catch { throw new ServiceUnavailableException({ code: 'HUB_PMC_ASSET_UNAVAILABLE' }); }
           if (raw.length !== asset.byteCount ||
               createHash('sha256').update(raw).digest('hex') !== asset.sha256)

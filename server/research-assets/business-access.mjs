@@ -14,10 +14,10 @@ export async function authorizeBusinessAssetStudy({tx,user,scope,permission}){
  if(!Number.isSafeInteger(user.authVersion)||user.authVersion<0)deny(401);
  const boundScope={tenantId:scope.tenantId,studyGroupId:scope.studyGroupId,researchProjectId:scope.researchProjectId};
  const account=await tx.account.findFirst({where:{id:user.accountId,tenantId:scope.tenantId},include:{tenant:true}});
- if(!account||account.id!==user.accountId||account.tenantId!==scope.tenantId||account.status!=='active'||account.tenant?.status!=='active'||account.authVersion!==user.authVersion||account.role!==user.role)deny(401);
+ if(!account||account.id!==user.accountId||account.tenantId!==scope.tenantId||account.status!=='active'||account.tenant?.status!=='active'||account.authVersion!==user.authVersion||account.role!==user.role||!['researcher','tenant_admin'].includes(account.role)||account.isTenantAdmin!==(account.role==='tenant_admin'))deny(401);
  const project=await tx.researchProject.findFirst({where:{id:scope.researchProjectId,tenantId:scope.tenantId,studyGroupId:scope.studyGroupId,status:'active',studyGroup:{tenantId:scope.tenantId,status:'active'}}});
  if(!project||project.id!==scope.researchProjectId)deny();
- const isTenantAdmin=account.role==='tenant_admin';let membership,member;
+ const isTenantAdmin=account.role==='tenant_admin'&&account.isTenantAdmin===true;let membership,member;
  if(!isTenantAdmin){
   membership=await tx.studyGroupMembership.findFirst({where:{tenantId:scope.tenantId,studyGroupId:scope.studyGroupId,accountId:account.id,status:'active',role:{tenantId:scope.tenantId,status:'active'}},include:{role:true}});
   member=await tx.researchProjectMembership.findFirst({where:{tenantId:scope.tenantId,studyGroupId:scope.studyGroupId,researchProjectId:scope.researchProjectId,accountId:account.id,status:'active'}});
@@ -26,6 +26,6 @@ export async function authorizeBusinessAssetStudy({tx,user,scope,permission}){
  for(const[key,value]of [['app.tenant_id',scope.tenantId],['app.study_group_id',scope.studyGroupId],['app.research_project_id',scope.researchProjectId],['app.account_id',account.id],['app.auth_version',String(user.authVersion)]])await tx.$executeRawUnsafe('SELECT set_config($1,$2,true)',key,value);
  // Keep the existing current-authorization revision shared by A01 and A02.
  // Project IDs are globally unique and the full scope was checked above.
- const identityRevision=createHash('sha256').update(JSON.stringify({accountId:account.id,role:account.role,authVersion:account.authVersion,project:project.id,membership,member})).digest('hex');
+ const identityRevision=createHash('sha256').update(JSON.stringify({accountId:account.id,role:account.role,isTenantAdmin:account.isTenantAdmin,authVersion:account.authVersion,project:project.id,membership,member})).digest('hex');
  return{...boundScope,accountId:account.id,displayName:account.displayName,role:account.role,authVersion:account.authVersion,isTenantAdmin,permissions:isTenantAdmin?[...actions]:[...actions].filter(key=>allows(membership.role.buttonPermissions,key)),projectName:project.name,identityRevision};
 }

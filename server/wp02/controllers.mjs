@@ -1,6 +1,8 @@
+import{assertDeploymentRequest}from'../http/deployment-request.mjs';
 import {fault} from './policy.mjs';
 import {assertSessionOrigin} from '../auth/session.mjs';
-export function validateWp02Request(req,body,{sessionOrigin=false,origin='http://127.0.0.1:19501',apiHost='127.0.0.1:19502'}={}){
+export function validateWp02Request(req,body,{sessionOrigin=false,origin='http://127.0.0.1:19501',apiHost='127.0.0.1:19502',runtimePolicy}={}){
+ if(runtimePolicy){assertDeploymentRequest(req,runtimePolicy);if(body&&Buffer.byteLength(JSON.stringify(body))>16384)throw fault('WP02_REQUEST_TOO_LARGE','请求过大。',413);return{ip:req.socket?.remoteAddress??'unknown',user:req.user};}
  if(!/^http:\/\/127\.0\.0\.1:\d+$/.test(origin)||!/^127\.0\.0\.1:\d+$/.test(apiHost))throw Error('WP02_LOCAL_BINDING_REQUIRED');
  const h=req.headers,hosts=[new URL(origin).host,apiHost];
  if(!hosts.includes(h.host)||Object.keys(h).some(k=>['forwarded','x-forwarded-host','x-forwarded-proto'].includes(k)))throw fault('WP02_ORIGIN_REJECTED','请求来源不符合本机配置。',403);
@@ -10,9 +12,9 @@ export function validateWp02Request(req,body,{sessionOrigin=false,origin='http:/
  if(!['127.0.0.1','::ffff:127.0.0.1'].includes(ip))throw fault('WP02_LOCAL_ONLY','仅限本机合成环境。',403);
  return{ip,user:req.user};
 }
-export function createWp02Controllers({require,load,accounts,invitations,origin='http://127.0.0.1:19501',apiHost='127.0.0.1:19502'}){
+export function createWp02Controllers({require,load,accounts,invitations,origin='http://127.0.0.1:19501',apiHost='127.0.0.1:19502',runtimePolicy}){
  const {Controller,Get,Post,Patch,Body,Req,HttpCode,HttpException}=require('@nestjs/common'),Public=load('common/decorators','Public');
- const invoke=async(req,body,method)=>{try{return await accounts[method](validateWp02Request(req,body,{origin,apiHost}),body);}catch(e){throw new HttpException({code:e.code??'WP02_UNAVAILABLE',message:e.status?e.message:'账户服务暂时不可用，请核对后重试。'},e.status??503);}};
+ const invoke=async(req,body,method)=>{try{return await accounts[method](validateWp02Request(req,body,{origin,apiHost,runtimePolicy}),body);}catch(e){throw new HttpException({code:e.code??'WP02_UNAVAILABLE',message:e.status?e.message:'账户服务暂时不可用，请核对后重试。'},e.status??503);}};
  class AccountAccessController {
   register(req,b){return invoke(req,b,'requestRegistration');}confirmRegister(req,b){return invoke(req,b,'confirmRegistration');}
   reset(req,b){return invoke(req,b,'requestReset');}confirmReset(req,b){return invoke(req,b,'confirmReset');}
@@ -25,7 +27,7 @@ export function createWp02Controllers({require,load,accounts,invitations,origin=
  }
  if(!invitations)return [AccountAccessController];
  const {Query,Param}=require('@nestjs/common');
- const inviteInvoke=async(req,input,method,id)=>{try{const ctx={...validateWp02Request(req,input,{sessionOrigin:true,origin,apiHost}),groupId:req.headers['x-study-group-id'],projectId:req.headers['x-research-project-id']};return await invitations[method](ctx,...(id?[id,input]:[input]));}catch(e){throw new HttpException({code:e.code??'WP02_INVITATION_UNAVAILABLE',message:e.status?e.message:'邀请服务暂时不可用，请刷新核对，不会自动重发。'},e.status??503);}};
+ const inviteInvoke=async(req,input,method,id)=>{try{const ctx={...validateWp02Request(req,input,{sessionOrigin:true,origin,apiHost,runtimePolicy}),groupId:req.headers['x-study-group-id'],projectId:req.headers['x-research-project-id']};return await invitations[method](ctx,...(id?[id,input]:[input]));}catch(e){throw new HttpException({code:e.code??'WP02_INVITATION_UNAVAILABLE',message:e.status?e.message:'邀请服务暂时不可用，请刷新核对，不会自动重发。'},e.status??503);}};
  class MemberInvitationsController {
   context(req){return inviteInvoke(req,undefined,'context');}list(req,q){return inviteInvoke(req,q,'list');}issue(req,b){return inviteInvoke(req,b,'issue');}
   revoke(req,id,b){return inviteInvoke(req,b,'revoke',id);}resend(req,id,b){return inviteInvoke(req,b,'resend',id);}

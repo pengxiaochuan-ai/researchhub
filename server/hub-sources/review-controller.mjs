@@ -1,4 +1,4 @@
-import { withFixtureTransaction } from '../../../app/server/scripts/wp01/fixture-guard.mjs';
+import { withFixtureTransaction } from '../database/transactions.mjs';
 import { listReviewBatches, listReviewHistory, listBatchSources, listReviewRows, reviewSource } from './review-service.mjs';
 import { listExternalReviewItems } from './external-preview.mjs';
 import { submitExternalReview } from './external-review.mjs';
@@ -22,7 +22,7 @@ const messages = {
   HUB_SOURCE_PMC_READING_UNAVAILABLE:'本机原文暂不可读取，请重试或核对原件',
 };
 
-export function createHubSourceReviewController({ env, ids, require }) {
+export function createHubSourceReviewController({ env, ids, require, readPmcAsset }) {
   const { Controller, Get, Post, Req, Res, Body, Param, Query, ForbiddenException,
     BadRequestException, ConflictException, NotFoundException,ServiceUnavailableException } = require('@nestjs/common');
   const transact = operation => withFixtureTransaction(env, 'app', async db => {
@@ -50,7 +50,7 @@ export function createHubSourceReviewController({ env, ids, require }) {
     }
     async pmcArticle(req,versionId,response) {
       response.setHeader('Cache-Control','no-store');
-      try{return {article:await transact(db=>getPmcReviewArticle({db,principal:req.user,tenantId:ids.tenant,hubKey:'lingshu-xinyu',reviewerAccountId:ids.admin,versionId}))};}
+      try{return {article:await transact(db=>getPmcReviewArticle({db,principal:req.user,tenantId:ids.tenant,hubKey:'lingshu-xinyu',reviewerAccountId:ids.admin,versionId,readPmcAsset}))};}
       catch(error){mapError(error);}
     }
     async queue(req, response) {
