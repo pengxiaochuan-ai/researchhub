@@ -13,6 +13,7 @@ import {useAgentMedia} from './AgentMedia.jsx';
 import ResearchDataPreview,{useResearchData} from './ResearchDataPreview.jsx';
 import './SmartSearch.css';
 import {agentQuestionError,agentQuestionLength,AGENT_QUESTION_MAX_CHARACTERS} from '../../src/agent-question.js';
+import {resolveHubAgentAvailability} from '../../src/hub-agent-availability.js';
 
 const hubKey='lingshu-xinyu';
 const displayError=error=>error?.message||'服务暂时不可用，请刷新核对。';
@@ -48,10 +49,10 @@ export default function HubAgentPanel({user,layout,paused=false,sessionId,onSess
     setState(previous=>({...previous,kind:'loading'}));
     Promise.all([client.get('/agents'),client.get('/knowledge/ai-status')]).then(async([agents,status])=>{
       if(turn!==active.current)return;
-      const agent=agents.find(item=>item.type==='research');
-      if(!agent){setSession(null);setAnswer(null);setMessages([]);setJobs([]);setNextCursor(null);setRunning(false);}
-      if(agent&&selectedId.current){await load(selectedId.current,turn);if(turn!==active.current)return;setSession({id:selectedId.current});}
-      setState(agent?{kind:'ready',agentId:agent.id,quota:status.quota,materialUpload:status.materialUpload}:{kind:'restricted'});
+      const availability=resolveHubAgentAvailability(agents,status);
+      if(availability.kind!=='ready'){setSession(null);setAnswer(null);setMessages([]);setJobs([]);setNextCursor(null);setRunning(false);}
+      if(availability.kind==='ready'&&selectedId.current){await load(selectedId.current,turn);if(turn!==active.current)return;setSession({id:selectedId.current});}
+      setState(availability);
       setBusy(false);
     }).catch(reason=>{if(turn===active.current)setState({kind:'error',message:displayError(reason)});});
     return()=>{active.current++;};
@@ -121,9 +122,9 @@ export default function HubAgentPanel({user,layout,paused=false,sessionId,onSess
   });
   if(layout==='workbench')return <div className="workspace">
     <section className="conversationList" aria-label="会话列表"><button type="button" className="newChat" onClick={begin} disabled={paused||busy||state.kind!=='ready'}>{busy?'正在处理…':'＋ 新建对话'}</button>
-      <AgentHistory client={client} paused={paused||!allowed||state.kind==='restricted'||state.kind==='error'} selectedId={session?.id} refreshKey={historyVersion}/></section>
+      {['unavailable','restricted','error'].includes(state.kind)?<div className="dateLabel">本人历史会话</div>:<AgentHistory client={client} paused={paused||!allowed||state.kind!=='ready'} selectedId={session?.id} refreshKey={historyVersion}/>}</section>
     <section className="chat" aria-label="科研 Agent 对话"><div className="thread" ref={threadRef}>
-      {state.kind==='loading'?<p role="status">正在加载会话…</p>:state.kind==='restricted'?<p role="status">当前账号没有此会话的使用权限。</p>:state.kind==='error'?<p role="alert">{state.message}</p>:null}
+      {state.kind==='loading'?<p role="status">正在加载会话…</p>:state.kind==='unavailable'?<p role="status">{state.message}</p>:state.kind==='restricted'?<p role="status">当前账号没有此会话的使用权限。</p>:state.kind==='error'?<p role="alert">{state.message}</p>:null}
       {nextCursor&&<button type="button" disabled={paused||busy} onClick={()=>load(session.id,active.current,nextCursor).catch(reason=>setError(displayError(reason)))}>加载更早消息</button>}
       {!paused&&state.kind==='ready'&&<AgentMessages messages={messages} jobs={jobs} media={media}/>}{!paused&&!busy&&state.kind==='ready'&&<AgentPendingMessage command={pendingCommand} messages={messages}/>}{running&&!jobs.some(j=>['queued','processing'].includes(j.status)&&messages.some(m=>m.id===j.userMessageId))&&<p role="status">正在处理，可继续输入下一条指令。</p>}
       {error&&<p role="alert">{error} {session&&<button type="button" onClick={()=>load(session.id).then(()=>setError('')).catch(reason=>setError(displayError(reason)))}>重新获取状态</button>}</p>}
@@ -134,7 +135,7 @@ export default function HubAgentPanel({user,layout,paused=false,sessionId,onSess
   return <section className="real-entry-card hub-agent-panel" aria-labelledby="hub-agent-title">
     <h2 id="hub-agent-title">Hub 文献检索与问答</h2>
     <p>独立于私有Study知识库；可检索已审核Hub资料及PubMed公开题录与摘要，实时结果不会自动入库。AI解释需结合原文和专业判断。</p>
-    {state.kind==='loading'?<p role="status">正在核验科研 Agent 与当前授权…</p>:state.kind==='restricted'?<p role="status">当前账号未获得科研 Agent 使用授权；公开注册不会自动开放私有 Study 或 Agent。</p>:state.kind==='error'?<p role="alert">{state.message}</p>:<>
+    {state.kind==='loading'?<p role="status">正在核验科研 Agent 与当前授权…</p>:state.kind==='unavailable'?<p role="status">{state.message}</p>:state.kind==='restricted'?<p role="status">当前账号未获得科研 Agent 使用授权；公开注册不会自动开放私有 Study 或 Agent。</p>:state.kind==='error'?<p role="alert">{state.message}</p>:<>
       {!session?<button type="button" onClick={begin} disabled={busy}>{busy?'正在建立会话…':'建立独立 Hub 会话'}</button>:<>
         <p>会话已建立。AI仅使用获准来源，按实际用量计费。</p>
         {state.quota?.blocked?<p role="status">{state.quota?.message??'暂时无法核对 Token 额度，请刷新页面。'}</p>:<form onSubmit={send}>
