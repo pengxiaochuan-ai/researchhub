@@ -1,0 +1,336 @@
+{
+  "schema": "production-ai-entry-audit.v1",
+  "origin": "https://hub.pengxc.com",
+  "deployedSource": "d83f3aea7fc6fb765d3f061d3e4ce0d00ec29d30",
+  "mainAtAudit": "261dbc45517f926b193e8b7eb3a3057e6043b5d7",
+  "roles": [
+    "admin",
+    "owner"
+  ],
+  "authenticatedPageViews": 40,
+  "newModelCalls": 0,
+  "approvedRequestCap": 2,
+  "priorKnownRequests": 2,
+  "priorFeeUpperCny": 0.05454,
+  "modelsEnabled": true,
+  "workerKinds": [
+    "knowledge-chat"
+  ],
+  "apiChecks": [
+    {
+      "role": "admin",
+      "cases": [
+        {
+          "path": "/knowledge/ai-status",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/agents",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/research-directory",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/research-projects",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/my-research/overview",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/hub-sources/agent-retrieval",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/research-assets/overview",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/sessions/cmwnvm0a70004t707r5hv4rk7/knowledge-state",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/sessions/cmwnxbhox0002n5076tuuzpdu/knowledge-state",
+          "status": 404,
+          "code": null
+        },
+        {
+          "path": "/hub-sources/article-context/pmc-PMC13687034",
+          "status": 503,
+          "code": "HUB_CHAT_NOT_CONFIGURED"
+        },
+        {
+          "path": "/research-plan-drafts",
+          "status": 404,
+          "code": null
+        },
+        {
+          "path": "/research-assets/rhab-ab736bd3-813e-4f3e-805f-b58a04d5190f/versions/3/ai-status",
+          "status": 503,
+          "code": "RESEARCH_SERVICE_UNAVAILABLE"
+        }
+      ]
+    },
+    {
+      "role": "owner",
+      "cases": [
+        {
+          "path": "/knowledge/ai-status",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/agents",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/research-directory",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/research-projects",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/my-research/overview",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/hub-sources/agent-retrieval",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/research-assets/overview",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/sessions/cmwnxbhox0002n5076tuuzpdu/knowledge-state",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/sessions/cmwnvm0a70004t707r5hv4rk7/knowledge-state",
+          "status": 404,
+          "code": null
+        },
+        {
+          "path": "/hub-sources/article-context/pmc-PMC13687034",
+          "status": 503,
+          "code": "HUB_CHAT_NOT_CONFIGURED"
+        },
+        {
+          "path": "/research-plan-drafts",
+          "status": 404,
+          "code": null
+        },
+        {
+          "path": "/research-assets/rhab-d2d9b41d-8877-4b74-a4ac-ac45f7bdd07c/versions/2/ai-status",
+          "status": 503,
+          "code": "RESEARCH_SERVICE_UNAVAILABLE"
+        }
+      ]
+    },
+    {
+      "role": "admin",
+      "cases": [
+        {
+          "path": "/research-studies/rh-study-72203d59-4db8-4e74-9444-edff3b088b6d",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/research-studies/rh-study-72203d59-4db8-4e74-9444-edff3b088b6d/configuration",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/research-assets/rh-report-asset-20261116-admin/versions/2/report-qa",
+          "status": 403,
+          "code": "ASSET_CATALOG_REPORT_AI_FORBIDDEN"
+        }
+      ]
+    },
+    {
+      "role": "owner",
+      "cases": [
+        {
+          "path": "/research-studies/rh-study-72203d59-4db8-4e74-9444-edff3b088b6d",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/research-studies/rh-study-72203d59-4db8-4e74-9444-edff3b088b6d/configuration",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/research-assets/rh-report-asset-20261116-admin/versions/2/report-qa",
+          "status": 403,
+          "code": "ASSET_CATALOG_AUTHORIZATION_REVOKED"
+        }
+      ]
+    }
+  ],
+  "blockedAutomaticWrites": [
+    {
+      "role": "admin",
+      "page": "k01",
+      "method": "POST",
+      "path": "/api/sessions/knowledge"
+    },
+    {
+      "role": "owner",
+      "page": "k01",
+      "method": "POST",
+      "path": "/api/sessions/knowledge"
+    }
+  ],
+  "recoveryControls": [
+    {
+      "role": "admin",
+      "session": "cmwnvm0a70004t707r5hv4rk7",
+      "sendDisabled": true,
+      "createDisabled": false,
+      "smartSearchDisabled": false,
+      "smartSearchPressed": "true",
+      "failedJobsPreserved": [
+        {
+          "id": "cmwnwt3ao0006r107l7h5yqqu",
+          "status": "failed",
+          "errorCode": "KNOWLEDGE_CHAT_FAILED"
+        }
+      ],
+      "noAssistantDelivered": true,
+      "alerts": [],
+      "quota": {
+        "blocked": true,
+        "message": "当前AI使用额度不可用，请联系管理员。"
+      }
+    },
+    {
+      "role": "owner",
+      "session": "cmwnxbhox0002n5076tuuzpdu",
+      "sendDisabled": true,
+      "createDisabled": false,
+      "smartSearchDisabled": false,
+      "smartSearchPressed": "true",
+      "failedJobsPreserved": [
+        {
+          "id": "cmwnxbjhc0007n507qvln60gv",
+          "status": "failed",
+          "errorCode": "KNOWLEDGE_CHAT_FAILED"
+        }
+      ],
+      "noAssistantDelivered": true,
+      "alerts": [],
+      "quota": {
+        "blocked": true,
+        "message": "当前AI使用额度不可用，请联系管理员。"
+      }
+    }
+  ],
+  "anonymous": {
+    "rows": [
+      {
+        "path": "/knowledge/ai-status",
+        "status": 401,
+        "code": "AUTH_SESSION_EXPIRED",
+        "containsData": false
+      },
+      {
+        "path": "/agents",
+        "status": 401,
+        "code": "AUTH_SESSION_EXPIRED",
+        "containsData": false
+      },
+      {
+        "path": "/sessions/cmwnvm0a70004t707r5hv4rk7/knowledge-state",
+        "status": 401,
+        "code": "AUTH_SESSION_EXPIRED",
+        "containsData": false
+      },
+      {
+        "path": "/hub-sources/agent-retrieval?query=抑郁",
+        "status": 401,
+        "code": "AUTH_SESSION_EXPIRED",
+        "containsData": false
+      },
+      {
+        "path": "/research-assets/overview",
+        "status": 401,
+        "code": "AUTH_SESSION_EXPIRED",
+        "containsData": false
+      }
+    ],
+    "url": "https://hub.pengxc.com/pages/p003/?returnTo=%2Fpages%2Fai01%2F%3FarticleId%3Dpmc-PMC13687034",
+    "loginVisible": true,
+    "modelCalls": 0
+  },
+  "browserScriptErrors": [],
+  "beforeInspection": 44597591985,
+  "afterInspection": 44600022593,
+  "allEntryAiAcceptancePassed": false,
+  "releaseGateAutomationImplemented": false,
+  "ledgerUnchanged": true,
+  "historicalQueue623Unchanged": true,
+  "legacyAssetsUnchanged": true,
+  "oldServicesUnchanged": true,
+  "nativeQuotaInspection": 44601178564,
+  "nativeTokenThreshold": [
+    {
+      "accountId": "rh-kb-local-b0e2af9d-admin",
+      "accountMode": "account-limit",
+      "accountReady": true,
+      "effectiveReady": true,
+      "hasReservations": true,
+      "requiredTokens": "12288",
+      "tenantReady": true
+    },
+    {
+      "accountId": "rh-kb-local-b0e2af9d-owner",
+      "accountMode": "account-limit",
+      "accountReady": true,
+      "effectiveReady": true,
+      "hasReservations": true,
+      "requiredTokens": "12288",
+      "tenantReady": true
+    }
+  ],
+  "nativeQuotaInspectorTests": 4,
+  "nativeBillingReadOnlyIntegration": true,
+  "reservationInspection": 44602144796,
+  "nativeReservations": [
+    {
+      "accountId": "rh-kb-local-b0e2af9d-admin",
+      "hasReconciledUsage": false,
+      "jobId": "cmwnwt3ao0006r107l7h5yqqu",
+      "status": "reconciliation_required"
+    },
+    {
+      "accountId": "rh-kb-local-b0e2af9d-owner",
+      "hasReconciledUsage": false,
+      "jobId": "cmwnxbjhc0007n507qvln60gv",
+      "status": "reconciliation_required"
+    }
+  ],
+  "billingReconciliationPerformed": false,
+  "runtimeCodeChanged": false,
+  "productionConfigurationChanged": false
+}
