@@ -64,6 +64,7 @@ jobs:
           python3 scripts/hub-runtime-command.test.py
           python3 scripts/hub-release-workflow.test.py
           python3 scripts/hub-runtime-bootstrap.test.py
+          python3 scripts/hub-runtime-artifacts.test.py
           python3 scripts/hub-runtime-server.test.py
           python3 scripts/hub-frontend-rollback.test.py
           node --test deploy/backend-package.test.mjs server/api-proxy.test.mjs server/static.test.mjs
@@ -140,7 +141,7 @@ jobs:
         run: python3 scripts/hub-release-rehearsal.py
       - name: Bind paired controls to the exact manifest
         id: control
-        if: steps.prepare.outputs.release_required == 'true' && (env.MODE == 'release' || env.MODE == 'rollback')
+        if: steps.prepare.outputs.release_required == 'true' && env.MODE != 'plan'
         env:
           TARGET_TAG: ${{ steps.artifacts.outputs.tag || steps.prepare.outputs.tag }}
           TARGET_SHA: ${{ steps.artifacts.outputs.manifest_sha || steps.prepare.outputs.manifest_sha }}
@@ -149,7 +150,7 @@ jobs:
           python3 scripts/hub-runtime-controls.py --tag "$TARGET_TAG" --manifest-sha "$TARGET_SHA" --previous "$RUNNER_TEMP/hub-release/previous-release.json"
       - name: Apply both components with paired rollback
         id: apply
-        if: steps.control.outcome == 'success'
+        if: steps.control.outcome == 'success' && (env.MODE == 'release' || env.MODE == 'rollback')
         env:
           ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
           ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}

@@ -15,4 +15,7 @@ class WorkflowTests(unittest.TestCase):
  def test_source_refresh_and_no_automatic_database_migration(self):
   text=pathlib.Path('.github/workflows/deploy.yml').read_text();self.assertIn('refreshBackendHub',text);self.assertIn("sourceGit:process.env.GITHUB_SHA",text)
   self.assertNotRegex(text,r'(?:prisma\s+(?:migrate|db\s+push)|psql\s|run-server.py\s+(?:all|0[0-9]))')
+ def test_rehearsal_never_applies_production(self):
+  text=pathlib.Path('.github/workflows/deploy.yml').read_text();part=text.split('      - name: Apply both components',1)[1].split('      - name:',1)[0]
+  self.assertIn("env.MODE == 'release' || env.MODE == 'rollback'",part)
 if __name__=='__main__':unittest.main()
