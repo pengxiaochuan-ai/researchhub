@@ -134,7 +134,7 @@ def main(action):
     time.sleep(2)
    need(ready,'CHAT_ACTIVATION_STATE_RECHECK_REQUIRED');container=current();r=metadata(container);need(r['queueSnapshot']==a['initialQueueSnapshot'],'CHAT_ACTIVATION_HISTORICAL_QUEUE_CHANGED')
   live={line.split('=',1)[0]:line.split('=',1)[1] for line in container['Config'].get('Env',[]) if '=' in line}
-  result={'status':'chat-runtime-inspected' if action=='inspect' else 'chat-runtime-enabled','admissionSha256':sha,'modelsEnabled':live.get('HUB_PAID_AI_ENABLED')=='true','workerKinds':live.get('ENABLED_WORKER_KINDS',''),'sessions':len(ledger['sessions']),'jobs':len(ledger['jobs']),'actualRequests':len(ledger['dispatches']),'feeUpperMicros':sum(d.get('feeUpperMicros',d['reservedMicros']) for d in ledger['dispatches']),'dispatchStates':[d['state'] for d in ledger['dispatches']]}
+  result={'status':'chat-runtime-inspected' if action=='inspect' else 'chat-runtime-enabled','admissionSha256':sha,'modelsEnabled':live.get('HUB_PAID_AI_ENABLED')=='true','configuredModelsEnabled':saved.get('HUB_PAID_AI_ENABLED')=='true','workerKinds':live.get('ENABLED_WORKER_KINDS',''),'sessions':len(ledger['sessions']),'jobs':len(ledger['jobs']),'actualRequests':len(ledger['dispatches']),'feeUpperMicros':sum(d.get('feeUpperMicros',d['reservedMicros']) for d in ledger['dispatches']),'dispatchStates':[d['state'] for d in ledger['dispatches']]}
  after=run(['docker','ps','--filter','label=com.docker.compose.project=ops','--format','{{.ID}} {{.Image}}'])+'\n'+run(['docker','ps','--filter','label=com.docker.compose.project=official-site','--format','{{.ID}} {{.Image}}']);need(before==after,'CHAT_OTHER_SERVICES_CHANGED');result.update(oldServicesUnchanged=True,modelCalls=0,databaseWrites=0);print(json.dumps(result))
 
 if __name__=='__main__':
@@ -144,4 +144,4 @@ if __name__=='__main__':
    fd=os.open(str(OPS/name),os.O_WRONLY|os.O_CREAT|getattr(os,'O_NOFOLLOW',0),0o600);fds.append(fd);fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB)
   main(action)
  except Exception as e:
-  code=str(e) if isinstance(e,ValueError) and re.fullmatch('CHAT_[A-Z0-9_]+',str(e)) else 'CHAT_OPERATION_FAILED_RECHECK_REQUIRED';print(json.dumps({'status':'stopped','code':code,'automaticRetry':False}));raise SystemExit(1)
+  code=str(e) if re.fullmatch('(?:CHAT|HUB_CHAT|HUB_EXECUTION|DATABASE_CONFIG)_[A-Z0-9_]+',str(e)) else 'CHAT_OPERATION_FAILED_RECHECK_REQUIRED';print(json.dumps({'status':'stopped','code':code,'automaticRetry':False}));raise SystemExit(1)
