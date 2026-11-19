@@ -37,9 +37,15 @@ try {
   const accounts=await tx.account.findMany({where:{tenantId:tenant,id:{in:['rh-kb-local-b0e2af9d-admin','rh-kb-local-b0e2af9d-owner']}},select:{id:true,status:true,role:true,isTenantAdmin:true}});
   const access=await tx.agentAccess.findMany({where:{tenantId:tenant,agentId,scopeKey:{in:['*',...accounts.map(a=>a.id)]}},select:{accountId:true,enabled:true,scopeKey:true}});
   const model=await tx.agentConfig.findFirst({where:{tenantId:tenant,agentId,active:true,archivedAt:null},orderBy:{version:'desc'},select:{id:true,version:true,model:true,tools:true}});
-  let route={configured:false};
-  if(model)try{const r=await load('common/model-route-resolver','resolveConfiguredDeepSeekModelRoute')(tx,tenant,model.model);route={configured:true,provider:r.provider,model:r.model,secretRef:r.secretRef||'DEEPSEEK_API_KEY',keyPresent:Boolean(process.env[r.secretRef||'DEEPSEEK_API_KEY'])};}catch{}
-  return {database:config.identity.database,tenant,accounts,access,assetCounts:counts[0],assets,jobs,queueSnapshot:snapshot,historicalQueueSnapshot,chatBudget,legacySnapshot,model:model?{id:model.id,version:model.version,hasKnowledgeSearch:Array.isArray(model.tools)&&model.tools.includes('knowledge.search'),route}:null};
+  let route={configured:false},resolvedModel;
+  if(model)try{const r=await load('common/model-route-resolver','resolveConfiguredDeepSeekModelRoute')(tx,tenant,model.model);resolvedModel=r;route={configured:true,provider:r.provider,model:r.model,secretRef:r.secretRef||'DEEPSEEK_API_KEY',keyPresent:Boolean(process.env[r.secretRef||'DEEPSEEK_API_KEY'])};}catch{}
+  const tokenQuota=[];
+  if(model&&route.configured){
+   const billing=new(load('billing/billing.service','BillingService'))(prisma,{});
+   const required=load('billing/token-quota-policy','estimateRunTokenBudget')(Number(resolvedModel.maxTokens??4096));
+   for(const a of accounts){const q=await billing.quotaSnapshotFrom(tx,tenant,a.id);tokenQuota.push({accountId:a.id,requiredTokens:required.toString(),tenantReady:q.tenantRemaining>=required,accountMode:q.accountAllocated===0n?'inherits-tenant':'account-limit',accountReady:q.accountAllocated===0n||q.accountRemaining>=required,effectiveReady:q.effectiveRemaining>=required,hasReservations:q.tenantReserved>0n||q.accountReserved>0n});}
+  }
+  return {database:config.identity.database,tenant,accounts,access,tokenQuota,assetCounts:counts[0],assets,jobs,queueSnapshot:snapshot,historicalQueueSnapshot,chatBudget,legacySnapshot,model:model?{id:model.id,version:model.version,hasKnowledgeSearch:Array.isArray(model.tools)&&model.tools.includes('knowledge.search'),route}:null};
  },{readOnly:true});
  result.runtime={paidEnabled:process.env.HUB_PAID_AI_ENABLED==='true',workerKinds:config.scope.enabledWorkerKinds,coreDigest:process.env.HUB_CORE_MANIFEST_SHA256};
  console.log(JSON.stringify({status:'hub-production-inspected',databaseWrites:0,modelCalls:0,workersStarted:0,...result}));
