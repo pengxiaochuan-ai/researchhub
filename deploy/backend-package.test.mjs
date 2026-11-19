@@ -21,6 +21,7 @@ test('fresh Git Hub replaces old package code while the approved core remains by
   const result=refreshBackendHub({context,source,sourceGit:'a'.repeat(40)});
   assert.equal(result.coreDigest,core.digest);assert.equal(result.sourceGit,'a'.repeat(40));assert.equal(readFileSync(join(context,'hub/server/new.mjs'),'utf8'),'new current Git code');assert.equal(existsSync(join(context,'hub/server/old.mjs')),false);assert.notEqual(result.hubDigest,createHash('sha256').update(JSON.stringify(hubFiles)).digest('hex'));
   rmSync(join(source,resources[1]));const again=refreshBackendHub({context,source,sourceGit:'b'.repeat(40)});assert.equal(again.coreDigest,core.digest);assert.equal(readFileSync(join(context,'hub',resources[1]),'utf8'),'approved geographic resource');
+  save(join(source,'package.json'),'{"dependencies":{"nodemailer":"2.0.0"}}');assert.throws(()=>refreshBackendHub({context,source,sourceGit:'c'.repeat(40)}),/BACKEND_CORE_DEPENDENCY_REAPPROVAL_REQUIRED/);save(join(source,'package.json'),'{"dependencies":{"nodemailer":"1.0.0"}}');
   writeFileSync(join(context,'core/src/core.ts'),'tampered');assert.throws(()=>refreshBackendHub({context,source,sourceGit:'c'.repeat(40)}),/CORE_CONTENT_MISMATCH/);
  }finally{rmSync(root,{recursive:true,force:true});}
 });
