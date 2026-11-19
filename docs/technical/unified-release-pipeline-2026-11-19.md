@@ -39,3 +39,7 @@
 首次main release44525278754完成成对切换、公开浏览器和成功指针回读；额外owner/admin真实Chrome只读复验通过。普通main push自动执行本工作流，手动plan只核计划、rehearse只演练和封包，不切换服务器；rollback须准确历史tag/manifest SHA及ROLLBACK确认。数据库迁移仍人工独立确认，不因代码发布自动执行。
 
 变更识别、原生构建、复用和整组故障回退已有真实演练证据；生产现场只验证了成功升级，未在生产故意注入故障。没有宣称生产回退事故已发生或所有科研能力可用。详情见对应验证记录。
+
+## main普通push自动触发验证已通过
+
+文档提交5f142ae51aaa0bb29510b948f3a1d5464aa0d00b实际触发push事件运行[44528390325](https://github.com/pengxiaochuan-ai/researchhub/actions/runs/44528390325)，completed success。计划正确引用刚发布的hub-runtime-8f5aee04-44525278754001为基线，frontend=false/backend=false/databaseChanged=false/releaseRequired=false；构建、复用、封包、服务器apply、browser、finalize全部skipped，未产生新部署。由此证明main自动入口和文档独有差额跳过已实际生效。最终此条证据以`[skip ci]`文档归档，避免仅为记录验证重复触发工作流；运行镜像仍保持上述配对版本。

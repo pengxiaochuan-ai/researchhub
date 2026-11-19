@@ -50,3 +50,7 @@
 ## 最终独立总评
 
 独立评审只读核对main/head、GitHub apply/browser/finalize及Chrome实证，无新增P1/P2；明确生产故障回退、正文附件与AI不在本次业务验收内。下一步以纯文档push验证自动入口及无运行差额跳过。Notion技术/测试专项及产品基线、版本、统一手册同步。
+
+## main普通push自动触发验证已通过
+
+文档提交5f142ae51aaa0bb29510b948f3a1d5464aa0d00b实际触发push事件运行[44528390325](https://github.com/pengxiaochuan-ai/researchhub/actions/runs/44528390325)，completed success。计划正确引用刚发布的hub-runtime-8f5aee04-44525278754001为基线，frontend=false/backend=false/databaseChanged=false/releaseRequired=false；构建、复用、封包、服务器apply、browser、finalize全部skipped，未产生新部署。由此证明main自动入口和文档独有差额跳过已实际生效。最终此条证据以`[skip ci]`文档归档，避免仅为记录验证重复触发工作流；运行镜像仍保持上述配对版本。
