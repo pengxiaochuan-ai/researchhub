@@ -42,4 +42,10 @@ class ReleaseTests(unittest.TestCase):
     (root/'server/setup.mjs').write_text("const ddl = 'CREATE TABLE newly_hidden(id text)'");git('add','.');git('commit','-m','embedded ddl');hidden=m.plan_module.make_plan(previous,git('rev-parse','HEAD'),blocked['databaseDigest']);self.assertIn('server/setup.mjs',hidden['databasePaths']);self.assertFalse(hidden['databaseApproved'])
     for statement in ['CREATE SEQUENCE synthetic_seq','CREATE ROLE synthetic_role','CREATE DATABASE synthetic_db','CREATE UNIQUE INDEX synthetic_ix ON newly_hidden(id)']:
      (root/'server/setup.mjs').write_text('const ddl = '+repr(statement));git('add','.');git('commit','-m','DDL variant');guarded=m.plan_module.make_plan(previous,git('rev-parse','HEAD'));self.assertIn('server/setup.mjs',guarded['databasePaths']);self.assertFalse(guarded['databaseApproved'])
+ def test_private_core_adapter_changes_cannot_silently_reuse_a_frozen_core(self):
+  import tempfile
+  with tempfile.TemporaryDirectory() as d:
+   root=pathlib.Path(d);(root/'adapter.mjs').write_text('approved adapter');(root/'package.json').write_text('{}');policy={'coreSourceGuards':{'adapter.mjs':hashlib.sha256(b'approved adapter').hexdigest()}}
+   m.validate_core_policy(policy,root);(root/'adapter.mjs').write_text('unreviewed adapter')
+   with self.assertRaisesRegex(ValueError,'CORE_SOURCE_REAPPROVAL'):m.validate_core_policy(policy,root)
 if __name__=='__main__':unittest.main()

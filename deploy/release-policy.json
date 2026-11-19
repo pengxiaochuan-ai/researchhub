@@ -12,5 +12,9 @@
     "markerSha256": "cb387f97078c6af304807b132a00d2400d7f10e6d2c39e050616e455542de523",
     "schemaFingerprint": "895dadbcc49134d4fde59ddaacedf242"
   },
-  "seedControlSha256": "d347d18940568f6e1f32463f94a62dd1dd5f92dcbb2facca51b8adc6fdfcd52a"
+  "seedControlSha256": "d347d18940568f6e1f32463f94a62dd1dd5f92dcbb2facca51b8adc6fdfcd52a",
+  "coreSourceGuards": {
+    "deploy/core-bundle.mjs": "68ce1bee577e911980be050964cb708398acb20d9ad06fa994829230364f63b9",
+    "deploy/knowledge-admin-adaptation.mjs": "8fa147d13a02e6d165da4e83d42ede36776377222fee393afc572427e0d6d24f"
+  }
 }

@@ -128,6 +128,9 @@ jobs:
         if: steps.prepare.outputs.release_required == 'true' && env.MODE != 'plan' && env.MODE != 'rollback'
         run: |
           docker run --rm --network none --entrypoint node "researchhub-backend:$HUB_RELEASE_TAG" -e "if(process.arch!=='x64')process.exit(1)"
+          if test "${{ steps.prepare.outputs.backend }}" = true; then
+            docker run --rm --network none --entrypoint node "researchhub-backend:$HUB_RELEASE_TAG" -e "const r=require('/opt/researchhub/release.json');if(r.sourceGit!==process.argv[1])process.exit(1)" "$GITHUB_SHA"
+          fi
           docker run --rm --network none --entrypoint node "ghcr.io/pengxiaochuan-ai/pengxc-researchhub:$HUB_RELEASE_TAG" -e "const fs=require('fs');if(!fs.readdirSync('/app/dist/assets').filter(n=>n.endsWith('.js')).some(n=>fs.readFileSync('/app/dist/assets/'+n,'utf8').includes(process.argv[1])))process.exit(1)" "$HUB_TENANT_SLUG"
           docker save "researchhub-backend:$HUB_RELEASE_TAG" | gzip > "$RUNNER_TEMP/hub-release/backend-image.tar.gz"
           docker save "ghcr.io/pengxiaochuan-ai/pengxc-researchhub:$HUB_RELEASE_TAG" | gzip > "$RUNNER_TEMP/hub-release/researchhub.tar.gz"

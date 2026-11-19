@@ -10,12 +10,12 @@ import{refreshBackendHub}from'./backend-package.mjs';
 test('fresh Git Hub replaces old package code while the approved core remains byte-identical',()=>{
  const root=mkdtempSync(join(tmpdir(),'hub-refresh-'));const context=join(root,'context'),source=join(root,'source');const save=(p,t)=>{mkdirSync(join(p,'..'),{recursive:true});writeFileSync(p,t);};
  try{
-  for(const p of ['package.json','tsconfig.json','src/core.ts','prisma/schema.prisma'])save(join(context,'core',p),p==='package.json'?'{}':'sealed');
+  for(const p of ['package.json','tsconfig.json','src/core.ts','prisma/schema.prisma'])save(join(context,'core',p),p==='package.json'?'{"dependencies":{"nodemailer":"1.0.0"}}':'sealed');
   const core=sealCoreBundle(join(context,'core'));save(join(context,'hub/server/old.mjs'),'old stale source');
   const hubFiles=[{path:'server/old.mjs',sha256:createHash('sha256').update('old stale source').digest('hex')}];
   save(join(context,'release.json'),JSON.stringify({schemaVersion:1,kind:'researchhub-private-backend',coreDigest:core.digest,hubFiles,hubDigest:createHash('sha256').update(JSON.stringify(hubFiles)).digest('hex')}));
   for(const dir of ['server','src','scripts','integrations','skill','deploy'])mkdirSync(join(source,dir),{recursive:true});
-  save(join(source,'server/new.mjs'),'new current Git code');save(join(source,'deploy/backend.Dockerfile'),'FROM fixture');
+  save(join(source,'package.json'),'{"dependencies":{"nodemailer":"1.0.0"}}');save(join(source,'server/new.mjs'),'new current Git code');save(join(source,'deploy/backend.Dockerfile'),'FROM fixture');
   const resources=['pages/h01/src/china.json','docs/reference/china-administrative-divisions/mca-2024.html','docs/reference/city-map-2026-11-10/manifest.json',...['Q74881-2548806680','Q956-2565775546','Q8686-2554225580'].map(id=>'docs/reference/city-map-2026-11-10/wikidata/'+id+'.json')];
   for(const p of resources)save(join(source,p),'approved geographic resource');
   const result=refreshBackendHub({context,source,sourceGit:'a'.repeat(40)});

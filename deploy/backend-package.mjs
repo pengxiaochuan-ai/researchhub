@@ -44,7 +44,10 @@ function copyCode(source,target){
 export function refreshBackendHub({context,source=repository,sourceGit}){
  context=resolve(context);source=resolve(source);
  if(!/^[a-f0-9]{40}$/.test(sourceGit??'')||context===source||source.startsWith(context+'/'))throw Error('BACKEND_REFRESH_SCOPE_REJECTED');
- const previous=verifyBackendPackage(context),resources=['pages/h01/src/china.json','docs/reference/china-administrative-divisions/mca-2024.html','docs/reference/city-map-2026-11-10/manifest.json',...['Q74881-2548806680','Q956-2565775546','Q8686-2554225580'].map(id=>'docs/reference/city-map-2026-11-10/wikidata/'+id+'.json')];
+ const previous=verifyBackendPackage(context);
+ const hubPackage=JSON.parse(readFileSync(join(source,'package.json'))),sealedPackage=JSON.parse(readFileSync(join(context,'core/package.json')));
+ if(hubPackage.dependencies?.nodemailer!==sealedPackage.dependencies?.nodemailer)throw Error('BACKEND_CORE_DEPENDENCY_REAPPROVAL_REQUIRED');
+ const resources=['pages/h01/src/china.json','docs/reference/china-administrative-divisions/mca-2024.html','docs/reference/city-map-2026-11-10/manifest.json',...['Q74881-2548806680','Q956-2565775546','Q8686-2554225580'].map(id=>'docs/reference/city-map-2026-11-10/wikidata/'+id+'.json')];
  const bytes=resources.map(path=>({path,bytes:readFileSync(join(existsSync(join(source,path))?source:join(context,'hub'),path))}));
  rmSync(join(context,'hub'),{recursive:true});
  for(const dir of ['server','src','scripts','integrations','skill','deploy'])copyCode(join(source,dir),join(context,'hub',dir));

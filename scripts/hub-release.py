@@ -30,9 +30,16 @@ def provenance(previous,kind,built,revision):
  old=previous.get('components',{}).get(kind,{})
  return {'sourceGit':revision if built else plan_module.component_base(previous,kind),'built':built,'reusedFrom':None if built else previous['tag']}
 
+def validate_core_policy(policy,root=HERE.parent):
+ for name,expected in policy['coreSourceGuards'].items():
+  need(digest((root/name).read_bytes())==expected,'HUB_RELEASE_CORE_SOURCE_REAPPROVAL_REQUIRED')
+ hub=json.loads((root/'package.json').read_text())
+ return hub
+
 def main():
  p=argparse.ArgumentParser();p.add_argument('action',choices=['prepare','reuse','collect']);p.add_argument('--directory',required=True);p.add_argument('--component',choices=['frontend','backend']);p.add_argument('--mode',choices=['plan','rehearse','release','rollback'],default='release');p.add_argument('--tag');p.add_argument('--manifest-sha');a=p.parse_args();directory=pathlib.Path(a.directory);directory.mkdir(mode=0o700,parents=True,exist_ok=True);policy=json.loads((HERE.parent/'deploy/release-policy.json').read_text());store=artifacts.bucket()
  if a.action=='prepare':
+  validate_core_policy(policy)
   raw,previous,pointer=read_current(store,policy);(directory/'previous-release.json').write_bytes(raw);(directory/'baseline-pointer.json').write_text(json.dumps(pointer))
   if a.mode=='rollback':
    target_raw,target=manifest(store,a.tag,a.manifest_sha);need(target['coreDigest']==policy['coreDigest'],'HUB_RELEASE_ROLLBACK_CORE_REJECTED');(directory/'runtime-release.json').write_bytes(target_raw)
