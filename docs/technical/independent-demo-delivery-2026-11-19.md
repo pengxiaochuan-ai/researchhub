@@ -49,3 +49,7 @@
 实际成功生成182表/98565行单租户私有快照，父对象闭包通过，源写入0；不是整库复制。schema.dump、逐表JSONL及SHA清单仅在本机.tmp，未包含对象文件、未验证恢复，消费者必须保持未启动。两次失败保留：最初通用失败定位为schema归档，改用与源连接一致的aisci_owner后成功，不回退为其他数据库/角色。
 
 用户已选择现有RDS中新建独立库，建议候选名researchhub_demo，专用researchhub_demo_owner/researchhub_demo_app；这些仅候选，未创建。源aisci_owner本机为superuser，**不复制该角色属性到RDS**；不授旧aisci角色成员关系、不沿用旧密码，RLS的TO角色、函数owner及EXECUTE需在新库准确映射。下一步只读核RDS维护库postgres的现有管理身份能力及候选名称占用，不读取aisci临床表。资源/角色/发布准确清单另确认。
+
+## 现有RDS只读准入结果
+
+运行44445641142仅在postgres维护库查询元数据，aisci_control具备createdb/createrole/bypass，目标库和owner/app名未占用，写入0。源vector0.8.2，RDS可用最高0.8.1.2；当前连接未用TLS。角色/扩展兼容与源数据恢复必须在新目标验证，不能仅凭能力标志宣称恢复可行。准确候选范围见[独立RDS准入清单](rds-demo-target-admission-2026-11-19.md)，未执行建库/权限/恢复或入口切换。

@@ -1,3 +1,7 @@
+## 2026-11-19 · 当前优先：独立数据库演示交付
+
+[独立交付边界](technical/independent-demo-delivery-2026-11-19.md) · [ADR-0015](decisions/0015-independent-demo-database-first.md) · [12月以后合库待办MB-01](planning/phase1-review-2026-10-19/deferred-database-integration-2026-12.md)。共享首装方案延期；先交付获准资料和明确标识的合成样例，不整库恢复历史测试任务。下方旧主线保留为历史。
+
 ## 2026-11-19 · Hub首次安装到共享aisci（方案，未执行）
 
 [实施与原数据保护方案](technical/hub-first-install-production-plan-2026-11-19.md) · [源对象工作库存](technical/hub-first-install-object-inventory-2026-11-19.md) · [生产只读事实](technical/production-readonly-preflight-2026-11-19.md)。开发库不合并到生产；原五步仅已安装基线增量，生产需独立首装包。精确差额、SQL及演练后再提生产审批。
