@@ -127,6 +127,20 @@ restore_previous_release() {
   wait_for_health
 }
 
+
+verify_pinned_frontend_artifacts() {
+  if [[ -n "${HUB_EXPECTED_FRONTEND_SHA256:-}${HUB_EXPECTED_COMPOSE_SHA256:-}${HUB_EXPECTED_FRONTEND_IMAGE_ID:-}" ]]; then
+    [[ "${HUB_EXPECTED_FRONTEND_SHA256:-}" =~ ^[a-f0-9]{64}$ && "${HUB_EXPECTED_COMPOSE_SHA256:-}" =~ ^[a-f0-9]{64}$ && "${HUB_EXPECTED_FRONTEND_IMAGE_ID:-}" =~ ^sha256:[a-f0-9]{64}$ ]] || return 1
+    printf '%s  %s\n%s  %s\n' "${HUB_EXPECTED_FRONTEND_SHA256}" "$1" "${HUB_EXPECTED_COMPOSE_SHA256}" "$2" | sha256sum -c -
+  fi
+}
+
+verify_pinned_frontend_image() {
+  if [[ -n "${HUB_EXPECTED_FRONTEND_IMAGE_ID:-}" ]]; then
+    [[ "$(docker image inspect "${IMAGE_REF}" --format '{{.Id}}')" == "${HUB_EXPECTED_FRONTEND_IMAGE_ID}" ]]
+  fi
+}
+
 activate_release() {
   local image_archive="${WORK_DIR}/researchhub.tar.gz"
   local artifact_checksums="${WORK_DIR}/ARTIFACTS.sha256"
@@ -143,9 +157,11 @@ activate_release() {
     sha256sum -c ARTIFACTS.sha256
     rm -f docker-compose.ecs.yml
   )
+  verify_pinned_frontend_artifacts "${image_archive}" "${COMPOSE_NEXT}" || return 1
   gzip -t "${image_archive}"
   gzip -dc "${image_archive}" | docker load
   docker image inspect "${IMAGE_REF}" >/dev/null
+  verify_pinned_frontend_image || return 1
 
   # Hub's canonical .env.prod now also contains backend secrets.
   # Historical static images may be restored, but never with full env_file.

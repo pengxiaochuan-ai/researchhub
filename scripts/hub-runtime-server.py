@@ -156,7 +156,7 @@ def activate_front(helper,saved,control,release,items,before):
  if old['Image']==release['images']['frontend']['id']:
   assert_frontend_environment(old);need(frontend_status('/api/auth/me')=='401' and frontend_status('/health')=='200','HUB_FRONTEND_ROUTE_NOT_READY')
  else:
-  child=dict(os.environ,RESEARCHHUB_RELEASE_MODE='deploy',RESEARCHHUB_RELEASE_TAG=release['tag'],RESEARCHHUB_IMAGE=release['frontendImage'],RESEARCHHUB_OSS_RELEASE_PREFIX='releases/researchhub',RESEARCHHUB_PORT='8083')
+  child=dict(os.environ,RESEARCHHUB_RELEASE_MODE='deploy',RESEARCHHUB_RELEASE_TAG=release['tag'],RESEARCHHUB_IMAGE=release['frontendImage'],RESEARCHHUB_OSS_RELEASE_PREFIX='releases/researchhub',RESEARCHHUB_PORT='8083',HUB_EXPECTED_FRONTEND_SHA256=release['files']['researchhub.tar.gz']['sha256'],HUB_EXPECTED_COMPOSE_SHA256=release['files']['docker-compose.ecs.yml']['sha256'],HUB_EXPECTED_FRONTEND_IMAGE_ID=release['images']['frontend']['id'])
   try:
    command(['bash',str(PACKAGE/'ecs-release.sh')],600,env=child)
    current_front=frontend_container(containers(),release['images']['frontend']['id']);assert_frontend_environment(current_front)
