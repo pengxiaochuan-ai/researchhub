@@ -7,16 +7,21 @@ import re
 import subprocess
 from pathlib import Path
 
+PHASE = "initialization"
+
 
 def command(args, timeout=20):
     return subprocess.run(args, capture_output=True, text=True, timeout=timeout, check=True).stdout
 
 
 def main():
+    global PHASE
     result = {"schema": "hub-production-readonly.v1", "architecture": platform.machine(), "containers": []}
+    PHASE = "container_inventory"
     ids = command(["docker", "ps", "-q"]).split()
     if not ids or any(not re.fullmatch(r"[a-f0-9]{12,64}", x) for x in ids):
         raise RuntimeError("CONTAINER_INVENTORY_UNAVAILABLE")
+    PHASE = "container_metadata"
     items = json.loads(command(["docker", "inspect", *ids]))
     servers = []
     for item in items:
@@ -30,12 +35,14 @@ def main():
         if labels.get("com.docker.compose.service") == "server" and re.search(r"(?:^|/)aisci-server:", image):
             servers.append(item["Id"])
     result["hubProxy"] = []
+    PHASE = "proxy_metadata"
     for filename in sorted(glob.glob("/etc/nginx/conf.d/*.conf"))[:40]:
         text = Path(filename).read_text()[:300000]
         if "hub.pengxc.com" in text:
             # Boolean observations only; never echo proxy credentials or headers.
             result["hubProxy"].append({"file": filename, "apiLocation": bool(re.search(r"location[^\n{]*/api", text)),
                 "proxyPresent": "proxy_pass" in text, "tlsConfigured": "ssl_certificate" in text})
+    PHASE = "database_metadata"
     if len(servers) != 1:
         result["database"] = {"blocked": "RUNNING_AISCI_SERVER_NOT_UNIQUE", "candidates": len(servers)}
     else:
@@ -63,9 +70,20 @@ def main():
         raise SystemExit(2)
 
 
-if __name__ == "__main__":
+def entry():
     try:
         main()
-    except Exception:
-        print(json.dumps({"blocked": "PRODUCTION_READONLY_PROBE_FAILED"}))
+    except Exception as error:
+        # Strict metadata allowlist: no exception message, command, stdout or stderr.
+        kinds = (FileNotFoundError, PermissionError, UnicodeError, TypeError,
+                 KeyError, ValueError, RuntimeError, subprocess.TimeoutExpired,
+                 subprocess.CalledProcessError)
+        kind = next((t.__name__ for t in kinds if isinstance(error, t)), "UnexpectedError")
+        print(json.dumps({"blocked": "PRODUCTION_READONLY_PROBE_FAILED", "phase": PHASE,
+            "architecture": platform.machine(), "python": platform.python_version(), "kind": kind,
+            "exitCode": error.returncode if isinstance(error, subprocess.CalledProcessError) else None}))
         raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    entry()

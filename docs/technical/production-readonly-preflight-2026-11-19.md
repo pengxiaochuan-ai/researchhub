@@ -23,3 +23,7 @@
 当前CLI及GitHub连接器均为`kechebayan-collab`；Hub仓库实际权限pull=true、push/admin/maintain=false。该身份查询旧aisciencesys私有仓库返回404，不具备复用旧工作流的可见权限。Git SSH认证则为`jerryshichina`，解释了为何同机可以推送main，但不能据此让CLI获得Actions API权限；SSH密钥不转换为API令牌。本机Git HTTPS凭据助手未找到该SSH身份的已有HTTPS授权；浏览器状态读取超时，未能确认浏览器登录。
 
 没有改变机构、仓库或云权限，没有改用push触发绕过403，也没有触发旧系统发布。下一步只需用户将本机gh登录为已有目标仓库写权限的账号，或由该账号在GitHub手动运行指定只读流程；无需在聊天提供令牌、SSH私钥或云密钥。取得可用身份后，仅续行已批准的只读工作流，真实发布仍待确认。
+
+## 2026-11-19续行：身份已统一，首次远端核对失败
+
+CLI已使用keyring中的jerryshichina；Git协议SSH，Hub实际admin/push=true，未改仓库或机构角色。已成功手动启动运行44437894517，UTC 01:34（北京时间09:34）。Cloud Assistant返回PRODUCTION_READONLY_PROBE_FAILED，流程非零失败；尚不能据此认定生产结构或部署状态。仅补充只读脚本阶段、Python/CPU版本、白名单异常类别与数值退出码，不回显命令、stdout/stderr、异常文本或凭证；测试与独立复核后再跑同一范围，不扩大权限或运维动作。

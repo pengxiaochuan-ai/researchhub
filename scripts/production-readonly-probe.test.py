@@ -11,6 +11,25 @@ spec.loader.exec_module(probe)
 
 
 class ProbeTest(unittest.TestCase):
+    def test_inventory_failure_reports_only_sanitized_phase_and_kind(self):
+        old_command = probe.command
+        secret = "SYNTHETIC_ERROR_MUST_NEVER_APPEAR"
+        def fail(*_args, **_kwargs):
+            raise probe.subprocess.CalledProcessError(7, [secret], output=secret, stderr=secret)
+        probe.command = fail
+        output = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(output), self.assertRaises(SystemExit) as caught:
+                probe.entry()
+        finally:
+            probe.command = old_command
+        self.assertEqual(caught.exception.code, 1)
+        self.assertNotIn(secret, output.getvalue())
+        result = json.loads(output.getvalue())
+        self.assertEqual(result["phase"], "container_inventory")
+        self.assertEqual(result["kind"], "CalledProcessError")
+        self.assertEqual(result["exitCode"], 7)
+
     def run_probe(self, service="server", db_failure=False):
         calls = []
         secret = "SYNTHETIC_MUST_NEVER_APPEAR"
