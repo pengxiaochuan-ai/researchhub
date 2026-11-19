@@ -1,3 +1,7 @@
+## 2026-11-19 · Hub首次安装到共享aisci：方案与源库存待评审
+
+用户确认开发期独立复制库，Hub结构从未同步到生产。已补首次安装方案与182＋1源表工作库存，区分复用public、rh_*新对象、共享表追加和非兼容变更；原五步增量不能套用。旧业务行零DML、单一共享迁移权威、锁/超时、原权限及账本保护、合成旧数据/Worker兼容、Hub专属回退和四层验收已明确。估算4工作日＋1缓冲，逐对象差额、可执行SQL/GRANT及合成演练未完成；本轮仅文档，无生产操作。[方案](../technical/hub-first-install-production-plan-2026-11-19.md) · [源对象库存](../technical/hub-first-install-object-inventory-2026-11-19.md)。
+
 ## 2026-11-19 · GitHub身份统一与同机生产只读核对通过
 
 CLI及SSH推送身份已统一为jerryshichina，复用既有组织云助手凭据完成真实只读运行44438491892；仅修复核对脚本Python3.6兼容，6项本机测试与独立评审通过。服务器x86_64；Hub前端8083、官网8082、旧科研系统独立运行；旧server实连aisci库，本次public/rh_*检查范围仅返回public、未观察到rh_*，结构指纹与现有五步迁移前置不符，不能直接执行该包。生产首次安装、旧Worker隔离和Hub路由仍需准确核对及评审；未读取临床行、DDL/GRANT、配置修改、重启或发布。[结果及发布检查清单](../technical/production-readonly-preflight-2026-11-19.md)。以下保留前序阻断记录。

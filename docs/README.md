@@ -1,3 +1,7 @@
+## 2026-11-19 · Hub首次安装到共享aisci（方案，未执行）
+
+[实施与原数据保护方案](technical/hub-first-install-production-plan-2026-11-19.md) · [源对象工作库存](technical/hub-first-install-object-inventory-2026-11-19.md) · [生产只读事实](technical/production-readonly-preflight-2026-11-19.md)。开发库不合并到生产；原五步仅已安装基线增量，生产需独立首装包。精确差额、SQL及演练后再提生产审批。
+
 ## 2026-11-18 · 发布反馈与五页导航统一
 
 [验收证据](testing/governance-navigation-feedback-2026-11-18.md) · [反馈契约与五页导航差异稿](technical/governance-navigation-feedback-2026-11-18.md) · [统一手册反馈复验](product/用户验证与操作手册.md#2026-11-18--发布成功反馈复验)。F03成功反馈及用户确认的五页局部导航已实施、真实浏览器验证；S11只限治理入口。用户／生产验收另计。
