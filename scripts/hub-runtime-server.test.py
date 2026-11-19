@@ -70,4 +70,23 @@ class ServerPlan(unittest.TestCase):
    cleanup=stack.enter_context(patch.object(m,'stop_owned_api'))
    with self.assertRaises(SystemExit):m.run('activate','a'*64)
    cleanup.assert_called_once_with('sha256:new')
+ def test_canonical_config_id_is_derived_only_from_exact_pinned_archive(self):
+  import tarfile,tempfile,hashlib,io
+  config=json.dumps({'architecture':'amd64','os':'linux','rootfs':{'type':'layers','diff_ids':[]}}).encode();sha=hashlib.sha256(config).hexdigest();name='blobs/sha256/'+sha
+  with tempfile.TemporaryDirectory() as d:
+   archive=pathlib.Path(d)/'image.tar.gz'
+   def write(config_name=name,tag='researchhub-backend:approved',extra=None):
+    with tarfile.open(str(archive),'w:gz') as tf:
+     for filename,data in [(config_name,config),('manifest.json',json.dumps([{'Config':config_name,'RepoTags':[tag],'Layers':[]}]).encode())]:
+      member=tarfile.TarInfo(filename);member.size=len(data);tf.addfile(member,io.BytesIO(data))
+     if extra is not None:tf.addfile(extra,io.BytesIO(b''))
+    return hashlib.sha256(archive.read_bytes()).hexdigest()
+   digest=write();self.assertEqual(m.canonical_image_id(archive,'researchhub-backend:approved',digest),'sha256:'+sha)
+   with self.assertRaisesRegex(m.Stop,'IMAGE_DIGEST_MISMATCH'):m.canonical_image_id(archive,'researchhub-backend:approved','0'*64)
+   with self.assertRaisesRegex(m.Stop,'IMAGE_TAG_REJECTED'):m.canonical_image_id(archive,'other:tag',digest)
+   for filename,kind in [('../escape',tarfile.REGTYPE),('/absolute',tarfile.REGTYPE),('manifest.json',tarfile.REGTYPE),('link',tarfile.SYMTYPE),('hardlink',tarfile.LNKTYPE)]:
+    member=tarfile.TarInfo(filename);member.type=kind;member.linkname='elsewhere';digest=write(extra=member)
+    with self.assertRaisesRegex(m.Stop,'MEMBER_REJECTED'):m.canonical_image_id(archive,'researchhub-backend:approved',digest)
+   digest=write(config_name='blobs/sha256/'+'a'*64)
+   with self.assertRaisesRegex(m.Stop,'CONFIG_DIGEST_MISMATCH'):m.canonical_image_id(archive,'researchhub-backend:approved',digest)
 if __name__=='__main__':unittest.main()

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Activate only the approved independent Hub API; Python 3.6+, no migrations."""
-import argparse,fcntl,hashlib,importlib.util,json,os,pathlib,re,secrets,shutil,socket,subprocess,sys,time,signal
+import argparse,fcntl,hashlib,importlib.util,json,os,pathlib,re,secrets,shutil,socket,subprocess,sys,time,signal,tarfile
 from urllib.parse import urlsplit
 OPS=pathlib.Path('/srv/researchhub/ops');PACKAGE=pathlib.Path(__file__).resolve().parent
 TENANT='rh-kb-local-b0e2af9d-tenant'
@@ -72,6 +72,8 @@ def load_release(control_sha):
   path=PACKAGE/name;need(path.is_file() and not path.is_symlink() and hashlib.sha256(path.read_bytes()).hexdigest()==item['sha256'],'HUB_RUNTIME_CONTROL_FILE_MISMATCH')
  release=load_json(PACKAGE/'runtime-release.json');need(release.get('schema')=='researchhub-runtime-images.v1' and release.get('tag')==control.get('tag') and release.get('architecture')=='amd64' and release.get('workersEnabled') is False and release.get('modelsEnabled') is False and release.get('mailEnabled') is False,'HUB_RUNTIME_RELEASE_REJECTED')
  need(release.get('images',{}).get('backend',{}).get('architecture')=='amd64','HUB_RUNTIME_IMAGE_ARCH_REJECTED')
+ release['images']['backend']['buildId']=release['images']['backend']['id']
+ release['images']['backend']['id']=canonical_image_id(backend_archive(release),release['backendImage'],release['files']['backend-image.tar.gz']['sha256'])
  return control,release
 
 def file_sha(path):
@@ -79,6 +81,37 @@ def file_sha(path):
  with path.open('rb') as f:
   for chunk in iter(lambda:f.read(1024*1024),b''):h.update(chunk)
  return h.hexdigest()
+
+
+def canonical_image_id(archive,reference,expected_sha):
+ need(archive.is_file() and not archive.is_symlink() and file_sha(archive)==expected_sha,'HUB_RUNTIME_IMAGE_DIGEST_MISMATCH')
+ configs={};entries=None;seen=set()
+ with tarfile.open(str(archive),'r|gz') as source:
+  for member in source:
+   name=member.name;path=pathlib.PurePosixPath(name)
+   need(not path.is_absolute() and '..' not in path.parts and not member.issym() and not member.islnk() and name not in seen and len(seen)<50000,'HUB_RUNTIME_IMAGE_MEMBER_REJECTED');seen.add(name)
+   if name!='manifest.json' and not re.fullmatch(r'(?:[a-f0-9]{64}\.json|blobs/sha256/[a-f0-9]{64})',name):continue
+   if member.size>2*1024*1024 and name!='manifest.json':continue
+   need(member.isfile() and member.size<=2*1024*1024,'HUB_RUNTIME_IMAGE_METADATA_REJECTED')
+   raw=source.extractfile(member).read()
+   try:body=json.loads(raw.decode('utf-8'))
+   except (ValueError,UnicodeError):continue
+   if name=='manifest.json':entries=body
+   elif isinstance(body,dict) and 'rootfs' in body:
+    need(body.get('architecture')=='amd64' and body.get('os')=='linux','HUB_RUNTIME_IMAGE_CONFIG_ARCH_REJECTED')
+    digest=hashlib.sha256(raw).hexdigest();need(name.split('/')[-1].split('.')[0]==digest,'HUB_RUNTIME_IMAGE_CONFIG_DIGEST_MISMATCH');configs[name]='sha256:'+digest
+ need(isinstance(entries,list) and len(entries)==1,'HUB_RUNTIME_IMAGE_MANIFEST_REJECTED')
+ entry=entries[0];tags=entry.get('RepoTags') or []
+ need(tags.count(reference)==1,'HUB_RUNTIME_IMAGE_TAG_REJECTED')
+ config=entry.get('Config');need(config in configs,'HUB_RUNTIME_IMAGE_CONFIG_MISSING');return configs[config]
+
+def backend_archive(release):
+ local=PACKAGE/'backend-image.tar.gz'
+ if local.is_file():return local
+ choices=sorted(PACKAGE.parent.glob('control-*/backend-image.tar.gz'));need(0<len(choices)<=20,'HUB_RUNTIME_VERIFIED_BACKEND_ARCHIVE_REQUIRED')
+ for candidate in choices:
+  if not candidate.is_symlink() and file_sha(candidate)==release['files']['backend-image.tar.gz']['sha256']:return candidate
+ raise Stop('HUB_RUNTIME_IMAGE_DIGEST_MISMATCH')
 
 def task_snapshot(helper,values):
  cfg,password=helper.check_url(values['DIRECT_URL'],'researchhub_demo_owner')
@@ -147,6 +180,8 @@ def frontend_status(path):
  return r.stdout.decode() if r.returncode==0 else 'unavailable'
 
 def activate_front(helper,saved,control,release,items,before):
+ release['images']['frontend']['buildId']=release['images']['frontend']['id']
+ release['images']['frontend']['id']=canonical_image_id(PACKAGE/'researchhub.tar.gz',release['frontendImage'],release['files']['researchhub.tar.gz']['sha256'])
  live_api(items,release,control['target']);need(api_status()=='401','HUB_API_REQUIRED_BEFORE_FRONTEND')
  old=frontend_container(items);states=task_snapshot(helper,saved)
  current=OPS/'current.env';need(current.is_file() and not current.is_symlink(),'HUB_FRONTEND_CURRENT_ENV_REQUIRED')

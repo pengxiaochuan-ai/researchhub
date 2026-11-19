@@ -48,6 +48,7 @@ def main():
   need(re.fullmatch('[a-f0-9]{64}',item.get('sha256','')) and 0<item.get('bytes',0)<2*1024*1024,'HUB_RUNTIME_CONTROL_ENTRY_REJECTED')
   fetch(store,prefix+name,directory/name,item['sha256'])
  release=json.loads((directory/'runtime-release.json').read_text());need(release.get('tag')==tag and file_sha(directory/'runtime-release.json')==control.get('imageManifestSha256'),'HUB_RUNTIME_IMAGE_MANIFEST_MISMATCH')
+ if action=='activate-front':fetch(store,'releases/researchhub/'+tag+'/researchhub.tar.gz',directory/'researchhub.tar.gz',release['files']['researchhub.tar.gz']['sha256'])
  if action=='activate':fetch(store,'releases/researchhub/'+tag+'/backend-image.tar.gz',directory/'backend-image.tar.gz',release['files']['backend-image.tar.gz']['sha256'])
  for name in ('server.py','ecs-release.sh'):(directory/name).chmod(0o750)
  child=subprocess.Popen([sys.executable,str(directory/'server.py'),action,'--control-sha',sha],stdout=subprocess.PIPE,stderr=subprocess.PIPE,universal_newlines=True)
