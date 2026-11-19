@@ -11,14 +11,14 @@ import {bindRuntimeTransactions,withDeploymentTransaction} from './server/databa
 import {assertHubAgent} from './server/hub-sources/visible-repository.mjs';
 import {runHubSourceSearch} from './server/hub-sources/agent-retrieval.mjs';
 import {HUB_TOOL_KB_ID,hubCoreQuestion,bindHubSynthesisQuestion,assertHubToolResult} from './scripts/hub-agent-contract.mjs';
-let prisma;
+let prisma,phase='config';
 try{
  const c=readResearchRuntimeConfig(process.env),tenant='rh-kb-local-b0e2af9d-tenant';
  if(c.identity.database!=='researchhub'||c.identity.tenantId!==tenant)throw Error('CHAT_TARGET_REJECTED');
  const{load}=runtimeDependencies(c.core);prisma=new(load('prisma/prisma.service','PrismaService'))();await prisma.app.$connect();await prisma.elevated.$connect();
  const env=bindRuntimeTransactions({prisma,expected:c.identity});
  let activeConfig,resolvedModel;
- const r=await withDeploymentTransaction(env,'direct',async tx=>{
+ phase='metadata';const r=await withDeploymentTransaction(env,'direct',async tx=>{
   const accounts=await tx.account.findMany({where:{tenantId:tenant,id:{in:[tenant.replace('-tenant','-admin'),tenant.replace('-tenant','-owner')]},status:'active'},select:{id:true,role:true,isTenantAdmin:true,authVersion:true}});
   const config=await tx.agentConfig.findFirst({where:{tenantId:tenant,agentId:tenant+'-kb-research',active:true,archivedAt:null},orderBy:{version:'desc'}});
   const model=await load('common/model-route-resolver','resolveConfiguredDeepSeekModelRoute')(tx,tenant,config.model);
@@ -29,10 +29,11 @@ try{
  },{readOnly:true});
  r.promptPreflight=[];
  if(process.env.HUB_PAID_AI_ENABLED!=='true')for(const [index,a]of r.accounts.entries()){
+  phase='source-'+index;
   const question='请根据已审核来源概述'+(index===0?'ChiCTR2300073486':'ChiCTR2300077209')+'的研究设计、干预和结局，并标注来源；未记录的字段说明未报告。';
   const user={...a,accountId:a.id,tenantId:tenant,studyGroupId:'rh-kb-local-b0e2af9d-group',researchProjectId:'rh-kb-local-b0e2af9d-project'};
   const retrieval=await withDeploymentTransaction(env,'app',async db=>{await db.$executeRawUnsafe("SELECT set_config('app.study_group_id',$1,true),set_config('app.research_project_id',$2,true)",user.studyGroupId,user.researchProjectId);await assertHubAgent({db,principal:user,tenantId:tenant,hubKey:'lingshu-xinyu'});return runHubSourceSearch({db,principal:user,tenantId:tenant,hubKey:'lingshu-xinyu',query:question});},{readOnly:true});
-  const sources=assertHubToolResult(retrieval);let capture=null,calls=0;const unused=new Proxy({},{get(){throw Error('PREFLIGHT_UNUSED_PATH');}});
+  const sources=assertHubToolResult(retrieval);phase='prompt-'+index;let capture=null,calls=0;const unused=new Proxy({},{get(){throw Error('PREFLIGHT_UNUSED_PATH');}});
   const provider={chatWithTools:async()=>{throw Error('PREFLIGHT_WRONG_PATH');},chat:async(messages)=>{calls++;const bytes=Buffer.byteLength(JSON.stringify(bindHubSynthesisQuestion(messages,question)));capture={accountId:a.id,inputBytes:bytes,requestReserveMicros:(2*bytes+4096)*9+2048*27,sourceCount:sources.length};throw Error('PREFLIGHT_NO_PROVIDER_REQUEST');}};
   const kbTools={toolDefs:()=>load('knowledge/kb-tools.service','KbToolsService').prototype.toolDefs.call({}).filter(x=>x.function?.name==='kb_search'),execute:async(_user,name,args)=>{const x=JSON.parse(args);if(name!=='kb_search'||x.kbId!==HUB_TOOL_KB_ID||x.query!==hubCoreQuestion)throw Error('PREFLIGHT_TOOL_REJECTED');return retrieval;}};
   const core=new(load('orchestrator/orchestrator.service','OrchestratorService'))({available:false},provider,unused,unused,kbTools);
@@ -40,7 +41,7 @@ try{
   if(calls!==1||!capture||capture.inputBytes>20000||capture.requestReserveMicros>500000)throw Error('CHAT_PROMPT_LIMIT_REJECTED');r.promptPreflight.push(capture);
  }
  console.log(JSON.stringify({status:'chat-read-only-ready',...r}));
-}catch{console.log(JSON.stringify({status:'stopped',code:'CHAT_READ_ONLY_FAILED'}));process.exitCode=1;}finally{if(prisma)await prisma.onModuleDestroy();}
+}catch(e){console.log(JSON.stringify({status:'stopped',code:'CHAT_READ_ONLY_FAILED',phase,reason:/^(?:CHAT_|HUB_|PREFLIGHT_)[A-Z_]+$/.test(e?.message||'')?e.message:'READ_FAILED'}));process.exitCode=1;}finally{if(prisma)await prisma.onModuleDestroy();}
 '''
 
 def need(ok,code):
@@ -48,6 +49,11 @@ def need(ok,code):
 
 def run(args,stdin=None,timeout=90):
  r=subprocess.run(args,input=stdin,stdout=subprocess.PIPE,stderr=subprocess.PIPE,universal_newlines=True,timeout=timeout)
+ if r.returncode and args[:2]==['docker','exec']:
+  try:
+   x=json.loads(r.stdout.splitlines()[-1]);phase=x.get('phase','unknown');reason=x.get('reason','READ_FAILED')
+   if re.fullmatch('(config|metadata|source-[01]|prompt-[01])',phase) and re.fullmatch('[A-Z_]+',reason):raise ValueError('CHAT_PREFLIGHT_'+phase.upper().replace('-','_')+'_'+reason)
+  except (IndexError,TypeError):pass
  need(r.returncode==0,'CHAT_COMMAND_FAILED');return r.stdout.strip()
 
 def current():
@@ -129,4 +135,4 @@ if __name__=='__main__':
    fd=os.open(str(OPS/name),os.O_WRONLY|os.O_CREAT|getattr(os,'O_NOFOLLOW',0),0o600);fds.append(fd);fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB)
   main(action)
  except Exception as e:
-  code=str(e) if isinstance(e,ValueError) and re.fullmatch('CHAT_[A-Z_]+',str(e)) else 'CHAT_OPERATION_FAILED_RECHECK_REQUIRED';print(json.dumps({'status':'stopped','code':code,'automaticRetry':False}));raise SystemExit(1)
+  code=str(e) if isinstance(e,ValueError) and re.fullmatch('CHAT_[A-Z0-9_]+',str(e)) else 'CHAT_OPERATION_FAILED_RECHECK_REQUIRED';print(json.dumps({'status':'stopped','code':code,'automaticRetry':False}));raise SystemExit(1)
