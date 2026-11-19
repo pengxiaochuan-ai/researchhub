@@ -17,3 +17,9 @@
 由有权限的仓库管理员打开[只读工作流](https://github.com/pengxiaochuan-ai/researchhub/actions/workflows/production-readonly.yml)，选择Run workflow、分支main。准确名称为“ResearchHub production readonly preflight”；不要运行deploy/rollback。若有environment审批，按现有流程处理，不绕过。完成后提供运行链接即可，不提供密钥或.env内容；日志仅有脱敏元数据。流程失败保持阻断，不自动修权限或服务。
 
 后续依据真实结果形成共享库增量差额及Hub独立进程/端口/代理/回退清单；生产DDL、GRANT、配置修改和真正发布继续单独确认。本轮未改产品页面、权限、旧项目或官网；无新增模型费用。
+
+## 既有GitHub授权复核（用户要求复用旧系统授权）
+
+当前CLI及GitHub连接器均为`kechebayan-collab`；Hub仓库实际权限pull=true、push/admin/maintain=false。该身份查询旧aisciencesys私有仓库返回404，不具备复用旧工作流的可见权限。Git SSH认证则为`jerryshichina`，解释了为何同机可以推送main，但不能据此让CLI获得Actions API权限；SSH密钥不转换为API令牌。本机Git HTTPS凭据助手未找到该SSH身份的已有HTTPS授权；浏览器状态读取超时，未能确认浏览器登录。
+
+没有改变机构、仓库或云权限，没有改用push触发绕过403，也没有触发旧系统发布。下一步只需用户将本机gh登录为已有目标仓库写权限的账号，或由该账号在GitHub手动运行指定只读流程；无需在聊天提供令牌、SSH私钥或云密钥。取得可用身份后，仅续行已批准的只读工作流，真实发布仍待确认。
