@@ -34,8 +34,8 @@ class Artifacts(unittest.TestCase):
    self.assertEqual(names,['researchhub.tar.gz','docker-compose.ecs.yml'])
    release=json.loads((out/'runtime-release.json').read_text());self.assertIn('researchhub.tar.gz',release['files']);self.assertFalse(release['workersEnabled'])
  def test_private_backend_never_exports_an_actions_cache_or_build_record(self):
-  text=pathlib.Path('.github/workflows/hub-runtime-build.yml').read_text()
-  backend=text.split('      - name: Build native amd64 backend',1)[1].split('      - name: Build frontend',1)[0]
+  text=pathlib.Path('.github/workflows/deploy.yml').read_text()
+  backend=text.split('      - name: Build changed backend',1)[1].split('      - name: Reuse unchanged backend',1)[0]
   self.assertNotIn('cache-to:',backend);self.assertNotIn('cache-from:',backend)
   self.assertIn("DOCKER_BUILD_RECORD_UPLOAD: 'false'",text)
   self.assertIn('VITE_AUTH_TENANT_SLUG=${{ env.HUB_TENANT_SLUG }}',text)

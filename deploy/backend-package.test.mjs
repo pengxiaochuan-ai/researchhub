@@ -5,3 +5,22 @@ test('Linux package adapts only the private generator target, preserving databas
  assert.throws(()=>nativePrismaSchema('model Synthetic {id String @id}'),/BACKEND_PRISMA_GENERATOR_REJECTED/);
  assert.throws(()=>nativePrismaSchema(source+source),/BACKEND_PRISMA_GENERATOR_REJECTED/);
 });
+import{mkdtempSync,mkdirSync,writeFileSync,readFileSync,existsSync,rmSync}from'node:fs';import{join}from'node:path';import{tmpdir}from'node:os';import{createHash}from'node:crypto';import{sealCoreBundle}from'./core-bundle.mjs';
+import{refreshBackendHub}from'./backend-package.mjs';
+test('fresh Git Hub replaces old package code while the approved core remains byte-identical',()=>{
+ const root=mkdtempSync(join(tmpdir(),'hub-refresh-'));const context=join(root,'context'),source=join(root,'source');const save=(p,t)=>{mkdirSync(join(p,'..'),{recursive:true});writeFileSync(p,t);};
+ try{
+  for(const p of ['package.json','tsconfig.json','src/core.ts','prisma/schema.prisma'])save(join(context,'core',p),p==='package.json'?'{}':'sealed');
+  const core=sealCoreBundle(join(context,'core'));save(join(context,'hub/server/old.mjs'),'old stale source');
+  const hubFiles=[{path:'server/old.mjs',sha256:createHash('sha256').update('old stale source').digest('hex')}];
+  save(join(context,'release.json'),JSON.stringify({schemaVersion:1,kind:'researchhub-private-backend',coreDigest:core.digest,hubFiles,hubDigest:createHash('sha256').update(JSON.stringify(hubFiles)).digest('hex')}));
+  for(const dir of ['server','src','scripts','integrations','skill','deploy'])mkdirSync(join(source,dir),{recursive:true});
+  save(join(source,'server/new.mjs'),'new current Git code');save(join(source,'deploy/backend.Dockerfile'),'FROM fixture');
+  const resources=['pages/h01/src/china.json','docs/reference/china-administrative-divisions/mca-2024.html','docs/reference/city-map-2026-11-10/manifest.json',...['Q74881-2548806680','Q956-2565775546','Q8686-2554225580'].map(id=>'docs/reference/city-map-2026-11-10/wikidata/'+id+'.json')];
+  for(const p of resources)save(join(source,p),'approved geographic resource');
+  const result=refreshBackendHub({context,source,sourceGit:'a'.repeat(40)});
+  assert.equal(result.coreDigest,core.digest);assert.equal(result.sourceGit,'a'.repeat(40));assert.equal(readFileSync(join(context,'hub/server/new.mjs'),'utf8'),'new current Git code');assert.equal(existsSync(join(context,'hub/server/old.mjs')),false);assert.notEqual(result.hubDigest,createHash('sha256').update(JSON.stringify(hubFiles)).digest('hex'));
+  rmSync(join(source,resources[1]));const again=refreshBackendHub({context,source,sourceGit:'b'.repeat(40)});assert.equal(again.coreDigest,core.digest);assert.equal(readFileSync(join(context,'hub',resources[1]),'utf8'),'approved geographic resource');
+  writeFileSync(join(context,'core/src/core.ts'),'tampered');assert.throws(()=>refreshBackendHub({context,source,sourceGit:'c'.repeat(40)}),/CORE_CONTENT_MISMATCH/);
+ }finally{rmSync(root,{recursive:true,force:true});}
+});

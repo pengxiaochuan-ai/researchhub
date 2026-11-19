@@ -1,5 +1,5 @@
 """Cloud Assistant bootstrap. Only Hub files and reviewed Hub components."""
-import hashlib,json,os,pathlib,re,subprocess,sys,tempfile
+import hashlib,json,os,pathlib,re,subprocess,sys,tempfile,shutil
 OPS=pathlib.Path('/srv/researchhub/ops')
 
 def need(ok,code):
@@ -33,7 +33,7 @@ def fetch(store,key,path,sha):
 def main():
  import oss2
  os.umask(0o077);need(os.geteuid()==0,'HUB_BOOTSTRAP_ROOT_REQUIRED');need(OPS.resolve()==OPS,'HUB_RUNTIME_OPS_PATH_REJECTED');tag=os.environ['HUB_RUNTIME_TAG'];sha=os.environ['HUB_RUNTIME_CONTROL_SHA256'];action=os.environ['HUB_RUNTIME_ACTION']
- need(re.fullmatch('hub-runtime-[a-f0-9]{8}-[0-9]+',tag) and re.fullmatch('[a-f0-9]{64}',sha) and action in ('activate','verify','activate-front'),'HUB_BOOTSTRAP_INPUT_REJECTED')
+ need(re.fullmatch('hub-runtime-[a-f0-9]{8}-[0-9]+',tag) and re.fullmatch('[a-f0-9]{64}',sha) and action in ('activate','verify','activate-front','pair-release','pair-rollback','pair-verify','pair-finalize'),'HUB_BOOTSTRAP_INPUT_REJECTED')
  v=read_release_storage();endpoint=v['S3_ENDPOINT'].replace('https://','').replace('http://','').rstrip('/');need(re.fullmatch(r'oss-[a-z0-9-]+\.aliyuncs\.com',endpoint),'HUB_RELEASE_ENDPOINT_REJECTED')
  store=oss2.Bucket(oss2.Auth(v['S3_ACCESS_KEY'],v['S3_SECRET_KEY']),'https://'+endpoint,v['S3_BUCKET'],connect_timeout=15)
  directory=OPS/'runtime-releases'/tag/('control-'+sha[:16])
@@ -43,15 +43,18 @@ def main():
  prefix='releases/researchhub/'+tag+'/runtime-controls-'+sha[:16]+'/'
  fetch(store,prefix+'control-manifest.json',directory/'control-manifest.json',sha);control=json.loads((directory/'control-manifest.json').read_text())
  expected={'server.py','database-config.py','run-server.py','backend-compose.yml','runtime-release.json','ecs-release.sh'}
+ if action.startswith('pair-'):
+  need(control.get('paired') is True,'HUB_PAIR_CONTROL_REQUIRED');expected.update({'pair.py','frontend-compose.yml','previous-release.json','previous-frontend-compose.yml','previous-backend-compose.yml'})
  need(control.get('schema')=='researchhub-runtime-controls.v1' and control.get('tag')==tag and set(control.get('files',{}))==expected,'HUB_RUNTIME_CONTROL_INVENTORY_REJECTED')
  for name,item in control['files'].items():
   need(re.fullmatch('[a-f0-9]{64}',item.get('sha256','')) and 0<item.get('bytes',0)<2*1024*1024,'HUB_RUNTIME_CONTROL_ENTRY_REJECTED')
   fetch(store,prefix+name,directory/name,item['sha256'])
  release=json.loads((directory/'runtime-release.json').read_text());need(release.get('tag')==tag and file_sha(directory/'runtime-release.json')==control.get('imageManifestSha256'),'HUB_RUNTIME_IMAGE_MANIFEST_MISMATCH')
- if action=='activate-front':fetch(store,'releases/researchhub/'+tag+'/researchhub.tar.gz',directory/'researchhub.tar.gz',release['files']['researchhub.tar.gz']['sha256'])
- if action=='activate':fetch(store,'releases/researchhub/'+tag+'/backend-image.tar.gz',directory/'backend-image.tar.gz',release['files']['backend-image.tar.gz']['sha256'])
+ if action=='pair-release':need(shutil.disk_usage(str(OPS)).free>4*1024**3+4*sum(release['files'][name]['bytes'] for name in ('researchhub.tar.gz','backend-image.tar.gz')),'HUB_PAIR_DISK_RESERVE_REQUIRED')
+ if action=='activate-front' or action.startswith('pair-'):fetch(store,'releases/researchhub/'+tag+'/researchhub.tar.gz',directory/'researchhub.tar.gz',release['files']['researchhub.tar.gz']['sha256'])
+ if action=='activate' or action.startswith('pair-'):fetch(store,'releases/researchhub/'+tag+'/backend-image.tar.gz',directory/'backend-image.tar.gz',release['files']['backend-image.tar.gz']['sha256'])
  for name in ('server.py','ecs-release.sh'):(directory/name).chmod(0o750)
- child=subprocess.Popen([sys.executable,str(directory/'server.py'),action,'--control-sha',sha],stdout=subprocess.PIPE,stderr=subprocess.PIPE,universal_newlines=True)
+ child=subprocess.Popen([sys.executable,str(directory/('pair.py' if action.startswith('pair-') else 'server.py')),action,'--control-sha',sha],stdout=subprocess.PIPE,stderr=subprocess.PIPE,universal_newlines=True)
  try:output,_=child.communicate(timeout=720)
  except subprocess.TimeoutExpired:
   child.terminate()

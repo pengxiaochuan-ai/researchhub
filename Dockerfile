@@ -9,6 +9,8 @@ ARG VITE_AUTH_TENANT_SLUG
 RUN pnpm build
 
 FROM node:22-alpine
+ARG HUB_SOURCE_SHA
+LABEL org.opencontainers.image.revision=${HUB_SOURCE_SHA}
 
 ENV NODE_ENV=production
 WORKDIR /app

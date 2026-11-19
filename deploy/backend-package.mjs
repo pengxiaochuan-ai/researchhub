@@ -1,4 +1,4 @@
-import {readFileSync,writeFileSync,mkdirSync,readdirSync,existsSync} from 'node:fs';
+import {readFileSync,writeFileSync,mkdirSync,readdirSync,existsSync,rmSync} from 'node:fs';
 import {resolve,join,dirname} from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {execFileSync} from 'node:child_process';
@@ -39,6 +39,22 @@ function copyCode(source,target){
   else if(/\.(?:mjs|js|ts|json|sql|yaml|yml|md|xml|csv|txt)$/.test(entry.name)&&!/(?:\.test|\.spec)\.[^.]+$/.test(entry.name))save(destination,readFileSync(path));
  }
 }
+
+// Refresh only Hub code. The sealed, already-adapted private core is immutable.
+export function refreshBackendHub({context,source=repository,sourceGit}){
+ context=resolve(context);source=resolve(source);
+ if(!/^[a-f0-9]{40}$/.test(sourceGit??'')||context===source||source.startsWith(context+'/'))throw Error('BACKEND_REFRESH_SCOPE_REJECTED');
+ const previous=verifyBackendPackage(context),resources=['pages/h01/src/china.json','docs/reference/china-administrative-divisions/mca-2024.html','docs/reference/city-map-2026-11-10/manifest.json',...['Q74881-2548806680','Q956-2565775546','Q8686-2554225580'].map(id=>'docs/reference/city-map-2026-11-10/wikidata/'+id+'.json')];
+ const bytes=resources.map(path=>({path,bytes:readFileSync(join(existsSync(join(source,path))?source:join(context,'hub'),path))}));
+ rmSync(join(context,'hub'),{recursive:true});
+ for(const dir of ['server','src','scripts','integrations','skill','deploy'])copyCode(join(source,dir),join(context,'hub',dir));
+ for(const file of bytes)save(join(context,'hub',file.path),file.bytes);
+ save(join(context,'hub/package.json'),JSON.stringify({name:'researchhub-backend',private:true,type:'module',version:'1.0.0'})+'\n');
+ save(join(context,'Dockerfile'),readFileSync(join(source,'deploy/backend.Dockerfile')));
+ const hubFiles=codeInventory(join(context,'hub')),release={...previous,sourceGit,hubFiles,hubDigest:createHash('sha256').update(JSON.stringify(hubFiles)).digest('hex'),createdAt:new Date().toISOString(),productionMigrationPerformed:false};
+ save(join(context,'release.json'),JSON.stringify(release,null,2)+'\n');verifyBackendPackage(context);return release;
+}
+
 export function prepareBackendPackage({core,expectedDigest,output}){
  core=resolve(core);output=resolve(output);
  if(existsSync(output)||output===repository||output.startsWith(core+'/'))throw new Error('BACKEND_OUTPUT_REJECTED');

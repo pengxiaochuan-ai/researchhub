@@ -83,7 +83,7 @@ def file_sha(path):
  return h.hexdigest()
 
 
-def canonical_image_id(archive,reference,expected_sha):
+def canonical_image_id(archive,reference,expected_sha,architecture='amd64'):
  need(archive.is_file() and not archive.is_symlink() and file_sha(archive)==expected_sha,'HUB_RUNTIME_IMAGE_DIGEST_MISMATCH')
  configs={};entries=None;seen=set()
  with tarfile.open(str(archive),'r|gz') as source:
@@ -98,7 +98,7 @@ def canonical_image_id(archive,reference,expected_sha):
    except (ValueError,UnicodeError):continue
    if name=='manifest.json':entries=body
    elif isinstance(body,dict) and 'rootfs' in body:
-    need(body.get('architecture')=='amd64' and body.get('os')=='linux','HUB_RUNTIME_IMAGE_CONFIG_ARCH_REJECTED')
+    need(body.get('architecture')==architecture and body.get('os')=='linux','HUB_RUNTIME_IMAGE_CONFIG_ARCH_REJECTED')
     digest=hashlib.sha256(raw).hexdigest();need(name.split('/')[-1].split('.')[0]==digest,'HUB_RUNTIME_IMAGE_CONFIG_DIGEST_MISMATCH');configs[name]='sha256:'+digest
  need(isinstance(entries,list) and len(entries)==1,'HUB_RUNTIME_IMAGE_MANIFEST_REJECTED')
  entry=entries[0];tags=entry.get('RepoTags') or []

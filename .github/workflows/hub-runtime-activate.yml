@@ -1,4 +1,4 @@
-name: Activate isolated Hub runtime
+name: Verify isolated Hub runtime
 on:
   workflow_dispatch:
     inputs:
@@ -13,12 +13,12 @@ on:
       action:
         description: Bounded isolated API operation
         type: choice
-        options: [activate, verify, activate-front]
-        default: activate
+        options: [verify]
+        default: verify
 permissions:
   contents: read
 concurrency:
-  group: researchhub-isolated-runtime-activation
+  group: researchhub-ecs-release
   cancel-in-progress: false
 jobs:
   activate:

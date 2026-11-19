@@ -65,6 +65,7 @@ def collect(args):
  for name in ('cloud-assistant-bootstrap.sh','ecs-release.sh','oss-release-transfer.py'):
   shutil.copyfile(str(pathlib.Path('scripts')/name),str(target/name));files[name]=file_info(target/name)
  shutil.copyfile('docker-compose.ecs.yml',str(target/'docker-compose.ecs.yml'));files['docker-compose.ecs.yml']=file_info(target/'docker-compose.ecs.yml')
+ shutil.copyfile('deploy/backend-demo.compose.yml',str(target/'backend-compose.yml'));files['backend-compose.yml']=file_info(target/'backend-compose.yml')
  (target/'ARTIFACTS.sha256').write_text(''.join(files[n]['sha256']+'  '+n+'\n' for n in ('researchhub.tar.gz','docker-compose.ecs.yml')))
  (target/'TAG.txt').write_text(tag+'\n')
  (target/'SHA256SUMS').write_text(''.join(files[n]['sha256']+'  '+n+'\n' for n in ('cloud-assistant-bootstrap.sh','ecs-release.sh','oss-release-transfer.py')))
@@ -75,7 +76,7 @@ def collect(args):
 def upload(args):
  import oss2
  need(re.fullmatch(r'hub-runtime-[a-f0-9]{8}-[0-9]+',args.tag),'HUB_RELEASE_TAG_REJECTED');store=bucket();directory=pathlib.Path(args.directory)
- names=['researchhub.tar.gz','backend-image.tar.gz','ARTIFACTS.sha256','TAG.txt','docker-compose.ecs.yml','cloud-assistant-bootstrap.sh','ecs-release.sh','oss-release-transfer.py','SHA256SUMS','runtime-release.json']
+ names=['researchhub.tar.gz','backend-image.tar.gz','ARTIFACTS.sha256','TAG.txt','docker-compose.ecs.yml','cloud-assistant-bootstrap.sh','ecs-release.sh','oss-release-transfer.py','SHA256SUMS','runtime-release.json','backend-compose.yml']
  for name in names:
   p=directory/name;need(p.is_file() and not p.is_symlink(),'HUB_RELEASE_FILE_REJECTED')
   oss2.resumable_upload(store,'releases/researchhub/'+args.tag+'/'+name,str(p),headers={'x-oss-object-acl':'private'},multipart_threshold=50*1024*1024,part_size=16*1024*1024,num_threads=4)

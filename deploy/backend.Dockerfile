@@ -19,10 +19,13 @@ RUN sed -i "s#http://deb.debian.org#${DEBIAN_MIRROR}#g" /etc/apt/sources.list.d/
  && apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 update \
  && apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 install -y --no-install-recommends openssl ca-certificates \
  && rm -rf /var/lib/apt/lists/*
+ARG HUB_SOURCE_SHA
+LABEL org.opencontainers.image.revision=${HUB_SOURCE_SHA}
 WORKDIR /opt/researchhub
 COPY --from=dependencies --chown=node:node /opt/researchhub/core ./core
 COPY --chown=node:node core ./core
 COPY --chown=node:node hub ./hub
+COPY --chown=node:node release.json ./release.json
 RUN ln -s /opt/researchhub/core/node_modules /opt/researchhub/hub/node_modules
 ARG CORE_MANIFEST_SHA256
 ENV NODE_ENV=production HUB_REQUIRE_PRIVATE_CORE=true HUB_CORE_DIR=/opt/researchhub/core HUB_CORE_MANIFEST_SHA256=${CORE_MANIFEST_SHA256}

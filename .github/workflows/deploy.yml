@@ -1,212 +1,191 @@
-name: Deploy Research Hub
-
-# 岐研前端独立发布：GitHub 构建镜像并上传 OSS，云助手通知 ECS 从内网拉取。
-# 不使用 SSH，不推送 GHCR，也不会操作官网或科研平台目录、容器。
+name: Release ResearchHub pair
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - 'docs/**'
-      - '**/*.md'
   workflow_dispatch:
     inputs:
-      environment:
-        description: Target environment
+      mode:
         type: choice
-        options: [staging, production]
-        default: production
-
+        options: [plan, rehearse, release, rollback]
+        default: plan
+      release_tag:
+        description: Exact historical pair tag (rollback only)
+        type: string
+      manifest_sha256:
+        description: Exact historical manifest SHA256 (rollback only)
+        type: string
+      confirm:
+        description: Type ROLLBACK for paired rollback
+        type: string
 permissions:
   contents: read
-
 concurrency:
   group: researchhub-ecs-release
   cancel-in-progress: false
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAMESPACE: ${{ github.repository_owner }}
-  IMAGE_NAME: pengxc-researchhub
-  OSS_RELEASE_PREFIX: releases/researchhub
-  ALIYUN_REGION_ID: cn-hangzhou
-  RESEARCHHUB_PORT: '8083'
-
 jobs:
-  build-and-upload:
+  release:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    environment:
-      name: ${{ inputs.environment || 'production' }}
-    outputs:
-      release_tag: ${{ steps.meta.outputs.release_tag }}
-      image_ref: ${{ steps.meta.outputs.image_ref }}
+    timeout-minutes: 50
+    environment: production
+    env:
+      MODE: ${{ inputs.mode || 'release' }}
+      OSS_ACCESS_KEY: ${{ secrets.OSS_ACCESS_KEY }}
+      OSS_SECRET_KEY: ${{ secrets.OSS_SECRET_KEY }}
+      OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
+      OSS_ENDPOINT: ${{ secrets.OSS_ENDPOINT }}
+      HUB_CORE_SOURCE_BUCKET: ${{ vars.HUB_CORE_SOURCE_BUCKET }}
+      HUB_TENANT_SLUG: ${{ vars.VITE_AUTH_TENANT_SLUG }}
+      HUB_DATABASE_APPROVED_DIGEST: ${{ vars.HUB_DATABASE_APPROVED_DIGEST }}
+      DOCKER_BUILD_RECORD_UPLOAD: 'false'
+      DOCKER_BUILD_SUMMARY: 'false'
     steps:
       - uses: actions/checkout@v4
-
-      - name: Validate shared release secrets
-        shell: bash
-        env:
-          OSS_ACCESS_KEY: ${{ secrets.OSS_ACCESS_KEY }}
-          OSS_SECRET_KEY: ${{ secrets.OSS_SECRET_KEY }}
-          OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
-          OSS_ENDPOINT: ${{ secrets.OSS_ENDPOINT }}
-          ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
-          ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
-          ALIYUN_ECS_INSTANCE_ID: ${{ secrets.ALIYUN_ECS_INSTANCE_ID }}
-        run: |
-          set -Eeuo pipefail
-          missing_secrets=()
-          [[ -n "${OSS_ACCESS_KEY:-}" ]] || missing_secrets+=(OSS_ACCESS_KEY)
-          [[ -n "${OSS_SECRET_KEY:-}" ]] || missing_secrets+=(OSS_SECRET_KEY)
-          [[ -n "${OSS_BUCKET:-}" ]] || missing_secrets+=(OSS_BUCKET)
-          [[ -n "${OSS_ENDPOINT:-}" ]] || missing_secrets+=(OSS_ENDPOINT)
-          [[ -n "${ALIBABA_CLOUD_ACCESS_KEY_ID:-}" ]] || missing_secrets+=(ALIBABA_CLOUD_ACCESS_KEY_ID)
-          [[ -n "${ALIBABA_CLOUD_ACCESS_KEY_SECRET:-}" ]] || missing_secrets+=(ALIBABA_CLOUD_ACCESS_KEY_SECRET)
-          [[ -n "${ALIYUN_ECS_INSTANCE_ID:-}" ]] || missing_secrets+=(ALIYUN_ECS_INSTANCE_ID)
-          if (( ${#missing_secrets[@]} > 0 )); then
-            printf '::error::Missing required GitHub secret: %s\n' "${missing_secrets[@]}"
-            echo 'Configure organization secrets for the researchhub repository before retrying.'
-            exit 1
-          fi
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 11.19.0
-
+        with: {fetch-depth: 0}
       - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build frontend with the configured Hub tenant
+        with: {node-version: '22'}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Validate inputs and release controls
         env:
-          VITE_AUTH_TENANT_SLUG: ${{ vars.VITE_AUTH_TENANT_SLUG }}
+          CONFIRM: ${{ inputs.confirm }}
         run: |
-          test -n "$VITE_AUTH_TENANT_SLUG" || { echo '::error::Production Hub tenant is not configured'; exit 1; }
-          pnpm build
-
-      - name: Validate release scripts
+          test "$MODE" != rollback || test "$CONFIRM" = ROLLBACK
+          python3 - <<'PY'
+          import json,os,re
+          import importlib.util
+          s=importlib.util.spec_from_file_location('plan','scripts/hub-release-plan.py');plan=importlib.util.module_from_spec(s);s.loader.exec_module(plan)
+          p=json.load(open('deploy/release-policy.json'));assert os.environ['HUB_TENANT_SLUG']==p['tenantSlug'];assert os.environ['RUNNER_ARCH']=='X64'
+          for k in ('OSS_ACCESS_KEY','OSS_SECRET_KEY','OSS_BUCKET','OSS_ENDPOINT','HUB_CORE_SOURCE_BUCKET'):assert os.environ.get(k)
+          with open(os.environ['GITHUB_ENV'],'a') as f:f.write('HUB_RELEASE_TAG='+plan.release_tag(os.environ['GITHUB_SHA'],os.environ['GITHUB_RUN_ID'],os.environ['GITHUB_RUN_ATTEMPT'])+'\n')
+          PY
+          python3 scripts/hub-release-plan.test.py
+          python3 scripts/hub-release.test.py
+          python3 scripts/hub-release-pair.test.py
+          python3 scripts/hub-runtime-command.test.py
+          python3 scripts/hub-release-workflow.test.py
+          python3 scripts/hub-runtime-bootstrap.test.py
+          python3 scripts/hub-runtime-server.test.py
+          python3 scripts/hub-frontend-rollback.test.py
+          node --test deploy/backend-package.test.mjs server/api-proxy.test.mjs server/static.test.mjs
+          bash -n scripts/run-hub-runtime-command.sh
+      - name: Install existing OSS SDK
+        run: python3 -m pip install 'oss2==2.19.1'
+      - name: Plan from the last successful pair
+        id: prepare
+        env:
+          TARGET_TAG: ${{ inputs.release_tag }}
+          TARGET_SHA: ${{ inputs.manifest_sha256 }}
+        run: >-
+          python3 scripts/hub-release.py prepare --directory "$RUNNER_TEMP/hub-release"
+          --mode "$MODE" --tag "$TARGET_TAG" --manifest-sha "$TARGET_SHA"
+      - name: Refresh current Git Hub source with the immutable private core
+        if: steps.prepare.outputs.backend == 'true' && env.MODE != 'plan'
         run: |
-          bash -n scripts/run-cloud-assistant.sh
-          bash -n scripts/cloud-assistant-bootstrap.sh
-          bash -n scripts/ecs-release.sh
-          python3 -c "compile(open('scripts/oss-release-transfer.py', encoding='utf-8').read(), 'oss-release-transfer.py', 'exec')"
-
-      - name: Set release metadata
-        id: meta
-        shell: bash
-        run: |
-          release_tag="${GITHUB_SHA::8}-$(date +%Y%m%d-%H%M%S)"
-          image_ref="${REGISTRY}/${IMAGE_NAMESPACE}/${IMAGE_NAME}:${release_tag}"
-          echo "release_tag=${release_tag}" >> "${GITHUB_OUTPUT}"
-          echo "image_ref=${image_ref}" >> "${GITHUB_OUTPUT}"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build researchhub image
+          node --input-type=module - <<'JS'
+          import{refreshBackendHub}from'./deploy/backend-package.mjs';
+          const r=refreshBackendHub({context:process.env.RUNNER_TEMP+'/hub-backend-context',source:process.cwd(),sourceGit:process.env.GITHUB_SHA});
+          console.log(JSON.stringify({coreDigest:r.coreDigest,hubDigest:r.hubDigest,sourceGit:r.sourceGit}));
+          JS
+      - uses: docker/setup-buildx-action@v3
+        if: steps.prepare.outputs.release_required == 'true' && env.MODE != 'plan' && env.MODE != 'rollback'
+      - name: Build changed backend
+        if: steps.prepare.outputs.backend == 'true' && env.MODE != 'plan'
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ runner.temp }}/hub-backend-context
+          file: ${{ runner.temp }}/hub-backend-context/Dockerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: researchhub-backend:${{ env.HUB_RELEASE_TAG }}
+          build-args: |
+            CORE_MANIFEST_SHA256=${{ steps.prepare.outputs.core_digest }}
+            HUB_SOURCE_SHA=${{ github.sha }}
+      - name: Reuse unchanged backend
+        if: steps.prepare.outputs.backend == 'false' && steps.prepare.outputs.release_required == 'true' && env.MODE != 'plan'
+        run: python3 scripts/hub-release.py reuse --directory "$RUNNER_TEMP/hub-release" --component backend
+      - name: Build changed frontend
+        if: steps.prepare.outputs.frontend == 'true' && env.MODE != 'plan'
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile
+          platforms: linux/amd64
           load: true
           push: false
-          tags: ${{ steps.meta.outputs.image_ref }}
+          tags: ghcr.io/pengxiaochuan-ai/pengxc-researchhub:${{ env.HUB_RELEASE_TAG }}
           build-args: |
-            VITE_AUTH_TENANT_SLUG=${{ vars.VITE_AUTH_TENANT_SLUG }}
-          cache-from: type=gha,scope=researchhub
-          cache-to: type=gha,mode=max,scope=researchhub
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install OSS client
-        run: pip install 'oss2>=2.18.0,<3'
-
-      - name: Package and upload release to OSS
-        env:
-          OSS_ACCESS_KEY: ${{ secrets.OSS_ACCESS_KEY }}
-          OSS_SECRET_KEY: ${{ secrets.OSS_SECRET_KEY }}
-          OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
-          OSS_ENDPOINT: ${{ secrets.OSS_ENDPOINT }}
-          RELEASE_TAG: ${{ steps.meta.outputs.release_tag }}
-          IMAGE_REF: ${{ steps.meta.outputs.image_ref }}
-        shell: bash
+            VITE_AUTH_TENANT_SLUG=${{ env.HUB_TENANT_SLUG }}
+            HUB_SOURCE_SHA=${{ github.sha }}
+          cache-from: type=gha,scope=researchhub-runtime-frontend
+          cache-to: type=gha,mode=max,scope=researchhub-runtime-frontend
+      - name: Reuse unchanged frontend
+        if: steps.prepare.outputs.frontend == 'false' && steps.prepare.outputs.release_required == 'true' && env.MODE != 'plan'
+        run: python3 scripts/hub-release.py reuse --directory "$RUNNER_TEMP/hub-release" --component frontend
+      - name: Seal and upload a single pair manifest
+        id: artifacts
+        if: steps.prepare.outputs.release_required == 'true' && env.MODE != 'plan' && env.MODE != 'rollback'
         run: |
-          set -Eeuo pipefail
-          if [[ "${OSS_ENDPOINT}" == *-internal.* ]]; then
-            public_endpoint="${OSS_ENDPOINT/-internal./.}"
-            echo "GitHub runner cannot reach ${OSS_ENDPOINT}; uploading via ${public_endpoint}"
-            OSS_ENDPOINT="${public_endpoint}"
-            export OSS_ENDPOINT
-          fi
-          prefix="${OSS_RELEASE_PREFIX}/${RELEASE_TAG}"
-          release_dir="${RUNNER_TEMP}/researchhub-release"
-          control_dir="${release_dir}/control"
-          mkdir -p "${control_dir}"
-
-          docker save "${IMAGE_REF}" | gzip -1 > "${release_dir}/researchhub.tar.gz"
-          cp docker-compose.ecs.yml "${release_dir}/docker-compose.ecs.yml"
-          (
-            cd "${release_dir}"
-            sha256sum researchhub.tar.gz docker-compose.ecs.yml > ARTIFACTS.sha256
-          )
-
-          cp scripts/cloud-assistant-bootstrap.sh "${control_dir}/"
-          cp scripts/ecs-release.sh "${control_dir}/"
-          cp scripts/oss-release-transfer.py "${control_dir}/"
-          (
-            cd "${control_dir}"
-            sha256sum cloud-assistant-bootstrap.sh ecs-release.sh oss-release-transfer.py > SHA256SUMS
-          )
-
-          for asset in researchhub.tar.gz docker-compose.ecs.yml ARTIFACTS.sha256; do
-            python scripts/oss-release-transfer.py upload \
-              --file "${release_dir}/${asset}" \
-              --key "${prefix}/${asset}"
-          done
-          for asset in cloud-assistant-bootstrap.sh ecs-release.sh oss-release-transfer.py SHA256SUMS; do
-            python scripts/oss-release-transfer.py upload \
-              --file "${control_dir}/${asset}" \
-              --key "${prefix}/${asset}"
-          done
-          printf '%s\n' "${RELEASE_TAG}" > "${release_dir}/TAG.txt"
-          python scripts/oss-release-transfer.py upload \
-            --file "${release_dir}/TAG.txt" \
-            --key "${prefix}/TAG.txt"
-          echo "Uploaded researchhub release: ${prefix}"
-
-  deploy:
-    needs: build-and-upload
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    environment:
-      name: ${{ inputs.environment || 'production' }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy researchhub through Alibaba Cloud Assistant
+          docker run --rm --network none --entrypoint node "researchhub-backend:$HUB_RELEASE_TAG" -e "if(process.arch!=='x64')process.exit(1)"
+          docker run --rm --network none --entrypoint node "ghcr.io/pengxiaochuan-ai/pengxc-researchhub:$HUB_RELEASE_TAG" -e "const fs=require('fs');if(!fs.readdirSync('/app/dist/assets').filter(n=>n.endsWith('.js')).some(n=>fs.readFileSync('/app/dist/assets/'+n,'utf8').includes(process.argv[1])))process.exit(1)" "$HUB_TENANT_SLUG"
+          docker save "researchhub-backend:$HUB_RELEASE_TAG" | gzip > "$RUNNER_TEMP/hub-release/backend-image.tar.gz"
+          docker save "ghcr.io/pengxiaochuan-ai/pengxc-researchhub:$HUB_RELEASE_TAG" | gzip > "$RUNNER_TEMP/hub-release/researchhub.tar.gz"
+          python3 scripts/hub-release.py collect --directory "$RUNNER_TEMP/hub-release"
+          python3 scripts/hub-runtime-artifacts.py upload --directory "$RUNNER_TEMP/hub-release" --tag "$HUB_RELEASE_TAG"
+      - name: Real isolated Docker and PostgreSQL upgrade and rollback rehearsal
+        if: steps.artifacts.outcome == 'success'
+        env:
+          HUB_FIXTURE_NODE_IMAGE: researchhub-backend:${{ env.HUB_RELEASE_TAG }}
+          HUB_REHEARSAL_OUTPUT: ${{ runner.temp }}/hub-rehearsal
+        run: python3 scripts/hub-release-rehearsal.py
+      - name: Bind paired controls to the exact manifest
+        id: control
+        if: steps.prepare.outputs.release_required == 'true' && (env.MODE == 'release' || env.MODE == 'rollback')
+        env:
+          TARGET_TAG: ${{ steps.artifacts.outputs.tag || steps.prepare.outputs.tag }}
+          TARGET_SHA: ${{ steps.artifacts.outputs.manifest_sha || steps.prepare.outputs.manifest_sha }}
+        run: |
+          echo "HUB_RUNTIME_TAG=$TARGET_TAG" >> "$GITHUB_ENV"
+          python3 scripts/hub-runtime-controls.py --tag "$TARGET_TAG" --manifest-sha "$TARGET_SHA" --previous "$RUNNER_TEMP/hub-release/previous-release.json"
+      - name: Apply both components with paired rollback
+        id: apply
+        if: steps.control.outcome == 'success'
         env:
           ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
           ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
           ALIYUN_ECS_INSTANCE_ID: ${{ secrets.ALIYUN_ECS_INSTANCE_ID }}
-          RESEARCHHUB_RELEASE_MODE: deploy
-          RESEARCHHUB_RELEASE_TAG: ${{ needs.build-and-upload.outputs.release_tag }}
-          RESEARCHHUB_IMAGE: ${{ needs.build-and-upload.outputs.image_ref }}
-          RESEARCHHUB_OSS_RELEASE_PREFIX: ${{ env.OSS_RELEASE_PREFIX }}
-          RESEARCHHUB_PORT: ${{ env.RESEARCHHUB_PORT }}
-        run: bash scripts/run-cloud-assistant.sh
-
-  notify-failure:
-    needs: [build-and-upload, deploy]
-    if: failure()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Print failure context
+          HUB_RUNTIME_CONTROL_SHA256: ${{ steps.control.outputs.control_sha }}
+          HUB_RUNTIME_ACTION: pair-release
+        run: bash scripts/run-hub-runtime-command.sh
+      - name: Read-only real browser smoke
+        id: browser
+        if: steps.apply.outcome == 'success'
         run: |
-          echo "Research Hub deployment failed for ${{ github.sha }}"
-          echo "Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          npm install --prefix "$RUNNER_TEMP/browser" --ignore-scripts 'playwright@1.63.0'
+          "$RUNNER_TEMP/browser/node_modules/.bin/playwright" install --with-deps chromium
+          HUB_PLAYWRIGHT_MODULE="$RUNNER_TEMP/browser/node_modules/playwright/index.mjs" HUB_SMOKE_OUTPUT="$RUNNER_TEMP/hub-browser" node scripts/hub-release-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.apply.outcome == 'success'
+        with:
+          name: public-browser-smoke
+          path: ${{ runner.temp }}/hub-browser
+          retention-days: 7
+      - name: Finalize the successful pair after browser verification
+        id: finalize
+        if: success() && steps.browser.outcome == 'success'
+        env:
+          ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
+          ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
+          ALIYUN_ECS_INSTANCE_ID: ${{ secrets.ALIYUN_ECS_INSTANCE_ID }}
+          HUB_RUNTIME_CONTROL_SHA256: ${{ steps.control.outputs.control_sha }}
+          HUB_RUNTIME_ACTION: pair-finalize
+        run: bash scripts/run-hub-runtime-command.sh
+      - name: Restore both previous components if browser verification fails
+        if: always() && (failure() || cancelled()) && steps.apply.outcome == 'success' && steps.finalize.outcome == 'skipped'
+        env:
+          ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
+          ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
+          ALIYUN_ECS_INSTANCE_ID: ${{ secrets.ALIYUN_ECS_INSTANCE_ID }}
+          HUB_RUNTIME_CONTROL_SHA256: ${{ steps.control.outputs.control_sha }}
+          HUB_RUNTIME_ACTION: pair-rollback
+        run: bash scripts/run-hub-runtime-command.sh

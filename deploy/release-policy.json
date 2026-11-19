@@ -1,0 +1,16 @@
+{
+  "schema": "researchhub-release-policy.v1",
+  "seedTag": "hub-runtime-1e0d7087-44502950789",
+  "seedManifestSha256": "56b37e68bdb8c04ae343596dea24f1881f7a00d3661819cf4c1ba73e0a2adb9b",
+  "coreSourceKey": "releases/researchhub/backend-demo-20261119-45651761fc8b/context.tar.gz",
+  "coreSourceSha256": "45651761fc8b3513e884554c0ecc9c79249a5e7d21766f259c8ea04cad3d1745",
+  "coreDigest": "85a0f5c5e7b5155b1593e04baaebd534322d8cb2b41d2847e394e54a5ad75135",
+  "tenantSlug": "rh-kb-local-b0e2af9d-tenant",
+  "target": {
+    "database": "researchhub",
+    "tenantId": "rh-kb-local-b0e2af9d-tenant",
+    "markerSha256": "cb387f97078c6af304807b132a00d2400d7f10e6d2c39e050616e455542de523",
+    "schemaFingerprint": "895dadbcc49134d4fde59ddaacedf242"
+  },
+  "seedControlSha256": "d347d18940568f6e1f32463f94a62dd1dd5f92dcbb2facca51b8adc6fdfcd52a"
+}
