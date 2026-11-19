@@ -1,0 +1,53 @@
+name: Activate isolated Hub runtime
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Successfully built Hub runtime tag
+        required: true
+        type: string
+      manifest_sha256:
+        description: Exact runtime-release.json SHA256 from the successful build
+        required: true
+        type: string
+      action:
+        description: Bounded isolated API operation
+        type: choice
+        options: [activate, verify, activate-front]
+        default: activate
+permissions:
+  contents: read
+concurrency:
+  group: researchhub-isolated-runtime-activation
+  cancel-in-progress: false
+jobs:
+  activate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install existing OSS transfer SDK
+        run: python3 -m pip install 'oss2==2.19.1'
+      - name: Upload checked public controls bound to the image manifest
+        id: control
+        env:
+          OSS_ACCESS_KEY: ${{ secrets.OSS_ACCESS_KEY }}
+          OSS_SECRET_KEY: ${{ secrets.OSS_SECRET_KEY }}
+          OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
+          OSS_ENDPOINT: ${{ secrets.OSS_ENDPOINT }}
+          HUB_TAG: ${{ inputs.release_tag }}
+          HUB_MANIFEST_SHA: ${{ inputs.manifest_sha256 }}
+        run: python3 scripts/hub-runtime-controls.py --tag "$HUB_TAG" --manifest-sha "$HUB_MANIFEST_SHA"
+      - name: Activate or verify only the isolated Hub API through Cloud Assistant
+        env:
+          ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
+          ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
+          ALIYUN_ECS_INSTANCE_ID: ${{ secrets.ALIYUN_ECS_INSTANCE_ID }}
+          HUB_RUNTIME_TAG: ${{ inputs.release_tag }}
+          HUB_RUNTIME_CONTROL_SHA256: ${{ steps.control.outputs.control_sha }}
+          HUB_RUNTIME_ACTION: ${{ inputs.action }}
+        run: bash scripts/run-hub-runtime-command.sh
