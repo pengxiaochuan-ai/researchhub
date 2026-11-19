@@ -114,7 +114,14 @@ restore_previous_release() {
   fi
 
   echo "=== Restoring previous researchhub release ==="
-  cp -f "${PREVIOUS_COMPOSE}" "${COMPOSE_FILE}"
+  if ! grep -Eq '^[[:space:]]*env_file:' "${PREVIOUS_COMPOSE}"; then
+    cp -f "${PREVIOUS_COMPOSE}" "${COMPOSE_FILE}"
+  elif grep -Eq '^[[:space:]]*env_file:' "${COMPOSE_FILE}"; then
+    echo "ERROR: refusing frontend restore with backend credentials"
+    return 1
+  else
+    echo "Keeping reviewed HTTP-only Compose for the previous frontend image"
+  fi
   cp -f "${PREVIOUS_ENV}" "${CURRENT_ENV}"
   compose_with_env "${CURRENT_ENV}" up -d --remove-orphans researchhub
   wait_for_health
@@ -139,6 +146,17 @@ activate_release() {
   gzip -t "${image_archive}"
   gzip -dc "${image_archive}" | docker load
   docker image inspect "${IMAGE_REF}" >/dev/null
+
+  # Hub's canonical .env.prod now also contains backend secrets.
+  # Historical static images may be restored, but never with full env_file.
+  if grep -Eq '^[[:space:]]*env_file:' "${COMPOSE_NEXT}"; then
+    if [[ -f "${COMPOSE_FILE}" ]] && ! grep -Eq '^[[:space:]]*env_file:' "${COMPOSE_FILE}"; then
+      cp -f "${COMPOSE_FILE}" "${COMPOSE_NEXT}"
+    else
+      echo "ERROR: legacy frontend Compose would expose backend credentials"
+      return 1
+    fi
+  fi
 
   compose_services="$(
     RESEARCHHUB_IMAGE="${IMAGE_REF}" RESEARCHHUB_PORT="${PUBLIC_PORT}" \

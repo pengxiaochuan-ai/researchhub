@@ -1,0 +1,49 @@
+name: researchhub-backend
+services:
+  researchhub-api:
+    image: ${HUB_BACKEND_IMAGE:?HUB_BACKEND_IMAGE is required}
+    env_file:
+      - /srv/researchhub/ops/.env.prod
+    environment:
+      CONTROL_PLANE_ENABLED: 'false'
+      ENABLED_WORKER_KINDS: ''
+      OFFICIAL_JOB_KINDS: ''
+      HUB_PAID_AI_ENABLED: 'false'
+      HUB_EMBEDDING_MODE: keyword-only
+      HUB_MAIL_MODE: disabled
+    ports:
+      - '127.0.0.1:19612:19612'
+    networks:
+      hub:
+        aliases: [researchhub-api]
+    init: true
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    pids_limit: 256
+    mem_limit: 768m
+    cpus: 0.75
+    stop_grace_period: 30s
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          fetch('http://127.0.0.1:19612/api/auth/me',{headers:{Host:'hub.pengxc.com'}})
+          .then(r=>{if(r.status!==401)process.exit(1)})
+          .catch(()=>process.exit(1))
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+networks:
+  hub:
+    external: true
+    name: researchhub_default
