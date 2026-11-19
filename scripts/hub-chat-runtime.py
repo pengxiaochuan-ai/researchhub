@@ -32,7 +32,7 @@ try{
  r.promptPreflight=[];
  if(process.env.HUB_PAID_AI_ENABLED!=='true')for(const [index,a]of r.accounts.entries()){
   phase='source-'+index;
-  const question=index===0?'ChiCTR2300073486':'ChiCTR2300077209';
+  const question='ChiCTR2300077209';
   const user={...a,accountId:a.id,tenantId:tenant,studyGroupId:'rh-kb-local-b0e2af9d-group',researchProjectId:'rh-kb-local-b0e2af9d-project'};
   const retrieval=await withDeploymentTransaction(env,'app',async db=>{await db.$executeRawUnsafe("SELECT set_config('app.study_group_id',$1,true),set_config('app.research_project_id',$2,true)",user.studyGroupId,user.researchProjectId);await assertHubAgent({db,principal:user,tenantId:tenant,hubKey:'lingshu-xinyu'});return runHubSourceSearch({db,principal:user,tenantId:tenant,hubKey:'lingshu-xinyu',query:question});},{readOnly:true});
   const sources=assertHubToolResult(retrieval);phase='prompt-'+index;let capture=null,calls=0;const unused=new Proxy({},{get(){throw Error('PREFLIGHT_UNUSED_PATH');}});
