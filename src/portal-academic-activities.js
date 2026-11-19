@@ -1,5 +1,5 @@
 import {createAcademicContentClient} from './academic-content-client.js';
-import {academicHref} from './academic-content-route.js';
+import {publicAcademicHref} from './academic-content-route.js';
 
 export function mountAcademicActivities(root,{fetchImpl=globalThis.fetch}={}){
  if(!root)return()=>{};
@@ -12,7 +12,7 @@ export function mountAcademicActivities(root,{fetchImpl=globalThis.fetch}={}){
    if(!value.items.length){root.append(node('p','暂无已发布的公开活动。'));return;}
    const grid=node('div',null,'portal-academic-grid');
    for(const item of value.items){
-    const card=node('article'),meta=node('p',({upcoming:'即将举行',ongoing:'进行中',past:'活动回顾',cancelled:'已取消'})[item.event.phase],'portal-academic-meta'),heading=node('h4'),link=node('a',item.title);link.href=academicHref({type:'event',id:item.id});heading.append(link);
+    const card=node('article'),meta=node('p',({upcoming:'即将举行',ongoing:'进行中',past:'活动回顾',cancelled:'已取消'})[item.event.phase],'portal-academic-meta'),heading=node('h4'),link=node('a',item.title);link.href=publicAcademicHref({type:'event',id:item.id});heading.append(link);
     const time=new Date(item.event.startAt).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false});card.append(meta,heading,node('p',item.summary),node('p',time+'（北京时间） · '+item.event.place));grid.append(card);
    }root.append(grid);
   }catch{if(disposed||n!==sequence)return;root.replaceChildren();const message=node('p','公开活动暂时无法读取，请稍后重试。');message.setAttribute('role','alert');const retry=node('button','重新读取','button outline');retry.type='button';retry.addEventListener('click',load);root.append(message,retry);}

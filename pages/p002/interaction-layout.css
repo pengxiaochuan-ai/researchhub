@@ -207,3 +207,10 @@
   .brand>span:last-child { min-width:0; }
   .menu-toggle { flex-shrink:0; padding-inline:2px; }
 }
+
+/* Keep the desktop navigation compact instead of growing its top whitespace. */
+@media (min-width:901px) {
+  :root { --header-height:104px; }
+  body>header { align-items:center; padding-block:12px; }
+  body>header>.header-inner { margin:0 auto; }
+}

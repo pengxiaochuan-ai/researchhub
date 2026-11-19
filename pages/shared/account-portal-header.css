@@ -1,0 +1,32 @@
+/* Selected public pages follow P002's current navigation geometry. */
+.ls-public .ls-account-header{--account-gutter:clamp(24px,4.4vw,88px);position:relative;z-index:20;display:flex;align-items:center;height:104px;padding:12px 0;border-bottom:1px solid #fff;background:#ffffff8c;color:#071342}
+.ls-account-header-inner{width:calc(100% - var(--account-gutter)*2);max-width:1760px;display:flex;align-items:center;gap:24px;margin:0 auto}
+.ls-public .ls-account-brand{display:flex;align-items:center;gap:14px;flex-shrink:0;color:#071342;font-size:32px;font-weight:650;letter-spacing:-.8px;line-height:normal;text-decoration:none}
+.ls-account-brand small{display:block;color:#52638f;font-size:18px;font-weight:400;letter-spacing:0;line-height:1.5;margin-top:3px}
+.ls-account-brand-icon{display:block;position:relative;width:76px;aspect-ratio:66/67;overflow:hidden;flex:none}
+.ls-account-brand-icon img{position:absolute;display:block;width:2403.030303%;height:auto;max-width:none;left:-113.636364%;top:-147.761194%}
+.ls-account-header nav{display:flex;align-items:center;gap:20px;white-space:nowrap;margin-left:auto;font-size:16px;font-weight:550;line-height:24px}
+.ls-public .ls-account-header nav a{position:relative;padding:15px 0;color:#071342;text-decoration:none}
+.ls-public .ls-account-header nav a:hover,.ls-public .ls-account-header nav a:focus-visible{color:#0956ff}
+.ls-public .ls-account-header nav a[aria-current]{color:#0956ff}
+.ls-account-header nav a[aria-current]::after{content:"";position:absolute;bottom:0;left:20%;right:20%;height:4px;border-radius:3px;background:#0956ff}
+.ls-public .ls-account-header .ls-account-entry{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;padding:13px 29px;min-height:58px;border:1px solid #71a9ff;border-radius:13px;background:linear-gradient(110deg,#2694ff,#5c3fff);color:#fff;font-size:16px;font-weight:600;line-height:24px;white-space:nowrap;box-shadow:0 6px 15px #115fff24;text-decoration:none}
+.ls-public .ls-account-header .ls-account-login{background:#ffffff9c;color:#0652ff;border-color:#426bff;box-shadow:none}
+.ls-account-header .ls-account-menu,.ls-account-header .ls-account-mobile-auth{display:none}
+.ls-account-header a:focus-visible,.ls-account-header button:focus-visible{outline:3px solid #5d68ff;outline-offset:5px}
+@media(max-width:1750px){.ls-public .ls-account-brand{font-size:25px}.ls-account-brand small{font-size:12px}.ls-account-brand-icon{width:63px}.ls-public .ls-account-header .ls-account-entry{padding:13px 24px;min-height:52px}}
+@media(max-width:1500px){.ls-public .ls-account-brand{font-size:23px}.ls-account-brand-icon{width:55px}.ls-public .ls-account-header .ls-account-entry{padding:11px 20px;min-height:47px}}
+@media(min-width:1201px) and (max-width:1500px){.ls-public .ls-account-header{--account-gutter:clamp(44px,3.6vw,54px)}}
+@media(min-width:901px) and (max-width:1100px){.ls-account-header nav{gap:14px}.ls-public .ls-account-header .ls-account-entry{padding-inline:14px}}
+@media(max-width:900px){
+ .ls-public .ls-account-header{--account-gutter:28px;height:90px;padding:15px 0;background:#f7fbff}
+ .ls-account-header-inner{justify-content:space-between;gap:20px}
+ .ls-account-header .ls-account-menu{display:block;min-width:44px;min-height:44px;padding:0 6px;border:0;background:none;color:#071342;font-size:16px;line-height:24px;cursor:pointer}
+ .ls-account-header nav{display:none;position:absolute;top:90px;left:0;right:0;margin:0;padding:20px 28px;background:white;box-shadow:0 10px 20px #506c9920}
+ .ls-account-header nav.is-open{display:flex;flex-direction:column;gap:5px}
+ .ls-account-header .ls-account-mobile-auth{display:block}
+ .ls-public .ls-account-header .ls-account-entry{display:none}
+}
+@media(max-width:600px){.ls-public .ls-account-brand{font-size:22px;gap:8px}.ls-account-brand-icon{width:44px}}
+@media(max-width:500px){.ls-public .ls-account-header{--account-gutter:22px}}
+@media(max-width:360px){.ls-account-header-inner{gap:8px}.ls-public .ls-account-brand{min-width:0;flex-shrink:1}.ls-account-brand>span:last-child{min-width:0}.ls-account-header .ls-account-menu{flex-shrink:0;padding-inline:2px}}

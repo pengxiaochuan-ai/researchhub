@@ -16,3 +16,15 @@ export function readAcademicRoute(page,search=''){
  return{id,type,phase,status,q,page:number,management};
 }
 export function safeAcademicReturn(value){try{if(typeof value!=='string'||/[\\\r\n]/.test(value))return null;const u=new URL(value,'http://academic.local');if(u.origin!=='http://academic.local'||u.hash)return null;const page=u.pathname==='/pages/h01/'?'h01':u.pathname==='/pages/g02/'?'g02':null,route=readAcademicRoute(page,u.search);return route?academicHref(route):null;}catch{return null;}}
+
+export function publicAcademicHref(options={}){
+ const url=new URL(academicHref({...options,management:false}),'http://academic.local');
+ url.searchParams.delete('hubKey');url.searchParams.delete('section');
+ return '/pages/p011/'+(url.searchParams.size?'?'+url.searchParams:'');
+}
+export function readPublicAcademicRoute(search=''){
+ const params=new URLSearchParams(search);
+ if([...params.keys()].some(key=>!['contentId','type','phase','q'].includes(key)))throw Error('链接无效，请从学术动态列表重新进入。');
+ params.set('hubKey',CONTENT_HUB);params.set('section','updates');
+ return readAcademicRoute('h01',params.toString());
+}

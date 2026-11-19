@@ -1,4 +1,4 @@
-/* Login visual only: never style the form or registration/reset stories. */
+/* Shared account-entry visual only: never style the forms. */
 .ls-login-story { position:relative; isolation:isolate; width:100%; text-align:center; transform:translateY(-32px); }
 .ls-auth-story.ls-login-story { padding-bottom:0; }
 .ls-login-story::before {

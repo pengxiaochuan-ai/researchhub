@@ -1,0 +1,42 @@
+.ls-public:has(.ls-public-academic) main{padding-top:28px}
+.ls-public .ls-public-academic{font-size:16px;line-height:1.75;min-width:0}
+.ls-public .ls-public-academic h1{font-size:32px;line-height:1.4;margin:0 0 12px;overflow-wrap:anywhere}
+.ls-public .ls-public-academic-intro{margin:0 0 24px}
+.ls-public:has(.ls-public-academic) main:has(.ls-public-academic-hero){padding-top:0}
+.ls-public-academic-hero{position:relative;isolation:isolate;display:flex;align-items:center;min-height:220px;padding:32px 0;margin-bottom:16px}
+.ls-public-academic-hero::before{content:"";position:absolute;z-index:-1;inset:0 calc(50% - 50vw);background:#dfecfd url('../p011/assets/academic-daylight-v1.jpg') right 44% / min(100vw,1440px) auto no-repeat}
+.ls-public-academic-hero-copy{max-width:580px}
+.ls-public .ls-public-academic .ls-public-academic-hero-title{font-size:32px;line-height:1.4;font-weight:700;color:#14264b;margin:0 0 12px;overflow-wrap:anywhere}
+.ls-public .ls-public-academic-hero .ls-public-academic-intro{margin:0}
+.ls-public .ls-public-academic .ui-button{font-size:16px;line-height:24px;min-height:44px;border-radius:12px;padding:10px 16px;color:#526587;background:#fff;border:1px solid #d6e1f1}
+.ls-public .ls-public-academic .ui-button.primary{background:#245bdb;color:white;border-color:#245bdb}
+.ls-public .ls-public-academic .ui-button[aria-pressed=true]{color:#245bdb;border-color:#245bdb;background:#edf2ff}
+.ls-public-academic-types{display:flex;gap:8px;flex-wrap:wrap}
+.ls-public-academic-search{display:flex;align-items:flex-end;gap:12px;margin:20px 0 24px;max-width:960px}
+.ls-public .ls-public-academic-search label{margin:0;min-width:0}
+.ls-public-academic-keywords{flex:1}
+.ls-public .ls-public-academic-search input,.ls-public .ls-public-academic-search select{font-size:16px;line-height:24px;margin-top:8px;min-height:48px}
+.ls-public .ls-public-academic-search>.ui-button{min-height:48px;flex:none}
+.ls-public-academic-list{list-style:none;padding:0;margin:0;display:grid;gap:16px}
+.ls-public-academic-list>li,.ls-public-academic-detail,.ls-public-academic-state{background:#fff;border:1px solid #e0e8f5;border-radius:16px;padding:24px;min-width:0;overflow-wrap:anywhere}
+.ls-public .ls-public-academic-list h2{font-size:20px;line-height:1.5;margin:8px 0 12px}
+.ls-public .ls-public-academic-list p{margin:8px 0;font-size:16px}
+.ls-public .ls-public-academic .academic-meta{font-size:14px;line-height:22px;color:#526587}
+.ls-public .ls-public-academic-detail{max-width:1000px;margin:16px auto 0;padding:32px}
+.ls-public .ls-public-academic .academic-reading h2{font-size:22px;line-height:1.5;margin:0 0 12px}
+.ls-public .ls-public-academic .academic-reading h3{font-size:20px;line-height:1.5}
+.ls-public .ls-public-academic .academic-body,.ls-public .ls-public-academic .academic-summary{font-size:16px;line-height:1.8}
+.ls-public .ls-public-academic .academic-reading footer{padding:0;margin:20px 0;text-align:left;font-size:16px}
+.ls-public .ls-public-academic .academic-reading footer p{margin:0 0 8px}
+.ls-public .ls-public-academic .academic-card{border-radius:12px}
+.ls-public-academic-back,.ls-public-academic-home{display:inline-flex;align-items:center;min-height:44px}
+.ls-public-academic-home{margin-top:24px}
+.ls-public .ls-public-academic-more{margin-top:20px}
+.ls-public-academic-state{margin:16px 0}
+.ls-public-academic-state a{display:inline-block;margin-left:16px;min-height:44px}
+.ls-public-academic a:focus-visible,.ls-public-academic input:focus-visible,.ls-public-academic select:focus-visible{outline:2px solid #245bdb;outline-offset:3px}
+@media(max-width:900px){.ls-public:has(.ls-public-academic) main{padding-top:24px}.ls-public .ls-public-academic h1{font-size:28px}.ls-public .ls-public-academic-detail{padding:24px}.ls-public .ls-public-academic .academic-reading h2{font-size:20px}}
+@media(max-width:600px){.ls-public-academic-search{flex-wrap:wrap}.ls-public-academic-search label{width:100%}.ls-public-academic-keywords{flex-basis:100%}.ls-public-academic-search>.ui-button{width:100%}.ls-public-academic-list>li{padding:20px}.ls-public .ls-public-academic-detail{padding:20px}}
+@media(max-width:900px){.ls-public-academic-hero-copy{max-width:55%}.ls-public-academic-hero::before{background-position:left center}}
+@media(max-width:600px){.ls-public-academic-hero{min-height:180px;padding:24px 0}.ls-public-academic-hero-copy{max-width:none}.ls-public-academic-hero::before{background-position:65% center;opacity:.2}}
+@media(max-width:900px){.ls-public .ls-public-academic .ls-public-academic-hero-title{font-size:28px}}

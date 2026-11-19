@@ -1,0 +1,45 @@
+/* Help content keeps the public shell while using a compact reading rhythm. */
+.ls-public:has(.ls-help-center) main,.ls-public:has(.ls-help-article) main{padding-top:28px}
+.ls-public .ls-help-center .ls-page-hero{padding:0 0 24px;max-width:none}
+.ls-public .ls-help-center h1,.ls-public .ls-help-article h1{font-size:32px;line-height:1.4;margin:0 0 12px}
+.ls-public .ls-help-banner .ls-help-banner-intro{font-size:16px;margin:0}
+.ls-public .ls-help-banner .ls-help-banner-title{font-size:32px;line-height:1.4;font-weight:700;color:#14264b;margin:0 0 12px;overflow-wrap:anywhere}
+.ls-public:has(.ls-help-center) main:has(.ls-help-banner){padding-top:0}
+.ls-public:has(.ls-help-detail) main:has(.ls-help-banner){padding-top:0}
+.ls-help-banner{position:relative;isolation:isolate;display:flex;align-items:center;min-height:220px;padding:32px 0;margin-bottom:20px}
+.ls-help-banner::before{content:"";position:absolute;z-index:-1;inset:0 calc(50% - 50vw);background:#e0edfc url('../p008/assets/help-questions-v1.jpg') right 73% / min(100vw,1440px) auto no-repeat}
+.ls-help-banner-copy{max-width:580px}
+.ls-public .ls-help-center .ls-help-search{margin:0}
+.ls-public .ls-help-center .ls-help-filters{gap:8px}
+.ls-public .ls-help-center .ls-info-grid{gap:20px;margin:16px 0 24px}
+.ls-public .ls-help-center .ls-help-card{padding:20px;border-radius:16px}
+.ls-public .ls-help-center .ls-help-filters .ui-button{font-size:16px;line-height:24px;min-height:44px;color:#526587;background:#fff;border:1px solid #d6e1f1;padding:10px 16px;border-radius:12px}
+.ls-public .ls-help-center .ls-help-filters .ui-button[aria-pressed=true]{background:#edf2ff;border-color:#245bdb;color:#245bdb}
+.ls-public .ls-help-count{font-size:16px;margin:16px 0 0}
+.ls-public .ls-help-card-meta,.ls-public .ls-help-article-meta{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;color:#526587}
+.ls-public .ls-help-card-meta{margin-bottom:12px}
+.ls-public .ls-help-card-meta small{font-size:14px}
+.ls-public .ls-help-state{font-size:14px;line-height:22px;color:#365da0;background:#eef3ff;border-radius:6px;padding:2px 8px;display:inline-block}
+.ls-public .ls-help-state.planned{color:#70521e;background:#fff4d9}
+.ls-public .ls-help-card h2{font-size:20px;line-height:1.5;margin-bottom:10px}
+.ls-public .ls-help-card p{font-size:16px;line-height:1.75;margin:0}
+.ls-public .ls-help-support p{font-size:16px;margin:0 0 8px}
+.ls-public .ls-help-support a{display:inline-flex;align-items:center;min-height:44px;font-size:16px}
+.ls-public .ls-help-article{font-size:16px;border-radius:16px}
+.ls-public .ls-help-article-meta{margin:20px 0 12px;font-size:16px}
+.ls-public .ls-help-article h1{overflow-wrap:anywhere}
+.ls-public .ls-help-article .ls-help-article-summary{font-size:16px;color:#233b65}
+.ls-public .ls-help-article .ls-help-audience{font-size:14px;color:#526587;margin:16px 0 24px;line-height:1.8}
+.ls-public .ls-help-article-section{margin-top:24px}
+.ls-public .ls-help-article-section h2{font-size:22px;line-height:1.5;margin:0 0 12px}
+.ls-public .ls-help-article-section p,.ls-public .ls-help-article-section li{font-size:16px;line-height:1.75}
+.ls-public .ls-help-article-section p{margin:12px 0}
+.ls-public .ls-help-article-section ol{padding-left:1.5em;margin:0}
+.ls-public .ls-help-article-section li{padding-left:4px;margin:10px 0}
+.ls-public .ls-help-article .ls-mode-note{font-size:16px}
+.ls-public .ls-help-article-action{margin-top:32px}
+.ls-public .ls-help-article-action a{font-size:16px;min-height:48px}
+@media(max-width:900px){.ls-public:has(.ls-help-center) main,.ls-public:has(.ls-help-article) main{padding-top:24px}.ls-public .ls-help-center h1,.ls-public .ls-help-article h1{font-size:28px}.ls-public .ls-help-center .ls-page-hero{padding-bottom:20px}.ls-public .ls-help-center .ls-info-grid{gap:16px}.ls-public .ls-help-article-section h2{font-size:20px}}
+@media(max-width:900px){.ls-help-banner-copy{max-width:55%}.ls-help-banner::before{background-position:left 73%}}
+@media(max-width:600px){.ls-help-banner{min-height:180px;padding:24px 0}.ls-help-banner-copy{max-width:none}.ls-help-banner::before{background-position:65% 73%;opacity:.2}}
+@media(max-width:900px){.ls-public .ls-help-banner .ls-help-banner-title{font-size:28px}}

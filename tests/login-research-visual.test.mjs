@@ -5,7 +5,7 @@ import {createServer} from 'vite';
 import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 
-test('login-only research visual reuses the original wheel without playback controls',async()=>{
+test('account-entry visual reuses the original wheel without playback controls',async()=>{
  const vite=await createServer({server:{middlewareMode:true},appType:'custom'});
  try{const {default:Visual}=await vite.ssrLoadModule('/pages/shared/LoginResearchVisual.jsx');
   const html=renderToStaticMarkup(React.createElement(Visual));
@@ -14,8 +14,9 @@ test('login-only research visual reuses the original wheel without playback cont
   assert.doesNotMatch(html,/ls-story-network|LINGSHU RESEARCH COMMUNITY/);
  }finally{await vite.close();}
 });
-test('only login story selects the new visual; original auth component stays unchanged',()=>{
+test('login, registration and password recovery select the shared visual; authentication components remain unchanged',()=>{
  const source=readFileSync(new URL('../pages/shared/PublicPages.jsx',import.meta.url),'utf8');
- assert.match(source,/page==='p003'\s*\?\s*<LoginResearchVisual/);
+ assert.equal((source.match(/<LoginResearchVisual\/>/g)||[]).length,2);
+ assert.doesNotMatch(source,/ls-story-network|LINGSHU RESEARCH COMMUNITY/);
  assert.match(source,/<LoginSession enterDemo=\{enterDemo\} returnTo=/);
 });

@@ -6,8 +6,8 @@ const messages = {
   AUTH_RATE_LIMITED: '请求过于频繁，请稍后重试。',
   AUTH_UNAVAILABLE: '认证服务暂时不可用，请稍后重试。',
   AUTH_NETWORK: '无法连接认证服务，请检查连接后重试。',
-  AUTH_TIMEOUT: '请求超时，操作结果尚未确认；请先刷新会话。',
-  AUTH_RESPONSE_INVALID: '认证响应无法确认，请刷新会话后重试。',
+  AUTH_TIMEOUT: '请求超时，操作结果尚未确认；请先检查登录状态。',
+  AUTH_RESPONSE_INVALID: '登录状态暂时无法确认，请检查后重试。',
 };
 function failure(code) {
   return Object.assign(new Error(messages[code]), { code });

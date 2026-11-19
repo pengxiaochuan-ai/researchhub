@@ -371,6 +371,15 @@
       "sourceSha256": "wp02-approved-2026-10-23"
     },
     {
+      "id": "p011",
+      "title": "公开学术动态",
+      "route": "/pages/p011/",
+      "entry": "pages/p011/index.html",
+      "screen": "",
+      "sourceArchive": null,
+      "sourceSha256": "public-academic-2026-11-19"
+    },
+    {
       "id": "q02",
       "title": "我的课题与草稿",
       "route": "/pages/q02/",
