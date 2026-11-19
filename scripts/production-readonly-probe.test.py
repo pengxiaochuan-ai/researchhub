@@ -1,0 +1,69 @@
+import contextlib
+import importlib.util
+import io
+import json
+import unittest
+from pathlib import Path
+
+spec = importlib.util.spec_from_file_location("probe", Path(__file__).with_name("production-readonly-probe.py"))
+probe = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(probe)
+
+
+class ProbeTest(unittest.TestCase):
+    def run_probe(self, service="server", db_failure=False):
+        calls = []
+        secret = "SYNTHETIC_MUST_NEVER_APPEAR"
+        item = {"Id": "a" * 64, "Name": "/aisci-server", "State": {"Status": "running"},
+                "Config": {"Image": "ghcr.io/test/aisci-server:fixed", "Env": ["PASSWORD=" + secret],
+                           "Cmd": [secret], "Labels": {"com.docker.compose.service": service}},
+                "NetworkSettings": {"Ports": {}}}
+
+        def command(args, timeout=20):
+            calls.append(args)
+            if args[:2] == ["docker", "ps"]:
+                return "a" * 12
+            if args[:2] == ["docker", "inspect"]:
+                return json.dumps([item])
+            if db_failure:
+                raise RuntimeError(secret)
+            return json.dumps({"metadata": [[{"readonly": "on"}]]})
+
+        old_command, old_glob, old_base64 = probe.command, probe.glob.glob, probe.base64.b64decode
+        probe.command, probe.glob.glob = command, lambda _p: []
+        probe.base64.b64decode = lambda _x: b"SELECT 'synthetic-catalog-hash'"
+        output = io.StringIO()
+        status = 0
+        try:
+            with contextlib.redirect_stdout(output):
+                try:
+                    probe.main()
+                except SystemExit as e:
+                    status = e.code
+        finally:
+            probe.command, probe.glob.glob, probe.base64.b64decode = old_command, old_glob, old_base64
+        self.assertNotIn(secret, output.getvalue())
+        return status, json.loads(output.getvalue()), calls
+
+    def test_only_metadata_is_emitted(self):
+        status, result, calls = self.run_probe()
+        self.assertEqual(status, 0)
+        self.assertEqual(result["database"]["metadata"][0][0]["readonly"], "on")
+        self.assertEqual(calls[-1][:2], ["docker", "exec"])
+        self.assertIn("SET TRANSACTION READ ONLY", calls[-1][-1])
+        self.assertNotIn("dist/main", calls[-1][-1])
+
+    def test_missing_server_is_blocked_without_database_access(self):
+        status, result, calls = self.run_probe(service="web")
+        self.assertEqual(status, 2)
+        self.assertIn("blocked", result["database"])
+        self.assertEqual(len(calls), 2)
+
+    def test_database_failure_is_a_failed_probe_not_successful_inventory(self):
+        status, result, _ = self.run_probe(db_failure=True)
+        self.assertEqual(status, 2)
+        self.assertEqual(result["database"]["blocked"], "CATALOG_PROBE_FAILED")
+
+
+if __name__ == "__main__":
+    unittest.main()

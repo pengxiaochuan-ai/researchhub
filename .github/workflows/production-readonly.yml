@@ -1,0 +1,25 @@
+name: ResearchHub production readonly preflight
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: researchhub-production-readonly
+  cancel-in-progress: false
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read production metadata through existing Cloud Assistant
+        env:
+          ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
+          ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
+          ALIYUN_ECS_INSTANCE_ID: ${{ secrets.ALIYUN_ECS_INSTANCE_ID }}
+          ALIYUN_REGION_ID: cn-hangzhou
+        run: bash scripts/production-readonly-run.sh
