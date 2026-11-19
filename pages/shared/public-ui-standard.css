@@ -1,0 +1,195 @@
+/* Public body roles; opt-in keeps account profiles and workspace shells isolated.
+ * Source: docs/ui/portal-typography-v1.0.md. Navigation keeps its own geometry. */
+.ls-public[data-public-ui="standard"][data-public-page] {
+  --public-title: 30px;
+  --public-hero: 40px;
+  --public-card: 20px;
+  --public-body: 16px;
+  --public-note: 14px;
+}
+.ls-public[data-public-ui="standard"][data-public-page] main {
+  width: 76%;
+  max-width: none;
+  margin-inline: auto;
+  padding: 32px 0 48px;
+  font-size: var(--public-body);
+  line-height: 1.65;
+}
+.ls-public[data-public-ui="standard"][data-public-page] > footer {
+  width: 76%;
+  margin-inline: auto;
+  padding: 32px 0;
+  font-size: var(--public-note);
+  line-height: 1.6;
+}
+.ls-public[data-public-ui="standard"][data-public-page] main h1,
+.ls-public[data-public-ui="standard"][data-public-page] main h2 {
+  font-size: var(--public-title);
+  line-height: 1.4;
+  text-wrap: balance;
+}
+.ls-public[data-public-ui="standard"][data-public-page] main h3 {
+  font-size: var(--public-card);
+  line-height: 1.4;
+}
+.ls-public[data-public-ui="standard"][data-public-page] main p {
+  font-size: var(--public-body);
+  line-height: 1.65;
+}
+.ls-public[data-public-ui="standard"][data-public-page] main :is(input, select, textarea, button, .ls-primary, .ls-secondary) {
+  font-size: var(--public-body);
+  line-height: 1.5;
+}
+.ls-public[data-public-ui="standard"][data-public-page] main :is(.ls-small, .ls-feedback, .ls-mode-note, .ls-auth-links, .wp02-help, .ls-help-audience) {
+  font-size: var(--public-note);
+  line-height: 1.6;
+}
+.ls-public[data-public-ui="standard"][data-public-page] main :is(.ls-mode-note, .wp02-feedback) p {
+  font-size: inherit;
+}
+
+/* Full-bleed images sit behind a single, centered content container. */
+.ls-public[data-public-ui="standard"][data-public-page][data-public-page="p007"] main {
+  width: 100%;
+  padding: 0;
+}
+.ls-public[data-public-ui="standard"][data-public-page] .ls-initiative {
+  font-size: var(--public-body);
+  line-height: 1.65;
+}
+.ls-public[data-public-ui="standard"][data-public-page] .ls-initiative .initiative-container {
+  width: 76%;
+}
+.ls-public[data-public-ui="standard"][data-public-page] .ls-initiative h1 {
+  font-size: var(--public-hero);
+  line-height: 1.4;
+}
+.ls-public[data-public-ui="standard"][data-public-page] .ls-initiative h2 {
+  font-size: var(--public-title);
+  line-height: 1.4;
+}
+.ls-public[data-public-ui="standard"][data-public-page] .ls-initiative h3 {
+  font-size: var(--public-card);
+  line-height: 1.4;
+}
+.ls-public[data-public-ui="standard"][data-public-page] .ls-initiative .initiative-intro {
+  font-size: var(--public-body);
+  line-height: 1.65;
+}
+.ls-public[data-public-ui="standard"][data-public-page] .ls-initiative .initiative-scene-label {
+  font-size: var(--public-body);
+}
+.ls-public[data-public-ui="standard"][data-public-page] .ls-initiative .initiative-support .initiative-note {
+  font-size: var(--public-note);
+  line-height: 1.6;
+}
+
+/* Account forms retain a comfortable input width, independent of screen size. */
+.ls-public[data-public-ui="standard"][data-public-page] .ls-auth-grid {
+  grid-template-columns: minmax(0, 1fr) 520px;
+  gap: clamp(32px, 3vw, 48px);
+  min-height: 0;
+}
+.ls-public[data-public-ui="standard"][data-public-page] .ls-auth-card {
+  width: 100%;
+  max-width: 520px;
+  min-width: 0;
+  border-radius: 16px;
+}
+.ls-public[data-public-ui="standard"][data-public-page] .ls-auth-story.ls-login-story {
+  max-width: 640px;
+  padding: 0;
+  transform: none;
+}
+.ls-public[data-public-ui="standard"][data-public-page] .ls-login-story h1 {
+  font-size: var(--public-hero);
+  line-height: 1.4;
+}
+.ls-public[data-public-ui="standard"][data-public-page] .ls-login-wheel {
+  max-width: 480px;
+}
+.ls-public[data-public-ui="standard"][data-public-page] .member-accept {
+  width: 100%;
+  max-width: 680px;
+}
+
+/* A banner title is a page role even when detail pages render it as a p. */
+.ls-public[data-public-ui="standard"][data-public-page] main:has(.ls-help-banner),
+.ls-public[data-public-ui="standard"][data-public-page] main:has(.ls-public-academic-hero) {
+  padding-top: 0;
+}
+.ls-public[data-public-ui="standard"][data-public-page] .ls-help-banner .ls-help-banner-title,
+.ls-public[data-public-ui="standard"][data-public-page] .ls-public-academic .ls-public-academic-hero-title {
+  font-size: var(--public-title);
+  line-height: 1.4;
+  text-wrap: balance;
+}
+.ls-public[data-public-ui="standard"][data-public-page] .ls-help-card h2,
+.ls-public[data-public-ui="standard"][data-public-page] .ls-public-academic-list h2,
+.ls-public[data-public-ui="standard"][data-public-page] .ls-empty h2 {
+  font-size: var(--public-card);
+  line-height: 1.4;
+}
+.ls-public[data-public-ui="standard"][data-public-page] .ls-info-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+}
+.ls-public[data-public-ui="standard"][data-public-page] :is(.ls-help-search, .ls-public-academic-search) {
+  max-width: 100%;
+}
+.ls-public[data-public-ui="standard"][data-public-page] .ls-help-search { width: 760px; }
+.ls-public[data-public-ui="standard"][data-public-page] .ls-public-academic-search { width: 960px; }
+.ls-public[data-public-ui="standard"][data-public-page] .ls-help-article {
+  width: 100%;
+  max-width: 920px;
+}
+.ls-public[data-public-ui="standard"][data-public-page] .ls-public-academic-detail {
+  width: 100%;
+  max-width: 1000px;
+}
+.ls-public[data-public-ui="standard"][data-public-page] .ls-help-article-section h2,
+.ls-public[data-public-ui="standard"][data-public-page] .ls-public-academic .academic-reading h2 {
+  font-size: 22px;
+  line-height: 1.4;
+}
+.ls-public[data-public-ui="standard"][data-public-page] .ls-help-article-section p,
+.ls-public[data-public-ui="standard"][data-public-page] .ls-help-article-section li {
+  font-size: var(--public-body);
+  line-height: 1.75;
+}
+.ls-public[data-public-ui="standard"][data-public-page] .ls-public-academic .academic-body,
+.ls-public[data-public-ui="standard"][data-public-page] .ls-public-academic .academic-summary {
+  font-size: var(--public-body);
+  line-height: 1.8;
+}
+.ls-public[data-public-ui="standard"][data-public-page] .ls-help-card-meta small,
+.ls-public[data-public-ui="standard"][data-public-page] .ls-help-state,
+.ls-public[data-public-ui="standard"][data-public-page] .ls-public-academic .academic-meta {
+  font-size: var(--public-note);
+  line-height: 1.6;
+}
+@media (max-width: 1200px) {
+  .ls-public[data-public-ui="standard"][data-public-page] .ls-auth-grid {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 32px;
+  }
+}
+@media (max-width: 900px) {
+  .ls-public[data-public-ui="standard"][data-public-page] {
+    --public-title: 28px;
+    --public-hero: 32px;
+  }
+  .ls-public[data-public-ui="standard"][data-public-page] main {
+    width: calc(100% - 48px);
+    padding: 24px 0 32px;
+  }
+  .ls-public[data-public-ui="standard"][data-public-page] > footer { width: calc(100% - 48px); }
+  .ls-public[data-public-ui="standard"][data-public-page] .ls-initiative .initiative-container {
+    width: calc(100% - 48px);
+  }
+  .ls-public[data-public-ui="standard"][data-public-page] .ls-initiative h1 br { display: none; }
+  .ls-public[data-public-ui="standard"][data-public-page] .ls-login-wheel { max-width: 400px; }
+}
+@media (max-width: 360px) {
+  .ls-public[data-public-ui="standard"][data-public-page] { --public-hero: 30px; }
+}
