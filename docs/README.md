@@ -1,3 +1,9 @@
+## 2026-11-19 独立演示环境已接通
+
+- [独立后端与线上前端实际交付](technical/hub-live-backend-release-2026-11-19.md)
+- [真实登录与目录读取验证](testing/hub-live-backend-release-2026-11-19.md)
+- [用户统一体验步骤](product/用户验证与操作手册.md#线上独立演示环境登录与查看2026-11-19)
+
 ## 2026-11-19 · 当前优先：独立数据库演示交付
 
 [独立交付边界](technical/independent-demo-delivery-2026-11-19.md) · [ADR-0015](decisions/0015-independent-demo-database-first.md) · [12月以后合库待办MB-01](planning/phase1-review-2026-10-19/deferred-database-integration-2026-12.md)。共享首装方案延期；先交付获准资料和明确标识的合成样例，不整库恢复历史测试任务。下方旧主线保留为历史。

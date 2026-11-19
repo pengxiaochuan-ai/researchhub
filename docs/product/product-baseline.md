@@ -1,3 +1,11 @@
+## 2026-11-19 · 独立演示后端与线上前端接通
+
+ResearchHub已连接现有RDS中的独立`researchhub`数据库，配置唯一`/srv/researchhub/ops/.env.prod`，保留原参数；不连接或迁移旧`aisci`。linux/amd64构建44502950789、独立API启用44508811755、前端接通44509082815成功。Hub使用自身同源API代理，前端不注入DB/JWT/S3/SMTP秘密；旧ops/official-site容器identity/image/status未变，新库六类历史任务摘要未变。
+
+线上Chrome实测owner/admin登录201后自动进入P01，me200；两个角色P01/H01/E01/K01/A01各有实际业务API200，无页面脚本异常、无非认证失败，12截图/2录屏。系统代理导致的首次浏览器连接失败已保留；仅新测试Chrome进程禁用代理复验，不改系统设置。该结论是登录和目录读取连通，不代签用户业务验收；没有运行模型/邮件/历史Worker，没有科研业务写操作，登录会话签发属于实际认证写入。
+
+A01当前按正式业务资产`rhab-`范围返回0与真实空态；历史具名测试资产留库，不擅自转换或放宽权限。AI、邮件、解析/方法执行、资料对象完整恢复尚未作为本次上线能力验收。数据库合并仍留待12月后另案。[实施](../technical/hub-live-backend-release-2026-11-19.md) · [现场证据](../testing/hub-live-backend-release-2026-11-19.md)。
+
 ## 2026-11-19 · 当前交付环境决策
 
 按用户最新确认，ResearchHub先使用独立数据库交付客户**演示验收环境**，保留已核准Hub资料与合成样例及原标识；不接入生产aisci、不迁移临床历史数据。合并aisci作为MB-01延后到12月以后重新评估，不是本次交付前置。业务模型/租户及Study权限不变；演示部署不自动扩内容用途、恢复历史任务或AI费用。见[ADR-0015](../decisions/0015-independent-demo-database-first.md)、[实施边界](../technical/independent-demo-delivery-2026-11-19.md)与[合库待办](../planning/phase1-review-2026-10-19/deferred-database-integration-2026-12.md)。

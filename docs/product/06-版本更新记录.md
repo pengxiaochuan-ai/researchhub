@@ -1,3 +1,11 @@
+## 2026-11-19 · 独立演示后端与线上前端接通
+
+ResearchHub已连接现有RDS中的独立`researchhub`数据库，配置唯一`/srv/researchhub/ops/.env.prod`，保留原参数；不连接或迁移旧`aisci`。linux/amd64构建44502950789、独立API启用44508811755、前端接通44509082815成功。Hub使用自身同源API代理，前端不注入DB/JWT/S3/SMTP秘密；旧ops/official-site容器identity/image/status未变，新库六类历史任务摘要未变。
+
+线上Chrome实测owner/admin登录201后自动进入P01，me200；两个角色P01/H01/E01/K01/A01各有实际业务API200，无页面脚本异常、无非认证失败，12截图/2录屏。系统代理导致的首次浏览器连接失败已保留；仅新测试Chrome进程禁用代理复验，不改系统设置。该结论是登录和目录读取连通，不代签用户业务验收；没有运行模型/邮件/历史Worker，没有科研业务写操作，登录会话签发属于实际认证写入。
+
+A01当前按正式业务资产`rhab-`范围返回0与真实空态；历史具名测试资产留库，不擅自转换或放宽权限。AI、邮件、解析/方法执行、资料对象完整恢复尚未作为本次上线能力验收。数据库合并仍留待12月后另案。[实施](../technical/hub-live-backend-release-2026-11-19.md) · [现场证据](../testing/hub-live-backend-release-2026-11-19.md)。
+
 ## 2026-11-19 · G0已批准，目标researchhub；写入前置阻断
 
 用户批准现有RDS独立库G0并将库名修正为researchhub，四个专用角色名不变，批准持续有效。只读重验目标/四角色未占用，旧public PUBLIC表/列/直接definer及schema权限未发现授权；严格TLS返回SERVER_TLS_UNAVAILABLE，容量API未取得数值，依约在建库前停下。未建库/角色、恢复或切入口；需确认仅演示私网非TLS例外或另约SSL维护窗口，并补容量事实，不重复审批建库。[证据及准确边界](../technical/rds-demo-target-admission-2026-11-19.md)。
