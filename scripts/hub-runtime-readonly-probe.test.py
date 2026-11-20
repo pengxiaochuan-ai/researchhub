@@ -1,6 +1,13 @@
 import importlib.util,pathlib,unittest,tempfile,json,contextlib,io
 s=importlib.util.spec_from_file_location('m',str(pathlib.Path(__file__).with_name('hub-runtime-readonly-probe.py')));m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 class ProbeTests(unittest.TestCase):
+ def test_vector_metadata_uses_only_owned_api_readonly_and_target_database(self):
+  from unittest.mock import patch
+  row={'Id':'own-api','Config':{'Labels':{'com.docker.compose.project':'researchhub-backend','com.docker.compose.service':'researchhub-api'}}}
+  with patch.object(m,'command',return_value='[]') as command:
+   m.vector_metadata([row]);args=command.call_args.args[0]
+   self.assertEqual(args[:4],['docker','exec','own-api','node']);self.assertIn('SET TRANSACTION READ ONLY',args[-1]);self.assertIn("pathname!=='/researchhub'",args[-1]);self.assertNotIn('bootResearchRuntime',args[-1])
+  with self.assertRaises(ValueError):m.vector_metadata([])
  def test_image_identity_is_visible_without_image_environment(self):
   c={'Name':'/ops-kb-embed','Image':'sha256:'+'a'*64,'Config':{'Image':'private-registry/embed:version','Env':['TOKEN=NEVER-PRINT'],'Labels':{'com.docker.compose.project':'ops','com.docker.compose.service':'kb-embed'}},'State':{'Status':'running'},'NetworkSettings':{},'HostConfig':{}}
   out=m.container_metadata(c);self.assertEqual(out['imageId'],c['Image']);self.assertNotIn('NEVER-PRINT',json.dumps(out))

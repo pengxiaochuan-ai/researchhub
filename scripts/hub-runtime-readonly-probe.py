@@ -42,6 +42,12 @@ def image_transfer_metadata():
         break
     return result
 
+def vector_metadata(items):
+    own=[x for x in items if (x['Config'].get('Labels') or {}).get('com.docker.compose.project')=='researchhub-backend' and (x['Config'].get('Labels') or {}).get('com.docker.compose.service')=='researchhub-api']
+    if len(own)!=1:raise ValueError('owned api required')
+    code="""const {createRequire}=require('node:module');(async()=>{const req=createRequire(process.env.HUB_CORE_DIR+'/package.json'),{PrismaClient}=req('@prisma/client'),out=[];for(const key of ['DATABASE_URL','DIRECT_URL']){const url=process.env[key];if(new URL(url).pathname!=='/researchhub')throw Error('target');const db=new PrismaClient({datasources:{db:{url}}});try{const rows=await db.$transaction(async tx=>{await tx.$executeRawUnsafe('SET TRANSACTION READ ONLY');await tx.$executeRawUnsafe("SET LOCAL statement_timeout='5000ms'");return tx.$queryRawUnsafe("SELECT current_database() AS database,current_user AS role,current_setting('search_path') AS search_path,to_regtype('vector') IS NOT NULL AS type_visible,(SELECT n.nspname FROM pg_extension e JOIN pg_namespace n ON n.oid=e.extnamespace WHERE e.extname='vector') AS extension_schema")});out.push({binding:key,...rows[0]})}finally{await db.$disconnect()}}console.log(JSON.stringify(out))})().catch(()=>{console.error('HUB_VECTOR_METADATA_FAILED');process.exitCode=1})"""
+    return json.loads(command(['docker','exec',own[0]['Id'],'node','-e',code]))
+
 def main():
     ids=command(['docker','ps','-q']).split();items=json.loads(command(['docker','inspect']+ids)) if ids else []
     containers=[container_metadata(c) for c in items if (c['Config'].get('Labels') or {}).get('com.docker.compose.project') in ('researchhub','ops','official-site','researchhub-backend')]
@@ -53,7 +59,7 @@ def main():
     keys=[]
     if source.is_file() and not source.is_symlink() and source.stat().st_size<65536:
         keys=sorted({line.partition('=')[0] for line in source.read_text().splitlines()}&{'S3_ENDPOINT','S3_ACCESS_KEY','S3_SECRET_KEY','S3_BUCKET'})
-    result={'imageTransfer':image_transfer_metadata(),'schema':'hub-runtime-preflight.v1','architecture':platform.machine(),'python':platform.python_version(),'memory':mem,'diskFreeBytes':disk.free,'containers':containers,'databaseConfig':config_metadata(pathlib.Path('/srv/researchhub/ops/.env.prod')),'releaseStorageKeysPresent':keys,'releaseTransferPresent':pathlib.Path('/srv/researchhub/ops/oss-release-transfer.py').is_file(),'databaseQueries':0,'writes':0}
+    result={'imageTransfer':image_transfer_metadata(),'schema':'hub-runtime-preflight.v1','architecture':platform.machine(),'python':platform.python_version(),'memory':mem,'diskFreeBytes':disk.free,'containers':containers,'databaseConfig':config_metadata(pathlib.Path('/srv/researchhub/ops/.env.prod')),'releaseStorageKeysPresent':keys,'releaseTransferPresent':pathlib.Path('/srv/researchhub/ops/oss-release-transfer.py').is_file(),'vectorMetadata':vector_metadata(items),'databaseQueries':2,'writes':0}
     print(json.dumps(result))
 
 if __name__=='__main__':
