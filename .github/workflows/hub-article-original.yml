@@ -1,6 +1,11 @@
 name: Restore one approved Hub original
 on:
   workflow_dispatch:
+    inputs:
+      apply:
+        description: Write only the approved original after checks
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -17,7 +22,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release download hub-article-original-transfer-20261120 --pattern original.zlib --dir "$RUNNER_TEMP/article-original"
+      - name: Verify payload and bounded commands without cloud access
+        env:
+          ARTICLE_TRANSFER_DRY_RUN: 'true'
+        run: python3 scripts/hub-article-original-transfer.py ignored "$RUNNER_TEMP/article-original/original.zlib"
       - name: Transfer exactly one original to existing Hub OSS
+        if: inputs.apply
         env:
           ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
           ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}

@@ -32,7 +32,7 @@ assert len(raw)==150195 and hashlib.sha256(raw).hexdigest()==SHA
 ids=subprocess.check_output(['docker','ps','-q','--filter','label=com.docker.compose.project=researchhub-backend','--filter','label=com.docker.compose.service=researchhub-api'],universal_newlines=True).splitlines()
 assert len(ids)==1 and re.fullmatch('[a-f0-9]{12,64}',ids[0])
 before=subprocess.check_output(['docker','ps','--format','{{.ID}} {{.Image}}'])
-result=subprocess.run(['docker','exec','-i',ids[0],'node','--input-type=module','-e',NODE],input=raw,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=150)
+result=subprocess.run(['docker','exec','-i','-w','/opt/researchhub/hub',ids[0],'node','--input-type=module','-e',NODE],input=raw,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=150)
 print(result.stdout.decode('utf8','replace'))
 assert result.returncode==0
 last=json.loads(result.stdout.decode().splitlines()[-1]);assert last['status']=='article-original-restored'
