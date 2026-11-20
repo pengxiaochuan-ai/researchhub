@@ -1,3 +1,4 @@
+import {coreSourcePath} from '../server/research-runtime/dependencies.mjs';
 // Approved local synthetic record packets. No formal Subject/Form/Visit writes.
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -9,7 +10,7 @@ import {assertSyntheticCollection} from './synthetic-edc-contract.mjs';
 export async function createLocalSyntheticEdc({root,ids,plans,prisma,storage,load,require,scope}){
  let ai,reports;
  const {Controller,Get,Post,Req,Body,Param,Query,HttpException}=require('@nestjs/common');
- const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(root+'app/server/src/common/decorators.ts');
+ const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(coreSourcePath('common/decorators'));
  const Artifacts=load('research-artifacts/research-artifacts.service','ResearchArtifactsService'),validate=load('study-operations/study-forms-policy','normalizeAndValidateAnswers');
  const prefix='rh-edc-20261023:',fail=(code,message,status=409)=>{throw new HttpException({code,message},status);};
  const checked=fn=>{try{return fn();}catch(e){if(e instanceof assert.AssertionError&&e.message==='EDC_ACK_REQUIRED')fail('EDC_ACK_REQUIRED','请确认当前已保存答案的问题清单',422);if(['FORM_ANSWER_INVALID_TYPE','FORM_ANSWER_INVALID_OPTION'].includes(e.message))throw new HttpException({code:'EDC_INPUT_INVALID',message:'字段类型或选择值无效：'+e.edcFieldKey,fieldKey:e.edcFieldKey},400);if(e instanceof assert.AssertionError){if(['EDC_RECORD_NOT_FOUND','EDC_RECORD_STATE','EDC_RESPONSE_CONFLICT'].includes(e.message))fail(e.message,'记录不存在、状态或答案修订已变化');fail('EDC_INPUT_INVALID','合成采集参数、类型或容量不符合要求',400);}throw e;}};

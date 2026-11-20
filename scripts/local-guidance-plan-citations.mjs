@@ -1,3 +1,4 @@
+import {coreSourcePath} from '../server/research-runtime/dependencies.mjs';
 // Approved local-only human references. Excerpts are resolved, never stored in a plan or sent to AI.
 import {randomUUID} from 'node:crypto';
 import {citationHash,planParagraphs,validateCitationInput,citationTargetState,assertCitationAddition} from './guidance-plan-citation-contract.mjs';
@@ -9,8 +10,8 @@ import {getVisibleGuidanceDocument} from '../server/hub-sources/external-visible
 
 export function createLocalGuidancePlanCitations({root,ids,load,require,plans,storage}){
  const {Controller,Get,Post,Req,Res,Body,Param,Query,HttpException}=require('@nestjs/common');
- const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(root+'app/server/src/common/decorators.ts');
- const {canonicalArtifactJson}=require(root+'app/server/src/research-artifacts/research-artifact-integrity.ts');
+ const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(coreSourcePath('common/decorators'));
+ const {canonicalArtifactJson}=require(coreSourcePath('research-artifacts/research-artifact-integrity'));
  const Artifacts=load('research-artifacts/research-artifacts.service','ResearchArtifactsService');
  const fail=(code,message,status=409)=>{throw new HttpException({code,message},status);};
  const hubKey='lingshu-xinyu',documentIds=initialFive.filter(s=>s.mimeType==='application/pdf').map(s=>initialDocumentId(ids.tenant,hubKey,s)).sort();

@@ -6,6 +6,6 @@ export function knowledgePublicError(error){
   /BUDGET|QUOTA|DISPATCH/.test(code)?'当前AI可用额度不足，未交付回答。请联系管理员核对。':
   /CITATION|NOT_DELIVERABLE/.test(code)?'本次回答未通过资料与引用核验，未交付。请核对资料或缩小问题范围。':
   '本次回答未能完成，请先刷新会话核对状态；系统不会自动重试。';
- const result=Object.assign(Error(message),{code:known?code:'KNOWLEDGE_CHAT_FAILED',status:code==='QA_NO_EVIDENCE'?422:409});
+ const result=Object.assign(Error(message,{cause:error}),{code:known?code:'KNOWLEDGE_CHAT_FAILED',status:code==='QA_NO_EVIDENCE'?422:409});
  result.getResponse=()=>({code:result.code,message});result.getStatus=()=>result.status;return result;
 }

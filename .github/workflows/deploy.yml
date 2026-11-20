@@ -149,13 +149,14 @@ jobs:
         if: steps.artifacts.outcome == 'success'
         run: python3 scripts/hub-release-reuse-rehearsal.py
       - name: Real isolated Docker and PostgreSQL upgrade and rollback rehearsal
-        if: steps.artifacts.outcome == 'success'
+        id: explicit_rehearsal
+        if: steps.artifacts.outcome == 'success' && env.MODE == 'rehearse'
         env:
           HUB_FIXTURE_NODE_IMAGE: ${{ steps.prepare.outputs.backend_image }}
           HUB_REHEARSAL_OUTPUT: ${{ runner.temp }}/hub-rehearsal
         run: python3 scripts/hub-release-rehearsal.py
       - uses: actions/upload-artifact@v4
-        if: always() && steps.artifacts.outcome == 'success'
+        if: always() && steps.explicit_rehearsal.outcome == 'success'
         with:
           name: synthetic-release-rehearsal
           path: ${{ runner.temp }}/hub-rehearsal/*.json

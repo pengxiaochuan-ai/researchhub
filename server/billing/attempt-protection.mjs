@@ -7,7 +7,7 @@ const identifier=value=>typeof value==='string'&&/^[A-Za-z0-9:_-]{1,200}$/.test(
 
 export async function protectAttempt(tx,input){
  const {user,reservationId,attemptId,jobId,sessionId,claim,model}=input;
- if(!user||![user.tenantId,user.accountId,reservationId,attemptId,jobId,sessionId,claim?.executionToken,claim?.workerOwner].every(identifier)||!Number.isSafeInteger(user.authVersion)||model!=='deepseek-v4-pro')fail('HUB_TOKEN_BINDING_INVALID');
+ if(!user||![user.tenantId,user.accountId,reservationId,attemptId,jobId,sessionId,claim?.executionToken,claim?.workerOwner].every(identifier)||!Number.isSafeInteger(user.authVersion)||typeof model!=='string'||!model.trim()||model!==model.trim()||model.length>160||/[\r\n\0]/.test(model))fail('HUB_TOKEN_BINDING_INVALID');
  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`wp01:tenant:${user.tenantId}`},0))`;
  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`aisci-token-quota:${user.tenantId}`},0))`;
  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${reservationId},0))`;

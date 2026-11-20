@@ -1,9 +1,9 @@
+import {coreSourcePath} from '../research-runtime/dependencies.mjs';
 import {Module,createRequire} from 'node:module';
-import {fileURLToPath} from 'node:url';
 import {createSimulationProtocolReferences} from './protocol-reference.mjs';
 
 export function createSimulationProtocolAdapter({require,load,resolveCase}){
- const path=name=>fileURLToPath(new URL('../../../app/server/src/study-operations/'+name+'.ts',import.meta.url));
+ const path=name=>coreSourcePath('study-operations/'+name);
  const servicePath=path('study-operations.service'),referencePath=path('protocol-fixed-references'),legacy=require(referencePath),policy=createSimulationProtocolReferences({legacy,resolveCase}),{BadRequestException}=require('@nestjs/common');
  policy.assertProtocolFixedReferences=async(tx,scope,protocol)=>{const result=await policy.checkProtocolFixedReferences(tx,scope,protocol);if(!result.ready)throw new BadRequestException({code:'PROTOCOL_FIXED_REFERENCES_INVALID',message:'方案引用的发布材料尚未就绪，请核对阻断项。',issues:result.issues});return result;};
  let instance;

@@ -20,9 +20,9 @@ def unquote(value):
 def plan_configuration(existing,release,target,inherited):
  global EXECUTION_SAVED
  EXECUTION_SAVED=dict(existing)
- state=execution.support(release,existing)
+ state=execution.support(release,execution.proposed(release,existing))
  if 'executionPolicy' in release:
-  policy=release['executionPolicy'];need(policy.get('profile')==state['HUB_EXECUTION_PROFILE'] and (state['HUB_EXECUTION_PROFILE']=='disabled' or policy.get('admissionSha256')==state['HUB_CHAT_ADMISSION_SHA256']),'HUB_EXECUTION_POLICY_MISMATCH')
+  policy=release['executionPolicy'];need(policy.get('profile')==state['HUB_EXECUTION_PROFILE'] and (state['HUB_EXECUTION_PROFILE'] in ('disabled',execution.STANDARD_PROFILE) or policy.get('admissionSha256')==state['HUB_CHAT_ADMISSION_SHA256']),'HUB_EXECUTION_POLICY_MISMATCH')
  expected={'HUB_DATABASE_NAME':target['database'],'HUB_DATABASE_APP_ROLE':'researchhub_demo_app','HUB_DATABASE_OWNER_ROLE':'researchhub_demo_owner','HUB_DATABASE_MARKER_SHA256':target['markerSha256'],'HUB_SCHEMA_FINGERPRINT':target['schemaFingerprint'],'DEFAULT_TENANT_ID':TENANT,'ALLOWED_TENANT_IDS':TENANT,'DEPLOYMENT_PRODUCT':'researchhub','VITE_AUTH_TENANT_SLUG':release['tenantSlug']}
  need(target.get('database')=='researchhub' and target.get('tenantId')==TENANT,'HUB_RUNTIME_TARGET_REJECTED')
  need(all(existing.get(k)==v for k,v in expected.items()),'HUB_RUNTIME_SAVED_BINDING_MISMATCH')
@@ -127,13 +127,36 @@ def task_snapshot(helper,values):
  cfg,password=helper.check_url(values['DIRECT_URL'],'researchhub_demo_owner')
  tables=('knowledge_import_task','processing_task','research_agent_run','research_artifact_export_job','knowledge_chat_job','research_method_run')
  parts=["'"+name+"',COALESCE((SELECT json_object_agg(id,md5(row_to_json(t)::text)) FROM public."+name+" t),'{}'::json)" for name in tables]
- parts[tables.index('knowledge_chat_job')]="'knowledge_chat_job',COALESCE((SELECT json_object_agg(id,json_build_object('hash',md5(row_to_json(t)::text),'binding',json_build_object('tenantId',\"tenantId\",'accountId',\"accountId\",'sessionId',\"sessionId\",'requestKey',\"requestKey\",'createdAtMillis',floor(extract(epoch from \"createdAt\")*1000)::bigint))) FROM public.knowledge_chat_job t),'{}'::json)"
+ parts[tables.index('knowledge_chat_job')]="'knowledge_chat_job',COALESCE((SELECT json_object_agg(id,json_build_object('hash',md5(row_to_json(t)::text),'status',status,'binding',json_build_object('tenantId',\"tenantId\",'accountId',\"accountId\",'sessionId',\"sessionId\",'requestKey',\"requestKey\",'createdAtMillis',floor(extract(epoch from \"createdAt\")*1000)::bigint))) FROM public.knowledge_chat_job t),'{}'::json)"
+ parts[tables.index('knowledge_import_task')]="'knowledge_import_task',COALESCE((SELECT json_object_agg(id,json_build_object('hash',md5(row_to_json(t)::text),'status',status,'binding',json_build_object('tenantId',\"tenantId\",'accountId',\"createdBy\",'kbId',\"kbId\",'createdAtMillis',floor(extract(epoch from \"createdAt\")*1000)::bigint))) FROM public.knowledge_import_task t),'{}'::json)"
  return helper.query('psql',cfg,'researchhub_demo_owner',password,'SELECT json_build_object('+','.join(parts)+');')[0]
 
-def assert_task_snapshot(before,after,allow_new=False):
+def assert_standard_tasks(old,current,kind):
+ terminal={'completed','complete','failed','cancelled'}
+ def binding(row):
+  value=dict(row.get('binding',{}));value.pop('status',None);return value
+ def status(row):return row.get('status',row.get('binding',{}).get('status'))
+ for key,value in old.items():
+  newer=current.get(key);need(newer is not None,'HUB_RUNTIME_HISTORICAL_TASK_CHANGED')
+  if not isinstance(value,dict):need(newer==value,'HUB_RUNTIME_HISTORICAL_TASK_CHANGED');continue
+  need(isinstance(newer,dict) and binding(newer)==binding(value),'HUB_RUNTIME_TASK_BINDING_CHANGED')
+  fixture=str(binding(value).get('sessionId','')).startswith('rh-aiq-')
+  if fixture or status(value) in terminal or status(value) is None:
+   need(newer.get('hash')==value.get('hash'),'HUB_RUNTIME_HISTORICAL_TASK_CHANGED')
+ for key,value in current.items():
+  need(isinstance(value,dict) and value.get('hash') and isinstance(value.get('binding'),dict),'HUB_RUNTIME_TASK_METADATA_REQUIRED')
+  need(status(value) in ({'queued','processing','completed','failed'} if kind=='knowledge_chat_job' else {'queued','processing','complete','failed','blocked','cancelled'}),'HUB_RUNTIME_TASK_STATUS_REJECTED')
+  if key not in old:
+   anchor=binding(value)
+   need(anchor.get('tenantId')==TENANT and not str(anchor.get('sessionId','')).startswith('rh-aiq-'),'HUB_RUNTIME_NEW_TASK_SCOPE_REJECTED')
+
+def assert_task_snapshot(before,after,allow_new=False,standard=False):
  need(set(before)==set(after),'HUB_RUNTIME_TASK_TABLES_CHANGED')
- admitted=execution.admitted_jobs(EXECUTION_SAVED)
+ standard=standard or EXECUTION_SAVED.get('HUB_EXECUTION_PROFILE')==execution.STANDARD_PROFILE
+ admitted={} if standard else execution.admitted_jobs(EXECUTION_SAVED)
  for name,old in before.items():
+  if standard and name in ('knowledge_chat_job','knowledge_import_task'):
+   assert_standard_tasks(old,after[name],name);continue
   exempt=set(admitted) if name=='knowledge_chat_job' else set()
   for key in exempt:
    need(isinstance(after[name].get(key),dict) and after[name][key].get('binding')==admitted[key],'HUB_RUNTIME_ADMITTED_TASK_BINDING_CHANGED')
@@ -142,7 +165,7 @@ def assert_task_snapshot(before,after,allow_new=False):
   if not allow_new or EXECUTION_SAVED.get('HUB_EXECUTION_PROFILE') in (execution.PROFILE,execution.KNOWLEDGE_PROFILE):need(set(old)-exempt==set(after[name])-exempt,'HUB_RUNTIME_UNEXPECTED_NEW_TASK')
 
 def live_api(items,release,target):
- own=[x for x in items if (x['Config'].get('Labels') or {}).get('com.docker.compose.project')=='researchhub-backend']
+ own=[x for x in items if (x['Config'].get('Labels') or {}).get('com.docker.compose.project')=='researchhub-backend' and (x['Config'].get('Labels') or {}).get('com.docker.compose.service')=='researchhub-api']
  need(len(own)==1 and own[0]['State']['Running'] and own[0]['Image']==release['images']['backend']['id'],'HUB_RUNTIME_NEW_CONTAINER_MISMATCH')
  values=dict(line.split('=',1) for line in own[0]['Config'].get('Env') or [] if '=' in line)
  expected={'HUB_DATABASE_NAME':'researchhub','HUB_DATABASE_APP_ROLE':'researchhub_demo_app','HUB_DATABASE_OWNER_ROLE':'researchhub_demo_owner','HUB_DATABASE_MARKER_SHA256':target['markerSha256'],'HUB_SCHEMA_FINGERPRINT':target['schemaFingerprint'],'DEFAULT_TENANT_ID':TENANT,'ALLOWED_TENANT_IDS':TENANT,'HUB_CORE_MANIFEST_SHA256':release['coreDigest'],'ENABLED_WORKER_KINDS':'','OFFICIAL_JOB_KINDS':'','CONTROL_PLANE_ENABLED':'false','HUB_PAID_AI_ENABLED':'false','HUB_EMBEDDING_MODE':'keyword-only','HUB_MAIL_MODE':'disabled'}
@@ -239,7 +262,7 @@ def run(action,control_sha):
  EXECUTION_SAVED=dict(saved)
  if action=='activate-front':return activate_front(helper,saved,control,release,items,before)
  need(any((x['Config'].get('Labels') or {}).get('com.docker.compose.project')=='researchhub' and x['State']['Running'] for x in items),'HUB_FRONTEND_NOT_RUNNING')
- own=[x for x in items if (x['Config'].get('Labels') or {}).get('com.docker.compose.project')=='researchhub-backend']
+ own=[x for x in items if (x['Config'].get('Labels') or {}).get('com.docker.compose.project')=='researchhub-backend' and (x['Config'].get('Labels') or {}).get('com.docker.compose.service')=='researchhub-api']
  if action=='verify' or own and len(own)==1 and own[0]['State']['Running']:
   live_api(items,release,control['target']);need(api_status()=='401','HUB_RUNTIME_LIVE_VERIFICATION_FAILED')
   state_path=PACKAGE/'worker-before.json'

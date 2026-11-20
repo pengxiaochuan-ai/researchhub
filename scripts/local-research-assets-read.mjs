@@ -1,3 +1,4 @@
+import {coreSourcePath} from '../server/research-runtime/dependencies.mjs';
 // Inject the existing current-authorization transaction. Never initializes grants or fixtures.
 import {RESEARCH_ASSET_PREFIX,readResearchAssetRequest,assertResearchAssetIdentity,presentResearchAssetVersion,researchAssetError} from './research-assets-read-contract.mjs';
 
@@ -32,7 +33,7 @@ export function createResearchAssetsReader({withScope}){
 
 export function createResearchAssetsReadController({root,require,withScope}){
  const {Controller,Get,Req,Param,HttpException}=require('@nestjs/common');
- const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(root+'app/server/src/common/decorators.ts');
+ const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(coreSourcePath('common/decorators'));
  const reader=createResearchAssetsReader({withScope});
  class ResearchAssetsReadController{
   async read(req,id,version){

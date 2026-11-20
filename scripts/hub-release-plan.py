@@ -8,7 +8,7 @@ def release_tag(revision,run_id,attempt):
 
 def database_path(path):
  p=pathlib.PurePosixPath(path)
- return p.suffix in ('.sql','.prisma') or 'migrations' in p.parts or bool(re.search(r'(?:^|[-_])(ddl|schema|migration|guard)(?:[-_.]|$)',p.name)) and p.suffix in ('.sql','.mjs','.py','.json')
+ return p.suffix in ('.sql','.prisma') or 'migrations' in p.parts or bool(re.search(r'(?:^|[-_])(ddl|schema|migration)(?:[-_.]|$)',p.name)) and p.suffix in ('.sql','.mjs','.py','.json')
 
 RELEASE_CONTROL_PATHS={'scripts/hub-release.py','scripts/hub-release-pair.py','scripts/hub-release-plan.py','scripts/hub-runtime-artifacts.py','scripts/hub-release-reuse-rehearsal.py','scripts/hub-production-inspect.py','.github/workflows/deploy.yml'}
 
@@ -22,7 +22,7 @@ def classify(paths):
   if path.startswith('docs/') and not path.startswith('docs/reference/'):continue
   if p.suffix=='.md' and not path.startswith(('skill/','integrations/','docs/reference/')):continue
   if path in ('server/static.mjs','server/api-proxy.mjs') or path.startswith(('pages/','public/')) and path!='pages/h01/src/china.json' or path in ('index.html','platform-pages.json','Dockerfile','.dockerignore') or p.name.startswith(('vite.config.','tailwind.config.','postcss.config.')):result['frontend']=True
-  elif path.startswith('server/') or path=='deploy/backend.Dockerfile':result['backend']=True
+  elif path.startswith(('server/','services/knowledge/')) or path=='deploy/backend.Dockerfile':result['backend']=True
   else:result.update(frontend=True,backend=True)
  return result
 

@@ -1,3 +1,4 @@
+import {coreSourcePath} from '../server/research-runtime/dependencies.mjs';
 import {createAssetReuse,assertAssetArtifactSources,createAssetTargetPrisma} from './research-assets-reuse.mjs';
 import {createAssetDetailFiles} from './research-assets-detail-files.mjs';
 import {createAssetComments} from './research-assets-comments.mjs';
@@ -41,21 +42,21 @@ export function composeAssetCatalog({ids,withAccess,knowledgeSources,uploads,sto
 
 /** Local synthetic assembly only; never mutates old code/config or prepares fixtures on startup. */
 export function createLocalResearchAssetCatalog({root,dir,ids,prisma,knowledge,storage,require,ai}){
- const {withAuthorizationMutation}=require(root+'app/server/src/common/worker-publication.ts');
- const {withCurrentKnowledgeRead}=require(root+'app/server/src/knowledge/retrieval.service.ts');
- const {assertKnowledgeImportFile}=require(root+'app/server/src/knowledge/knowledge-file-policy.ts');
+ const {withAuthorizationMutation}=require(coreSourcePath('common/worker-publication'));
+ const {withCurrentKnowledgeRead}=require(coreSourcePath('knowledge/retrieval.service'));
+ const {assertKnowledgeImportFile}=require(coreSourcePath('knowledge/knowledge-file-policy'));
  const accessFor=(scopedIds,client=prisma)=>createCatalogAccess({ids:scopedIds,transaction:(user,run)=>withAuthorizationMutation(client,user.tenantId,run,{studyGroupId:user.studyGroupId,researchProjectId:user.researchProjectId,includeOfficial:true})});
  const originalAccess=accessFor(ids),reportAccess=accessFor({...ids,project:REPORT_CONTEXT.projectId},createReportContextPrisma({ids,prisma}));
  const withAccess=(user,permission,run)=>user.researchProjectId===REPORT_CONTEXT.projectId?reportAccess(user,permission,(tx,p)=>{assertReportContextPrincipal(p);return run(tx,p);}):originalAccess(user,permission,run);
  const withTargetAccess=createCatalogAccess({ids:{...ids,project:'rh-asset-detail-20261113-study-b'},transaction:(user,run)=>withAuthorizationMutation(createAssetTargetPrisma({ids,prisma}),user.tenantId,run,{studyGroupId:user.studyGroupId,researchProjectId:user.researchProjectId,includeOfficial:true})});
- const artifacts=tx=>new(require(root+'app/server/src/research-artifacts/research-artifacts.service.ts').ResearchArtifactsService)({forTenant:()=>tx,elevated:tx,app:tx,withTenantTransaction:(_t,_g,_p,run)=>run(tx)},storage,null,null);
+ const artifacts=tx=>new(require(coreSourcePath('research-artifacts/research-artifacts.service')).ResearchArtifactsService)({forTenant:()=>tx,elevated:tx,app:tx,withTenantTransaction:(_t,_g,_p,run)=>run(tx)},storage,null,null);
  const directory=join(dir,'..','researchhub-assets-local');
  const knowledgeSources=createAssetKnowledgeSources({ids,manifest:()=>JSON.parse(readFileSync(join(directory,'source-manifest.json'),'utf8')),
   withKnowledgeRead:(tx,p,run)=>withCurrentKnowledgeRead({forTenant:()=>tx,withTenantTransaction:(_t,_g,_p,fn)=>fn(tx),elevated:tx},p,run,undefined,'knowledge'),
   readVisibleDoc:(tx,p,id)=>knowledge.requireVisibleDoc(p,id,tx)});
  const store=createAssetUploadStore({directory:join(directory,'uploads'),ids,storage,inspectFile:assertKnowledgeImportFile});
  const uploads=createAssetUploadBinding({ids,store,withAccess});
- const legacy=composeAssetCatalog({ids,withAccess,knowledgeSources,uploads,storage,withTargetAccess,artifacts,renderMarkdown:input=>require(root+'app/server/src/research-artifacts/research-artifact-export.ts').renderResearchArtifact('markdown',input),parseRange:(header,size)=>require(root+'app/server/src/knowledge/knowledge-source-content.ts').parseKnowledgeSourceRange(header,size)});
+ const legacy=composeAssetCatalog({ids,withAccess,knowledgeSources,uploads,storage,withTargetAccess,artifacts,renderMarkdown:input=>require(coreSourcePath('research-artifacts/research-artifact-export')).renderResearchArtifact('markdown',input),parseRange:(header,size)=>require(coreSourcePath('knowledge/knowledge-source-content')).parseKnowledgeSourceRange(header,size)});
  const business=createLocalBusinessAssetCatalog({ids,legacy,transaction:createBusinessLocalTransaction({ids,prisma,withAuthorizationMutation})});
  const services={...legacy,reportQa:business.reportQa,assertSources:business.assertSources,reader:business.reader,registration:business.registration,views:business.views,details:business.details,governance:business.governance,lifecycle:business.lifecycle,usage:business.usage};
  const overview=createAssetOverview({ids,assertSources:services.assertSources,businessProjects:business.projects,businessCreationProjects:business.creationProjects,businessActors:business.actors,projectRecords:business.projectRecords,transaction:(_user,run)=>withAuthorizationMutation(prisma,ids.tenant,run,{elevated:true,includeOfficial:true})});

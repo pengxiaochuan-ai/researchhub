@@ -31,7 +31,8 @@ def query(binary,cfg,role,password,sql):
         base.require(r.returncode==0,'NEW_ACCOUNT_CONNECTION_FAILED_'+('OWNER' if role==ROLES[0] else 'APP'))
         return [json.loads(line) for line in r.stdout.splitlines() if line.strip()]
 
-def save_config(path,values):
+def save_config(path,values,remove_keys=()):
+    base.require(all(re.fullmatch(r'[A-Z][A-Z0-9_]*',k) and k not in values for k in remove_keys),'DATABASE_CONFIG_REMOVE_KEY_INVALID')
     parent=path.parent
     if parent.exists():base.require(parent.is_dir() and not parent.is_symlink() and parent.stat().st_uid==os.geteuid() and parent.stat().st_mode&0o022==0,'DATABASE_CONFIG_DIRECTORY_NOT_CONTROLLED')
     else:parent.mkdir(parents=True,mode=0o700)
@@ -40,9 +41,9 @@ def save_config(path,values):
         st=os.fstat(lock.fileno());base.require(stat.S_ISREG(st.st_mode) and st.st_uid==os.geteuid() and st.st_mode&0o077==0,'DATABASE_CONFIG_LOCK_NOT_PRIVATE')
         try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         except BlockingIOError:raise base.Stop('DATABASE_CONFIG_UPDATE_ALREADY_ACTIVE')
-        return save_config_locked(path,values)
+        return save_config_locked(path,values,remove_keys)
 
-def save_config_locked(path,values):
+def save_config_locked(path,values,remove_keys=()):
     base.require(not path.is_symlink(),'DATABASE_CONFIG_SYMLINK_REJECTED')
     base.require(all(re.fullmatch(r'[A-Z][A-Z0-9_]*',k) and isinstance(v,str) and not any(ord(c)<32 or ord(c)==127 for c in v) for k,v in values.items()),'DATABASE_CONFIG_VALUE_INVALID')
     parent=path.parent
@@ -57,6 +58,7 @@ def save_config_locked(path,values):
     for line in lines:
         match=re.match(r'^\s*(?:export\s+)?([A-Z][A-Z0-9_]*)\s*=',line)
         key=match.group(1) if match else None
+        if key in remove_keys:continue
         if key in values:
             base.require(key not in seen,'DATABASE_CONFIG_DUPLICATE_KEY');seen.add(key);result.append(key+'='+values[key]+'\n')
         else:result.append(line)

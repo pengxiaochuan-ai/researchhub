@@ -50,7 +50,7 @@ export function refreshBackendHub({context,source=repository,sourceGit}){
  const resources=['pages/h01/src/china.json','docs/reference/china-administrative-divisions/mca-2024.html','docs/reference/city-map-2026-11-10/manifest.json',...['Q74881-2548806680','Q956-2565775546','Q8686-2554225580'].map(id=>'docs/reference/city-map-2026-11-10/wikidata/'+id+'.json')];
  const bytes=resources.map(path=>({path,bytes:readFileSync(join(existsSync(join(source,path))?source:join(context,'hub'),path))}));
  rmSync(join(context,'hub'),{recursive:true});
- for(const dir of ['server','src','scripts','integrations','skill','deploy'])copyCode(join(source,dir),join(context,'hub',dir));
+ for(const dir of ['server','src','scripts','integrations','skill','deploy','services'])if(existsSync(join(source,dir)))copyCode(join(source,dir),join(context,'hub',dir));
  for(const file of bytes)save(join(context,'hub',file.path),file.bytes);
  save(join(context,'hub/package.json'),JSON.stringify({name:'researchhub-backend',private:true,type:'module',version:'1.0.0'})+'\n');
  save(join(context,'Dockerfile'),readFileSync(join(source,'deploy/backend.Dockerfile')));
@@ -74,7 +74,7 @@ export function prepareBackendPackage({core,expectedDigest,output}){
  const npmrc=join(output,'build.npmrc');save(npmrc,'registry=https://registry.npmjs.org\nignore-scripts=true\naudit=false\nfund=false\nfetch-timeout=15000\nfetch-retries=1\n');
  execFileSync('npm',['install','--package-lock-only','--ignore-scripts','--no-audit','--no-fund','--userconfig='+npmrc],{cwd:join(output,'core'),stdio:['ignore','pipe','pipe'],timeout:180000});
  const result=sealCoreBundle(join(output,'core'));
- for(const dir of ['server','src','scripts','integrations','skill','deploy'])copyCode(join(repository,dir),join(output,'hub',dir));
+ for(const dir of ['server','src','scripts','integrations','skill','deploy','services'])if(existsSync(join(repository,dir)))copyCode(join(repository,dir),join(output,'hub',dir));
  const resources=['pages/h01/src/china.json','docs/reference/china-administrative-divisions/mca-2024.html','docs/reference/city-map-2026-11-10/manifest.json',...['Q74881-2548806680','Q956-2565775546','Q8686-2554225580'].map(id=>'docs/reference/city-map-2026-11-10/wikidata/'+id+'.json')];
  for(const path of resources)save(join(output,'hub',path),readFileSync(join(repository,path)));
  save(join(output,'hub/package.json'),JSON.stringify({name:'researchhub-backend',private:true,type:'module',version:'1.0.0'})+'\n');

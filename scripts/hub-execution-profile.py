@@ -1,8 +1,10 @@
 """Sealed execution state shared by release validation and rollback. No quota reset."""
 import calendar,datetime,hashlib,json,pathlib,re
+from urllib.parse import urlsplit
 
 PROFILE='bounded-hub-chat-v1'
 KNOWLEDGE_PROFILE='bounded-hub-knowledge-v2'
+STANDARD_PROFILE='standard'
 ROOT=pathlib.Path('/srv/researchhub/ops/chat-runtime')
 CORE='85a0f5c5e7b5155b1593e04baaebd534322d8cb2b41d2847e394e54a5ad75135'
 KNOWLEDGE_CORE='55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669'
@@ -11,9 +13,30 @@ ACCOUNTS={'rh-kb-local-b0e2af9d-admin','rh-kb-local-b0e2af9d-owner'}
 def need(ok,code):
  if not ok:raise ValueError(code)
 
+def proposed(release,saved):
+ """The approved normal-mode transition; unrelated saved parameters survive."""
+ desired=dict(saved)
+ if release.get('executionPolicy',{}).get('profile')==STANDARD_PROFILE:
+  desired.update(HUB_EXECUTION_PROFILE=STANDARD_PROFILE,HUB_PAID_AI_ENABLED='true',ENABLED_WORKER_KINDS='knowledge-chat,knowledge-import',HUB_EMBEDDING_MODE='service')
+  desired['KB_DOC_PARSER_URL']=saved.get('KB_DOC_PARSER_URL') or 'http://researchhub-doc-parser:8200'
+  desired['KB_EMBED_URL']=saved.get('KB_EMBED_URL') or 'http://researchhub-embed:8199'
+ return desired
+
 def values(saved):
  profile=saved.get('HUB_EXECUTION_PROFILE','disabled')
- need(profile in ('disabled',PROFILE,KNOWLEDGE_PROFILE),'HUB_EXECUTION_PROFILE_REJECTED')
+ need(profile in ('disabled',PROFILE,KNOWLEDGE_PROFILE,STANDARD_PROFILE),'HUB_EXECUTION_PROFILE_REJECTED')
+ if profile==STANDARD_PROFILE:
+  fixed={'CONTROL_PLANE_ENABLED':'false','OFFICIAL_JOB_KINDS':'','HUB_EMBEDDING_MODE':'service','HUB_MAIL_MODE':saved.get('HUB_MAIL_MODE','disabled'),'HUB_EXECUTION_PROFILE':STANDARD_PROFILE,'HUB_PAID_AI_ENABLED':'true','ENABLED_WORKER_KINDS':'knowledge-chat,knowledge-import'}
+  need(saved.get('HUB_EMBEDDING_MODE')=='service','HUB_STANDARD_EMBEDDING_REQUIRED')
+  for key in ('KB_DOC_PARSER_URL','KB_EMBED_URL'):
+   value=saved.get(key,'');url=urlsplit(value)
+   need(url.scheme in ('http','https') and url.hostname and not url.username and not url.password and url.path in ('','/') and not url.query and not url.fragment,'HUB_STANDARD_DEPENDENCY_REQUIRED')
+   fixed[key]=value
+  for key in ('HUB_PAID_AI_ENABLED','ENABLED_WORKER_KINDS'):
+   need(saved.get(key,fixed[key])==fixed[key],'HUB_EXECUTION_STATE_MISMATCH')
+  # Archived acceptance settings remain on disk; standard neither reads their
+  # admission/ledger nor resets counters. Native permissions/quota govern use.
+  return fixed
  extension=saved.get('HUB_CHAT_BUDGET_EXTENSION')
  if extension is not None:
   need(extension=='citation-review-v1' and profile==KNOWLEDGE_PROFILE,'HUB_CHAT_BUDGET_EXTENSION_REJECTED')
@@ -33,7 +56,7 @@ def support(release,saved):
  state=values(saved)
  profile=state['HUB_EXECUTION_PROFILE']
  if profile!='disabled':
-  cores=[KNOWLEDGE_CORE] if profile==KNOWLEDGE_PROFILE else [CORE,KNOWLEDGE_CORE]
+  cores=[KNOWLEDGE_CORE] if profile in (KNOWLEDGE_PROFILE,STANDARD_PROFILE) else [CORE,KNOWLEDGE_CORE]
   need(profile in release.get('supportedExecutionProfiles',[]) and release.get('coreDigest') in cores,'HUB_ROLLBACK_EXECUTION_UNSUPPORTED')
  if state.get('HUB_CHAT_BUDGET_EXTENSION'):need(state['HUB_CHAT_BUDGET_EXTENSION'] in release.get('supportedBudgetExtensions',[]),'HUB_BUDGET_EXTENSION_ROLLBACK_UNSUPPORTED')
  return state
@@ -57,7 +80,7 @@ def sealed(saved):
  return a
 
 def admitted_jobs(saved):
- if saved.get('HUB_EXECUTION_PROFILE','disabled')=='disabled':return {}
+ if saved.get('HUB_EXECUTION_PROFILE','disabled') in ('disabled',STANDARD_PROFILE):return {}
  a=sealed(saved);p=ROOT/'ledger'/'budget.json'
  need(p.is_file() and not p.is_symlink() and p.stat().st_size<262144 and p.stat().st_uid==1000 and p.stat().st_mode&0o077==0,'HUB_CHAT_LEDGER_REQUIRED')
  s=json.loads(p.read_text());v2=a['schema']=='hub-chat-admission.v2';need(s.get('schema')==('hub-chat-budget.v2' if v2 else 'hub-chat-budget.v1') and s.get('admissionSha')==saved['HUB_CHAT_ADMISSION_SHA256'] and s.get('campaignId')==a['campaignId'],'HUB_CHAT_LEDGER_CHANGED')

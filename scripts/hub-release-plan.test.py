@@ -1,6 +1,8 @@
 import importlib.util,pathlib,unittest
 s=importlib.util.spec_from_file_location('plan',str(pathlib.Path(__file__).with_name('hub-release-plan.py')));m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 class Changes(unittest.TestCase):
+ def test_plain_http_guard_and_knowledge_dependencies_are_backend_without_ddl(self):
+  self.assertEqual(m.classify(['server/auth/study-scope-guard.mjs','services/knowledge/parser.py']),{'frontend':False,'backend':True,'database':False})
  def test_page_only(self):self.assertEqual(m.classify(['pages/h01/src/main.jsx','pages/shared/Button.css','Dockerfile']),{'frontend':True,'backend':False,'database':False})
  def test_exact_release_controls_do_not_rebuild_api(self):
   self.assertEqual(m.classify(sorted(m.RELEASE_CONTROL_PATHS)),{'frontend':False,'backend':False,'database':False})

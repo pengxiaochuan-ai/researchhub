@@ -3,6 +3,12 @@ from urllib.parse import urlsplit,unquote
 p=pathlib.Path(__file__).with_name('demo-database-config.py');s=importlib.util.spec_from_file_location('m',str(p));m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 
 class ConnectionTests(unittest.TestCase):
+    def test_restore_removes_only_explicit_keys_and_preserves_secrets(self):
+        with tempfile.TemporaryDirectory() as d:
+            p=pathlib.Path(d)/'private/.env.prod'
+            m.save_config(p,{'DATABASE_URL':'private','HUB_EXECUTION_PROFILE':'standard','KB_EMBED_URL':'http://new:8199'})
+            m.save_config(p,{'HUB_EXECUTION_PROFILE':'disabled'},remove_keys=['KB_EMBED_URL'])
+            self.assertEqual(m.read_config(p),{'DATABASE_URL':'private','HUB_EXECUTION_PROFILE':'disabled'})
     def test_connection_strings_encode_credentials_and_bind_new_database(self):
         secret='a:@/#? %\\z'*4;url=m.connection_url({'host':'private.invalid','port':5432},'researchhub_demo_app',secret)
         u=urlsplit(url);self.assertEqual(unquote(u.password),secret);self.assertEqual(u.path,'/researchhub');self.assertEqual(u.username,'researchhub_demo_app');self.assertIn('sslmode=disable',u.query)

@@ -1,3 +1,4 @@
+import {coreSourcePath} from '../server/research-runtime/dependencies.mjs';
 import assert from 'node:assert/strict';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {edcDigest,exactEdcFields,syntheticDataBasis,syntheticQualityCurrent} from './synthetic-edc-contract.mjs';
@@ -7,7 +8,7 @@ import {sourceState} from './knowledge-ai-contract.mjs';
 export const EDC_AI_REQUEST_TEXT='请依据当前合成资料，解释本人合成采集质控快照中的选定问题，提出待研究者确认的问题并标注来源。';
 
 export function createSyntheticEdcAi({ids,edc,plans,prisma,quota,own,ownInTx,require,root}){
- const {HttpException}=require('@nestjs/common'),{lockAuthorizationMutation}=require(root+'app/server/src/common/worker-publication.ts');
+ const {HttpException}=require('@nestjs/common'),{lockAuthorizationMutation}=require(coreSourcePath('common/worker-publication'));
  const enqueue=new AsyncLocalStorage();let queue;
  const text=EDC_AI_REQUEST_TEXT;
  const fail=(code,message,status=409)=>{throw new HttpException({code,message},status);};

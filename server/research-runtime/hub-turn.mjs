@@ -60,7 +60,7 @@ export function fenceHubQueue(prisma,authorize,after=async()=>{}){
   },...opts);
   const value=Reflect.get(target,key);return typeof value==='function'?value.bind(target):value;
  }});
- return{prisma:new Proxy(prisma,{get(target,key){if(key==='app')return app;const v=Reflect.get(target,key);return typeof v==='function'?v.bind(target):v;}}),bind(queue){
+ return{get active(){return Boolean(context.getStore());},prisma:new Proxy(prisma,{get(target,key){if(key==='app')return app;const v=Reflect.get(target,key);return typeof v==='function'?v.bind(target):v;}}),bind(queue){
   const enqueue=queue.enqueue.bind(queue);
   queue.enqueue=(user,sessionId,input)=>context.run({user,sessionId},()=>enqueue(user,sessionId,input));
   return queue;

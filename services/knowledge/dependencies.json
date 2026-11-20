@@ -1,0 +1,11 @@
+{
+  "schema": "researchhub-knowledge-dependencies.v1",
+  "bases": {
+    "parser": {
+      "id": "sha256:7456a6f76ca6f197d4b892c23732344b43462e610904cd378f4be7456f29cc23"
+    },
+    "embedding": {
+      "id": "sha256:225704abc77d27d171b702254d41c8e1f04ee147f8d93fa5c807d555826cce84"
+    }
+  }
+}

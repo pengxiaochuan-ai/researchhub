@@ -57,7 +57,7 @@ export async function createRuntimeFoundation({config,env,load,require,prisma,jw
   await createDirectoryController({env:transactionEnv,ids,require,runtimePolicy}),await createReferenceController({env:transactionEnv,require,runtimePolicy}),await createResearchIdentityController({env:transactionEnv,ids,load,require,runtimePolicy}),
   createGovernanceAuditController({env:transactionEnv,ids,require,load}),createGovernanceSystemController({env:transactionEnv,ids,require,readState}),createGovernanceUsersController({require,service:users,origin:config.origin}),
   createMyResearchController({ids,prisma,load,require,runtime:true})];
- const providers=createRuntimeProviders({load,require,prisma,scope:config.scope,cookieName:config.cookieName,jwt,storage,embeddingMode,stopGates,modelEnabled:env.HUB_PAID_AI_ENABLED==='true',chatBudget,coreDigest:config.core.digest,createChat:services=>(chat=createRuntimeChat({config,env,transactionEnv,prisma,load,services,chatBudget}))});
+ const providers=createRuntimeProviders({load,require,prisma,scope:config.scope,cookieName:config.cookieName,jwt,storage,embeddingMode,stopGates,modelEnabled:env.HUB_PAID_AI_ENABLED==='true',chatBudget,coreDigest:config.core.digest,executionProfile:config.executionProfile,createChat:services=>(chat=createRuntimeChat({config,env,transactionEnv,prisma,load,services,chatBudget}))});
  return{Controllers,providers,storage,transactionEnv,runtimePolicy,ids,
   bindWorkers:app=>{queue=app.get(load('sessions/knowledge-chat-queue.service','KnowledgeChatQueueService'));for(const[path,name]of [['knowledge/knowledge-import.service','KnowledgeImportService'],['ingest/raw-processing.service','RawProcessingService']]){
    const instance=app.get(load(path,name));

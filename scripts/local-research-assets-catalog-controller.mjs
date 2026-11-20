@@ -1,3 +1,4 @@
+import {coreSourcePath} from '../server/research-runtime/dependencies.mjs';
 import{assertDeploymentRequest}from'../server/http/deployment-request.mjs';
 import {assetDetailAiBusinessError} from './research-assets-detail-ai-errors.mjs';
 import {catalogError} from './research-assets-catalog-contract.mjs';
@@ -6,7 +7,7 @@ import {assertAssetHttpContext} from './local-research-assets-registration-contr
 /** Static catalog routes must be registered before the unchanged V1 :id reader. */
 export function createAssetCatalogController({root,require,reader,views,details,comments,files,reuse,ai,reportQa,overview,scopedUser,load,runtimePolicy,origin='http://127.0.0.1:19501'}){
  const {Controller,Get,Head,Post,Body,Req,Param,HttpException,StreamableFile,SetMetadata}=require('@nestjs/common');
- const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=(load?Object.fromEntries(['RequireStudyGroup','RequireResearchProject','RequireStudyGroupMenu','RequireStudyGroupPermission'].map(name=>[name,load('common/decorators',name)])):require(root+'app/server/src/common/decorators.ts'));
+ const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=(load?Object.fromEntries(['RequireStudyGroup','RequireResearchProject','RequireStudyGroupMenu','RequireStudyGroupPermission'].map(name=>[name,load('common/decorators',name)])):require(coreSourcePath('common/decorators')));
  const assertContext=(req,options={})=>{if(runtimePolicy)assertDeploymentRequest(req,runtimePolicy,{json:false});return assertAssetHttpContext(req,options);};
  class AssetCatalogController{
   reportQaStatus(req,id,v){return this.run(req,()=>{if(Object.keys(req.query??{}).length)throw catalogError('INPUT_INVALID',400);return reportQa.status(req.user,id,v);});}

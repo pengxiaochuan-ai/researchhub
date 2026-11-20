@@ -1,10 +1,10 @@
+import {coreSourcePath} from '../research-runtime/dependencies.mjs';
 import {Module,createRequire} from 'node:module';
-import {fileURLToPath} from 'node:url';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {researchError} from '../research-studies/contract.mjs';
 import {fullStudyHash} from './full-study-projection.mjs';
 
-const source=name=>fileURLToPath(new URL('../../../app/server/src/study-operations/'+name+'.ts',import.meta.url));
+const source=name=>coreSourcePath('study-operations/'+name);
 const reads=new Set(['findFirst','findUnique','findMany','findFirstOrThrow','findUniqueOrThrow','count','aggregate','groupBy']);
 const changed=()=>researchError(409,'FULL_STUDY_PAIR_CONTEXT_CHANGED','当前来源读取上下文已变化，请重新核对。');
 const noWrite=()=>researchError(500,'FULL_STUDY_PAIR_WRITE_REJECTED','来源成对读取不允许写入。');

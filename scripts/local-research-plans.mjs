@@ -1,3 +1,4 @@
+import {coreSourcePath} from '../server/research-runtime/dependencies.mjs';
 // Local, approved candidate-only adapter. Old domain services and tables remain authoritative.
 import assert from 'node:assert/strict';
 import {AsyncLocalStorage} from 'node:async_hooks';
@@ -8,11 +9,11 @@ import {preparationSummary,assertPreparationIdle} from './research-execution-pre
 
 export async function createLocalResearchPlans({root,ids,prisma,knowledge,storage,load,require,quota,own}){
  const {Controller,Get,Post,Req,Body,Param,Query,HttpException}=require('@nestjs/common');
- const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(root+'app/server/src/common/decorators.ts');
- const {withCurrentKnowledgeRead}=require(root+'app/server/src/knowledge/retrieval.service.ts');
- const {lockAuthorizationMutation}=require(root+'app/server/src/common/worker-publication.ts');
- const {buildResearchStudyPlanDraft}=require(root+'app/server/src/research-evidence/research-study-plan.ts');
- const {canonicalArtifactJson}=require(root+'app/server/src/research-artifacts/research-artifact-integrity.ts');
+ const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(coreSourcePath('common/decorators'));
+ const {withCurrentKnowledgeRead}=require(coreSourcePath('knowledge/retrieval.service'));
+ const {lockAuthorizationMutation}=require(coreSourcePath('common/worker-publication'));
+ const {buildResearchStudyPlanDraft}=require(coreSourcePath('research-evidence/research-study-plan'));
+ const {canonicalArtifactJson}=require(coreSourcePath('research-artifacts/research-artifact-integrity'));
  const Retrieval=load('knowledge/retrieval.service','RetrievalService'),Artifacts=load('research-artifacts/research-artifacts.service','ResearchArtifactsService');
  const retrieval=new Retrieval(prisma,null),enqueue=new AsyncLocalStorage();let queue;
  const error=(code,message,status=409)=>new HttpException({code,message},status);

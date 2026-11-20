@@ -1,10 +1,11 @@
+import {coreSourcePath} from '../server/research-runtime/dependencies.mjs';
 // Approved private synthetic candidates only. No formal Asset/template publication.
 import{ASSET_MARKER,assetHash,buildAssetSnapshot,deriveAssetLineage,renderAssetDraft,validateAssetNotes}from'./synthetic-asset-contract.mjs';
 import{hashText}from'./knowledge-ai-contract.mjs';
 export async function createLocalSyntheticAssets({root,ids,prisma,require,service,withScope,inReport}){
  const{Controller,Get,Post,Req,Body,Param,Query,HttpException}=require('@nestjs/common');
- const{RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(root+'app/server/src/common/decorators.ts');
- const{lockAuthorizationMutation}=require(root+'app/server/src/common/worker-publication.ts');
+ const{RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(coreSourcePath('common/decorators'));
+ const{lockAuthorizationMutation}=require(coreSourcePath('common/worker-publication'));
  const prefix='rh-asset-20261022:',typeKey='research_report',fail=(code,message,status=409)=>{throw new HttpException({code,message},status);};
  const invalid=()=>fail('ASSET_INPUT_INVALID','资产候选请求字段、版本或说明格式无效',400),deny=()=>fail('ASSET_FORBIDDEN','当前账号或研究没有该本人资产候选权限',403);
  const id=value=>{if(typeof value!=='string'||!/^[A-Za-z0-9_-]{1,160}$/.test(value))invalid();return value;};

@@ -6,11 +6,13 @@ services:
       - /srv/researchhub/ops/.env.prod
     environment:
       CONTROL_PLANE_ENABLED: 'false'
-      ENABLED_WORKER_KINDS: ${ENABLED_WORKER_KINDS:-}
+      ENABLED_WORKER_KINDS: ${ENABLED_WORKER_KINDS:-knowledge-chat,knowledge-import}
       OFFICIAL_JOB_KINDS: ''
-      HUB_PAID_AI_ENABLED: ${HUB_PAID_AI_ENABLED:-false}
-      HUB_EXECUTION_PROFILE: ${HUB_EXECUTION_PROFILE:-disabled}
-      HUB_EMBEDDING_MODE: keyword-only
+      HUB_PAID_AI_ENABLED: ${HUB_PAID_AI_ENABLED:-true}
+      HUB_EXECUTION_PROFILE: ${HUB_EXECUTION_PROFILE:-standard}
+      HUB_EMBEDDING_MODE: ${HUB_EMBEDDING_MODE:-service}
+      KB_DOC_PARSER_URL: ${KB_DOC_PARSER_URL:-http://researchhub-doc-parser:8200}
+      KB_EMBED_URL: ${KB_EMBED_URL:-http://researchhub-embed:8199}
       HUB_MAIL_MODE: disabled
     ports:
       - '127.0.0.1:19612:19612'
@@ -51,6 +53,48 @@ services:
       timeout: 5s
       retries: 6
       start_period: 30s
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+  researchhub-doc-parser:
+    image: ${HUB_KNOWLEDGE_PARSER_IMAGE:-ghcr.io/pengxiaochuan-ai/aisci-kb-doc-parser:runtime-split-v1}
+    networks: [hub]
+    expose: ['8200']
+    init: true
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ['/tmp:size=2g,mode=1777', '/home/app:size=256m']
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    mem_limit: 4g
+    cpus: 2
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8200/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+  researchhub-embed:
+    image: ${HUB_KNOWLEDGE_EMBED_IMAGE:-ghcr.io/pengxiaochuan-ai/aisci-kb-embed:bge-small-zh-v1.5-v1}
+    networks: [hub]
+    expose: ['8199']
+    init: true
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ['/tmp:size=256m']
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    mem_limit: 1536m
+    cpus: 1
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8199/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
     logging:
       driver: json-file
       options: {max-size: 10m, max-file: '3'}

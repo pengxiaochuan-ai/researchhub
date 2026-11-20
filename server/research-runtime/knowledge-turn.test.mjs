@@ -1,7 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createKnowledgeTurnRuntime,bindKnowledgeSynthesisQuestion} from './knowledge-turn.mjs';
+import {createKnowledgeTurnRuntime,bindKnowledgeSynthesisQuestion,isPlainKnowledgeTurn,KNOWLEDGE_SOURCE_POLICY} from './knowledge-turn.mjs';
 import {hubCoreQuestion} from '../../scripts/hub-agent-contract.mjs';
+
+test('local and production synthesis apply the same grounded advice contract to the actual question',()=>{
+ const question='资料明确建议了什么？',messages=q=>[{role:'system',content:'仅据来源回答'},{role:'user',content:'用户问题：'+q+'\n[1] 原始证据'}];
+ assert.deepEqual(bindKnowledgeSynthesisQuestion(messages(question),question,question),bindKnowledgeSynthesisQuestion(messages(hubCoreQuestion),question));
+ assert.equal(KNOWLEDGE_SOURCE_POLICY,'rh-kb-reviewed-source-v2-grounded-advice');
+ assert.throws(()=>bindKnowledgeSynthesisQuestion(messages('different'),question,question),/INPUT_CHANGED/);
+});
+test('plain knowledge policy never captures specialized research workflows',()=>{
+ const plain={kbId:'kb',query:'question'};assert.equal(isPlainKnowledgeTurn(plain),true);
+ for(const key of ['hub','plan','design','preparation','edc','crf','applicability','assetDetail','mediaPack','dataPack','privateMaterials'])assert.equal(isPlainKnowledgeTurn({...plain,[key]:{}}),false,key);
+ for(const missing of [{query:'question'},{kbId:'kb'},null])assert.equal(isPlainKnowledgeTurn(missing),false);
+});
 
 function harness({revoke=false,noEvidence=false,failModel=false,wrongCitation=false,missingLedger=false,numericBlocked=false}={}){
  const calls=[],user={tenantId:'t',accountId:'owner',studyGroupId:'g',researchProjectId:'p',authVersion:0};
