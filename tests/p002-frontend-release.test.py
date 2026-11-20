@@ -13,6 +13,32 @@ def manifest(tag,front):
   'files':{'backend-image.tar.gz':{'bytes':5,'sha256':'f'*64},'backend-compose.yml':{'bytes':7,'sha256':'1'*64}},'supportedExecutionProfiles':['disabled']}
 
 class FrontendReleaseTests(unittest.TestCase):
+ def setUp(self):
+  old=dict(pair.m.EXECUTION_SAVED);self.addCleanup(setattr,pair.m,'EXECUTION_SAVED',old);pair.m.EXECUTION_SAVED={}
+ def active_state(self):
+  return {'HUB_EXECUTION_PROFILE':pair.m.execution.KNOWLEDGE_PROFILE,'HUB_CHAT_ADMISSION_SHA256':'a'*64,'HUB_CHAT_ADMISSION_FILE':'/run/researchhub-admission/admission.json','HUB_CHAT_LEDGER_DIR':'/run/researchhub-ai-ledger','HUB_PAID_AI_ENABLED':'true','ENABLED_WORKER_KINDS':'knowledge-chat,knowledge-import'}
+ def validation_inputs(self):
+  state=self.active_state();tenant=pair.m.TENANT
+  state.update({'HUB_DATABASE_NAME':'researchhub','HUB_DATABASE_APP_ROLE':'researchhub_demo_app','HUB_DATABASE_OWNER_ROLE':'researchhub_demo_owner','HUB_DATABASE_MARKER_SHA256':'b'*64,'HUB_SCHEMA_FINGERPRINT':'c'*32,'DEFAULT_TENANT_ID':tenant,'ALLOWED_TENANT_IDS':tenant,'DEPLOYMENT_PRODUCT':'researchhub','VITE_AUTH_TENANT_SLUG':tenant,'DEPLOYMENT_ID':'researchhub-demo-20261119','HUB_SOURCE_REVIEWER_ACCOUNT_ID':'rh-kb-local-b0e2af9d-admin','S3_ENDPOINT':'https://oss-cn-hangzhou.aliyuncs.com','S3_BUCKET':'synthetic-researchhub','S3_ACCESS_KEY':'synthetic','S3_SECRET_KEY':'synthetic','JWT_SECRET':'s'*40,'AUTH_COOKIE_NAME':'researchhub_demo_session'})
+  old=manifest('hub-runtime-bbbbbbbb-2','old');old.update(coreDigest=pair.m.execution.KNOWLEDGE_CORE,tenantSlug=tenant,supportedExecutionProfiles=[pair.m.execution.KNOWLEDGE_PROFILE]);new=copy.deepcopy(old);new['tag']='hub-runtime-cccccccc-3';new['executionPolicy']={'profile':pair.m.execution.PROFILE,'admissionSha256':'f'*64}
+  target={'database':'researchhub','tenantId':tenant,'markerSha256':'b'*64,'schemaFingerprint':'c'*32};return old,new,state,target
+ def test_frontend_only_validation_uses_current_supported_policy_and_original_backend_tag(self):
+  old,new,state,target=self.validation_inputs();original=copy.deepcopy(new)
+  context=pair.backend_configuration_context(old,new,state,True)
+  result=pair.m.plan_configuration(state,context,target,{})
+  self.assertEqual(context['tag'],'hub-runtime-aaaaaaaa-1');self.assertEqual(context['backendImage'],old['backendImage'])
+  self.assertEqual(context['executionPolicy'],{'profile':pair.m.execution.KNOWLEDGE_PROFILE,'admissionSha256':'a'*64})
+  self.assertEqual(result['HUB_CHAT_ADMISSION_SHA256'],state['HUB_CHAT_ADMISSION_SHA256']);self.assertEqual(new,original)
+ def test_backend_changing_validation_keeps_strict_proposed_policy(self):
+  old,new,state,target=self.validation_inputs();context=pair.backend_configuration_context(old,new,state,False)
+  self.assertIs(context,new)
+  with self.assertRaisesRegex(pair.m.Stop,'EXECUTION_POLICY_MISMATCH'):pair.m.plan_configuration(state,context,target,{})
+ def test_unknown_or_inconsistent_current_execution_is_never_adopted(self):
+  old,new,state,_=self.validation_inputs()
+  for changes in [{'HUB_EXECUTION_PROFILE':'unknown'},{'ENABLED_WORKER_KINDS':'research-agent'},{'HUB_PAID_AI_ENABLED':'false'},{'HUB_CHAT_ADMISSION_SHA256':'not-a-digest'}]:
+   with self.assertRaises(pair.m.Stop):pair.backend_configuration_context(old,new,dict(state,**changes),True)
+  old['supportedExecutionProfiles']=[]
+  with self.assertRaisesRegex(pair.m.Stop,'EXECUTION_UNSUPPORTED'):pair.backend_configuration_context(old,new,state,True)
  def test_reused_backend_reference_remains_exactly_original(self):
   old=manifest('old','old');self.assertEqual(release.backend_reference(old,'hub-runtime-bbbbbbbb-2',False),old['backendImage'])
   self.assertEqual(release.backend_reference(old,'hub-runtime-bbbbbbbb-2',True),'researchhub-backend:hub-runtime-bbbbbbbb-2')

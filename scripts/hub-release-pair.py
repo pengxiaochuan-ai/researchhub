@@ -47,6 +47,19 @@ def backend_snapshot(items,release,target):
   'configSha256':hashlib.sha256(json.dumps(api['Config'],sort_keys=True,separators=(',',':')).encode()).hexdigest(),
   'startedAt':api['State']['StartedAt'],'restartCount':api.get('RestartCount',0),'envProdSha256':m.file_sha(m.OPS/'.env.prod')}
 
+def backend_configuration_context(previous,release,saved,keep_backend):
+ if not keep_backend:return release
+ # This validates the running backend, not a proposed execution-policy change.
+ # support still rejects unknown profiles, inconsistent workers and unsupported
+ # cores; the sealed admission/ledger and immutable runtime are checked below.
+ state=m.execution.support(previous,saved)
+ match=re.fullmatch(r'researchhub-backend:(hub-runtime-[a-f0-9]{8}-[0-9]+)',previous.get('backendImage',''))
+ need(match is not None,'HUB_RUNTIME_IMAGE_REJECTED')
+ context=dict(previous,tag=match.group(1))
+ context['executionPolicy']={'profile':state['HUB_EXECUTION_PROFILE']}
+ if state['HUB_EXECUTION_PROFILE']!='disabled':context['executionPolicy']['admissionSha256']=state['HUB_CHAT_ADMISSION_SHA256']
+ return context
+
 FRONT_TEMPLATE=HERE/'frontend-compose.yml';BACK_TEMPLATE=HERE/'backend-compose.yml'
 
 def owned_pair(items,release):
@@ -161,7 +174,7 @@ def run(action,sha):
  release['images']['frontend']['id']=m.canonical_image_id(HERE/'researchhub.tar.gz',release['frontendImage'],release['files']['researchhub.tar.gz']['sha256'])
  for kind in ('frontend','backend'):
   if release['images'][kind].get('configId'):need(release['images'][kind]['configId']==release['images'][kind]['id'],'HUB_PAIR_MANIFEST_CANONICAL_MISMATCH')
- helper=m.helper_module();saved=helper.read_config(m.OPS/'.env.prod');m.plan_configuration(saved,release,control['target'],{})
+ helper=m.helper_module();saved=helper.read_config(m.OPS/'.env.prod');backend_plan=backend_configuration_context(previous,release,saved,keep_backend);m.plan_configuration(saved,backend_plan,control['target'],{})
  m.execution.core_transition(previous,release,saved,control.get('coreUpgrade'))
  m.execution.support(previous,saved)
  if saved.get('HUB_EXECUTION_PROFILE') in (m.execution.PROFILE,m.execution.KNOWLEDGE_PROFILE):
