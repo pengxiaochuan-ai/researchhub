@@ -1,3 +1,7 @@
+## 2026-11-20 · 精确区分运行依赖与手动数据库操作包
+
+`deploy/backend-runtime-exclusions.json`列出21份手动安装、迁移候选和合成操作脚本。源码保留main/本机，运行镜像不携带这些准确路径。封包检查正式入口的Hub内部字面量模块导入依赖不得缺失；静态检查不代替真实启动。planner在excludedDatabasePaths留痕，实际运行SQL/prisma/未排除DDL仍要求原databaseApproved，不填造批准摘要、不执行迁移；数据库身份、marker、schema指纹守门不变。JS注释不作为SQL证据，真实字符串/模板中的DDL继续识别。既有databaseSources若只是历史注释误报，保留来源记录但不再次将纯代码修改误报为DDL。
+
 # 前后端统一发布流水线
 
 > 当前阶段：代码8f5aee0已进入main；GitHub演练44524167160及实际成对发布44525278754均成功，现运行hub-runtime-8f5aee04-44525278754001。数据库迁移仍独立确认。

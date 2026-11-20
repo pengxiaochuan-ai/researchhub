@@ -45,11 +45,17 @@ def tree(revision):
 def production_source(path):
  return not (path=='scripts/hub-release-rehearsal.py' or path.startswith(('tests/','docs/testing/','docs/test/','scripts/fixtures/')) or re.search(r'\.(?:test|spec)\.[^.]+$',path))
 
+def without_js_comments(text):
+ # Keep every quoted SQL/template byte; only discard actual JS line/block comments.
+ tokens=re.compile(r"('(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\"|`(?:\\.|[^`\\])*`)|//[^\n]*|/\*[\s\S]*?\*/")
+ return tokens.sub(lambda match:match.group(1) if match.group(1) is not None else '\n',text)
+
 def embedded_ddl(text,path):
  ddl=re.compile(r"\b(?:(?:CREATE|ALTER|DROP)\s+(?:(?:OR\s+REPLACE|TEMP(?:ORARY)?|UNLOGGED|UNIQUE|CONCURRENTLY|IF\s+NOT\s+EXISTS)\s+)*(?:TABLE|SCHEMA|TYPE|FUNCTION|EXTENSION|INDEX|POLICY|TRIGGER|VIEW|MATERIALIZED\s+VIEW|SEQUENCE|ROLE|USER|DATABASE|PROCEDURE|AGGREGATE|RULE|OPERATOR|COLLATION|DOMAIN|TABLESPACE|PUBLICATION|SUBSCRIPTION|SERVER|FOREIGN\s+(?:TABLE|DATA\s+WRAPPER)|STATISTICS|EVENT\s+TRIGGER|TRANSFORM|LANGUAGE|ACCESS\s+METHOD)\b|(?:GRANT|REVOKE|TRUNCATE|COMMENT\s+ON)\s+)",re.I)
  if path.endswith('.py'):
   try:text='\n'.join(n.value for n in ast.walk(ast.parse(text)) if isinstance(n,ast.Constant) and isinstance(n.value,str))
   except SyntaxError:pass
+ if path.endswith(('.js','.mjs','.ts')):text=without_js_comments(text)
  return bool(ddl.search(text))
 
 def private_core_path_only(before,after,path):
@@ -62,20 +68,30 @@ def private_core_path_only(before,after,path):
  expected="import {coreSourcePath} from '"+prefix+"';\n"+expected
  return after==expected
 
+def excluded_runtime_paths(revision,entries):
+ path='deploy/backend-runtime-exclusions.json'
+ if path not in entries:return set()
+ value=json.loads(git('show',revision+':'+path))
+ if value.get('schema')!='hub-manual-tools-not-runtime.v1' or not isinstance(value.get('paths'),list) or any(not isinstance(p,str) or not p.startswith(('server/','scripts/','deploy/')) or '..' in pathlib.PurePosixPath(p).parts for p in value['paths']):raise ValueError('HUB_RUNTIME_EXCLUSIONS_INVALID')
+ return set(value['paths'])
+
 def make_plan(previous,revision,approval=''):
  flags={kind:classify(changed(component_base(previous,kind),revision))[kind] for kind in ('frontend','backend')}
  last=previous.get('releaseGit') or previous['controlGit'];old_tree=tree(last);new_tree=tree(revision);known=set(previous.get('databaseSources',[]))
+ excluded=excluded_runtime_paths(revision,new_tree)
  paths=[path for path in set(old_tree)|set(new_tree) if old_tree.get(path)!=new_tree.get(path) and production_source(path)]
+ ddl_changes=set()
  # Inspect only modified modules; do not scan/fetch the whole repository for DDL.
  for path in paths:
   if path.endswith(('.mjs','.js','.ts','.py')) and not path.startswith('docs/'):
    for ref,entries in ((last,old_tree),(revision,new_tree)):
-    if path in entries and embedded_ddl(git('show',ref+':'+path),path):known.add(path);break
+    if path in entries and embedded_ddl(git('show',ref+':'+path),path):known.add(path);ddl_changes.add(path);break
  sources=sorted(known|{path for path in set(old_tree)|set(new_tree) if production_source(path) and database_path(path)})
- db_paths=sorted(path for path in paths if path in sources and not (not database_path(path) and path in old_tree and path in new_tree and private_core_path_only(git('show',last+':'+path),git('show',revision+':'+path),path)))
+ excluded_db=sorted(path for path in paths if path in sources and path in excluded)
+ db_paths=sorted(path for path in paths if path in sources and (database_path(path) or path in ddl_changes) and path not in excluded and not (not database_path(path) and path in old_tree and path in new_tree and private_core_path_only(git('show',last+':'+path),git('show',revision+':'+path),path)))
  digest=hashlib.sha256(json.dumps([[path,new_tree.get(path,'deleted')] for path in sources],separators=(',',':')).encode()).hexdigest()
  if db_paths:flags.update(frontend=True,backend=True)
- return {'schema':'researchhub-release-plan.v1','releaseGit':revision,'baselineTag':previous['tag'],'build':flags,'databaseChanged':bool(db_paths),'databasePaths':db_paths,'databaseSources':sources,'databaseDigest':digest,'databaseApproved':not db_paths or approval==digest,'releaseRequired':any(flags.values()),'databaseMigrationExecuted':False}
+ return {'schema':'researchhub-release-plan.v1','releaseGit':revision,'baselineTag':previous['tag'],'build':flags,'databaseChanged':bool(db_paths),'databasePaths':db_paths,'excludedDatabasePaths':excluded_db,'databaseSources':sources,'databaseDigest':digest,'databaseApproved':not db_paths or approval==digest,'releaseRequired':any(flags.values()),'databaseMigrationExecuted':False}
 
 def main():
  p=argparse.ArgumentParser();p.add_argument('--previous',required=True);p.add_argument('--revision',required=True);p.add_argument('--output',required=True);a=p.parse_args()

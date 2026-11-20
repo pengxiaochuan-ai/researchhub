@@ -1,3 +1,4 @@
+import {assertNoLegacyMaterialQuestion} from '../ai-agent/session-materials.mjs';
 import {ARTICLE_ORIGINAL_MISSING_MESSAGE} from '../hub-sources/article-asset-reader.mjs';
 import {createRuntimeArticle} from './article-runtime.mjs';
 import {parseArticleContext} from '../hub-sources/article-evidence.mjs';
@@ -53,7 +54,7 @@ export function createRuntimeChat({config,env,transactionEnv,prisma,load,service
   await lock(tx,user.tenantId,{includeOfficial:true});
   const session=await tx.session.findFirst({where:{id:sessionId,tenantId:user.tenantId,studyGroupId:user.studyGroupId,researchProjectId:user.researchProjectId,accountId:user.accountId,agentId,channel:'knowledge',deletedAt:null}});
   if(!session)invalid();
-  if(isHubConversation(session.contextKey))await authorize(user,tx);
+  if(isHubConversation(session.contextKey)){await authorize(user,tx);await assertNoLegacyMaterialQuestion(tx,user,sessionId);}
   else if(knowledge)await authorizeKnowledgeEnqueue({tx,user,sessionId,agentId,load,knowledge});
   else invalid();
  },async(tx,user,result)=>{

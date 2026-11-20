@@ -1,5 +1,5 @@
 import {readFileSync,writeFileSync,mkdirSync,readdirSync,existsSync,rmSync,lstatSync} from 'node:fs';
-import {resolve,join,dirname} from 'node:path';
+import {resolve,join,dirname,relative} from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {verifyCoreBundle,sealCoreBundle} from './core-bundle.mjs';
@@ -18,8 +18,19 @@ function codeInventory(root,sub=''){
  }
  return files;
 }
+export function assertRuntimeEntrypoint(hub){
+ const entry=join(hub,'server/research-runtime/start.mjs');if(!existsSync(entry))return; // Small package-contract fixtures have no runtime entry.
+ const pending=[entry],seen=new Set(),base=resolve(hub)+'/';
+ while(pending.length){const path=pending.pop();if(seen.has(path))continue;seen.add(path);
+  const code=readFileSync(path,'utf8');
+  const literals=code.matchAll(/(?:\bfrom\s*|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)['"](\.{1,2}\/[^'"]+)['"]/g);
+  for(const match of literals){const target=resolve(dirname(path),match[1]);if(!target.startsWith(base))continue;if(!existsSync(target))throw Error('BACKEND_RUNTIME_DEPENDENCY_MISSING');if(/\.(?:mjs|js|ts)$/.test(target))pending.push(target);}
+ }
+ return seen.size;
+}
 export function verifyBackendPackage(root){
  const release=JSON.parse(readFileSync(join(root,'release.json')));verifyCoreBundle(join(root,'core'),release.coreDigest);
+ assertRuntimeEntrypoint(join(root,'hub'));
  const files=codeInventory(join(root,'hub'));
  if(JSON.stringify(files)!==JSON.stringify(release.hubFiles)||createHash('sha256').update(JSON.stringify(files)).digest('hex')!==release.hubDigest)throw Error('BACKEND_CONTENT_MISMATCH');return release;
 }
@@ -30,12 +41,18 @@ export function nativePrismaSchema(source){
  if(targets?.length!==1)throw Error('BACKEND_PRISMA_GENERATOR_REJECTED');
  return source.replace(original,original.replace(targets[0],'binaryTargets = ["native"]'));
 }
-function copyCode(source,target){
+export function runtimeExclusions(root){
+ const path=join(root,'deploy/backend-runtime-exclusions.json');if(!existsSync(path))return new Set();
+ const value=JSON.parse(readFileSync(path,'utf8'));if(value.schema!=='hub-manual-tools-not-runtime.v1'||!Array.isArray(value.paths)||value.paths.some(p=>typeof p!=='string'||!p.startsWith('server/')&&!p.startsWith('scripts/')&&!p.startsWith('deploy/')||p.split('/').includes('..')))throw Error('BACKEND_RUNTIME_EXCLUSIONS_INVALID');
+ return new Set(value.paths);
+}
+function copyCode(source,target,root=repository,excluded=runtimeExclusions(root)){
  for(const entry of readdirSync(source,{withFileTypes:true})){
   if(['node_modules','.tmp','.git','evidence','fixtures','__pycache__'].includes(entry.name))continue;
   const path=join(source,entry.name),destination=join(target,entry.name);
+  if(excluded.has(relative(root,path)))continue;
   if(entry.isSymbolicLink())throw new Error('BACKEND_CODE_SYMLINK_REJECTED');
-  if(entry.isDirectory())copyCode(path,destination);
+  if(entry.isDirectory())copyCode(path,destination,root,excluded);
   else if(/\.(?:mjs|js|ts|json|sql|yaml|yml|md|xml|csv|txt)$/.test(entry.name)&&!/(?:\.test|\.spec)\.[^.]+$/.test(entry.name))save(destination,readFileSync(path));
  }
 }
@@ -57,7 +74,7 @@ export function refreshBackendHub({context,source=repository,sourceGit}){
  const resources=['pages/h01/src/china.json','docs/reference/china-administrative-divisions/mca-2024.html','docs/reference/city-map-2026-11-10/manifest.json',...['Q74881-2548806680','Q956-2565775546','Q8686-2554225580'].map(id=>'docs/reference/city-map-2026-11-10/wikidata/'+id+'.json')];
  const bytes=resources.map(path=>({path,bytes:readFileSync(join(existsSync(join(source,path))?source:join(context,'hub'),path))}));
  rmSync(join(context,'hub'),{recursive:true});
- for(const dir of ['server','src','scripts','integrations','skill','deploy'])if(existsSync(join(source,dir)))copyCode(join(source,dir),join(context,'hub',dir));
+ for(const dir of ['server','src','scripts','integrations','skill','deploy'])if(existsSync(join(source,dir)))copyCode(join(source,dir),join(context,'hub',dir),source);
  copyKnowledgeServices(source,join(context,'hub'));
  for(const file of bytes)save(join(context,'hub',file.path),file.bytes);
  save(join(context,'hub/package.json'),JSON.stringify({name:'researchhub-backend',private:true,type:'module',version:'1.0.0'})+'\n');

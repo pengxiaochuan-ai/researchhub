@@ -1,0 +1,27 @@
+{
+  "schema": "hub-manual-tools-not-runtime.v1",
+  "reason": "Manual database installation, migration candidates and synthetic fixture operators stay in the repository but are not runtime image entry points. Their SQL execution remains separately authorized.",
+  "paths": [
+    "deploy/demo-restore-server.py",
+    "deploy/manual-rds-package.mjs",
+    "deploy/manual-rds/00-check-postgres.sql",
+    "deploy/manual-rds/01-create-roles.sql",
+    "deploy/manual-rds/02-create-database.sql",
+    "deploy/manual-rds/03-init-researchhub.sql",
+    "deploy/manual-rds/07-set-passwords.sql",
+    "deploy/retire-historical-chat-queue.sql",
+    "scripts/ai-session-audio-schema.mjs",
+    "scripts/ai-session-eeglab-schema.mjs",
+    "scripts/ai-session-media-native-target-guard.mjs",
+    "scripts/ai-session-tongue-image-schema.mjs",
+    "scripts/f06-hub-assets-browser.mjs",
+    "scripts/f06-report-fixture.mjs",
+    "scripts/f07-knowledge-responsive.mjs",
+    "server/ai-agent/session-audio-guard.sql",
+    "server/ai-agent/session-eeglab-guard.sql",
+    "server/ai-agent/session-media-native-target-guard.sql",
+    "server/ai-agent/session-tongue-image-guard.sql",
+    "server/hub-assets/migration.mjs",
+    "server/hub-assets/report-source-migration.mjs"
+  ]
+}

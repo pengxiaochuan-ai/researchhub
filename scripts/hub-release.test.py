@@ -42,6 +42,20 @@ class ReleaseTests(unittest.TestCase):
     (root/'server/setup.mjs').write_text("const ddl = 'CREATE TABLE newly_hidden(id text)'");git('add','.');git('commit','-m','embedded ddl');hidden=m.plan_module.make_plan(previous,git('rev-parse','HEAD'),blocked['databaseDigest']);self.assertIn('server/setup.mjs',hidden['databasePaths']);self.assertFalse(hidden['databaseApproved'])
     for statement in ['CREATE SEQUENCE synthetic_seq','CREATE ROLE synthetic_role','CREATE DATABASE synthetic_db','CREATE UNIQUE INDEX synthetic_ix ON newly_hidden(id)']:
      (root/'server/setup.mjs').write_text('const ddl = '+repr(statement));git('add','.');git('commit','-m','DDL variant');guarded=m.plan_module.make_plan(previous,git('rev-parse','HEAD'));self.assertIn('server/setup.mjs',guarded['databasePaths']);self.assertFalse(guarded['databaseApproved'])
+ def test_exact_unpacked_manual_tools_do_not_approve_or_execute_runtime_sql(self):
+  import tempfile,subprocess
+  from unittest.mock import patch
+  with tempfile.TemporaryDirectory() as d:
+   root=pathlib.Path(d)
+   def git(*a):return subprocess.check_output(['git','-C',d,*a],stderr=subprocess.DEVNULL).decode().strip()
+   git('init');git('config','user.email','synthetic@example.test');git('config','user.name','Synthetic')
+   (root/'server').mkdir();(root/'deploy').mkdir();(root/'server/api.mjs').write_text('// grant against revoke/publication.\nexport const value=1;');git('add','.');git('commit','-m','base');base=git('rev-parse','HEAD')
+   (root/'server/api.mjs').write_text('// grant against revoke/publication.\nexport const value=2;');(root/'deploy/manual.sql').write_text('CREATE TABLE manual(id text);');(root/'deploy/backend-runtime-exclusions.json').write_text(json.dumps({'schema':'hub-manual-tools-not-runtime.v1','paths':['deploy/manual.sql']}));git('add','.');git('commit','-m','manual operator source')
+   previous={'controlGit':base,'tag':'hub-runtime-aaaaaaaa-1','databaseSources':['server/api.mjs']}
+   with patch.object(m.plan_module,'git',side_effect=lambda *a:subprocess.check_output(['git','-C',d,*a]).decode()):
+    plan=m.plan_module.make_plan(previous,git('rev-parse','HEAD'));self.assertTrue(plan['databaseApproved']);self.assertFalse(plan['databaseChanged']);self.assertEqual(plan['excludedDatabasePaths'],['deploy/manual.sql']);self.assertFalse(plan['databaseMigrationExecuted'])
+    (root/'server/runtime.sql').write_text('ALTER TABLE real ADD COLUMN v text;');git('add','.');git('commit','-m','real SQL')
+    blocked=m.plan_module.make_plan(previous,git('rev-parse','HEAD'));self.assertFalse(blocked['databaseApproved']);self.assertEqual(blocked['databasePaths'],['server/runtime.sql'])
  def test_private_core_adapter_changes_cannot_silently_reuse_a_frozen_core(self):
   import tempfile
   with tempfile.TemporaryDirectory() as d:

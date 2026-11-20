@@ -1,6 +1,11 @@
 import importlib.util,pathlib,unittest
 s=importlib.util.spec_from_file_location('plan',str(pathlib.Path(__file__).with_name('hub-release-plan.py')));m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 class Changes(unittest.TestCase):
+ def test_js_comments_are_not_sql_but_quoted_and_template_sql_still_are(self):
+  self.assertFalse(m.embedded_ddl('// locking the grant against revoke/publication.\nconst x=1;', 'server/a.mjs'))
+  self.assertFalse(m.embedded_ddl('/* CREATE TABLE is a documentation example */const x=1;', 'server/a.mjs'))
+  for code in ["const ddl='CREATE TABLE actual(id text)'",'const ddl=`CREATE TABLE actual(id text)`', 'const ddl="GRANT SELECT ON actual TO reader"', '// comment\nconst ddl=`ALTER TABLE actual ADD COLUMN v text`']:
+   self.assertTrue(m.embedded_ddl(code,'server/a.mjs'))
  def test_plain_http_guard_and_knowledge_dependencies_are_backend_without_ddl(self):
   self.assertEqual(m.classify(['server/auth/study-scope-guard.mjs','services/knowledge/parser.py']),{'frontend':False,'backend':True,'database':False})
  def test_exact_dependency_path_replacement_does_not_request_database_migration(self):
