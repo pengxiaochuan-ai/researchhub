@@ -1,3 +1,4 @@
+import {ARTICLE_ORIGINAL_MISSING_MESSAGE} from '../server/hub-sources/article-asset-reader.mjs';
 import {createRuntimeArticle} from '../server/research-runtime/article-runtime.mjs';
 import {withQueueBranches} from '../server/research-runtime/queue-branches.mjs';
 import {assembleKnowledgeModule} from '../server/research-runtime/knowledge-module.mjs';
@@ -623,6 +624,7 @@ export async function createLocalKnowledgeAi({root,dir,env,ids,prisma:legacyPris
       if(reason?.code?.startsWith('HUB_NETWORK_'))throw error(reason.code,reason.publicMessage??'联网参数或原请求无法核对。',reason.status??400);
       if(reason?.code?.startsWith('HUB_PRIVATE_')||reason?.code?.startsWith('HUB_MATERIAL_'))throw error(reason.code,reason.publicMessage??'本次资料或访问授权已变化，请核对资料后再操作。',reason.status??409);
       if(reason?.code?.startsWith('DATA_ANALYSIS_')||reason?.code?.startsWith('DATA_IMPORT_'))throw error(reason.code,reason.publicMessage??'本批研究数据、版本或访问权限无法核对，请先核对原记录。',reason.status??409);
+      if(reason?.code==='ARTICLE_ORIGINAL_MISSING')throw error(reason.code,ARTICLE_ORIGINAL_MISSING_MESSAGE,422);
       if(reason?.code?.startsWith('ARTICLE_'))throw error(reason.code,'当前单篇文章、版本或请求无法核对，请重新核对后操作。',reason.status??409);
       if(reason?.message==='HUB_SOURCE_SCOPE_REJECTED')throw error('ARTICLE_ACCESS_RESTRICTED','当前账号或来源不允许此操作。',403);
       throw reason;
