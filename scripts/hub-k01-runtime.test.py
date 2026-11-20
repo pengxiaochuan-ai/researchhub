@@ -27,4 +27,10 @@ class K01Tests(unittest.TestCase):
    load.return_value.read_config.return_value={'HUB_DATABASE_NAME':'aisci'}
    with self.assertRaisesRegex(ValueError,'K01_SAVED_TARGET_REJECTED'):m.main('stage')
    run.assert_not_called()
+class RepairApproval(unittest.TestCase):
+ def test_embedded_repair_rejects_without_approval_before_any_runtime_import(self):
+  import subprocess,os
+  env={k:v for k,v in os.environ.items() if not k.startswith('HUB_K01_REQUEUE_')}
+  r=subprocess.run(['node','--input-type=module','-'],input=m.REPAIR_NODE,text=True,capture_output=True,env=env,timeout=10)
+  self.assertEqual(r.returncode,1);self.assertEqual(json.loads(r.stdout)['code'],'K01_REQUEUE_NOT_APPROVED');self.assertNotIn('ERR_MODULE_NOT_FOUND',r.stderr)
 if __name__=='__main__':unittest.main()

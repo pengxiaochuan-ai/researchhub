@@ -4,7 +4,7 @@ on:
     inputs:
       action:
         type: choice
-        options: [stage, checkpoint, activate, inspect]
+        options: [stage, checkpoint, activate, inspect, repair]
         default: inspect
         required: true
       spec_json:
@@ -45,10 +45,12 @@ jobs:
           assert isinstance(x,dict)
           if action=='stage':assert set(x)=={'bindings','issuedAt'}
           elif action=='activate':assert set(x)=={'controlSha256'} and re.fullmatch('[a-f0-9]{64}',x['controlSha256'])
+          elif action=='repair':assert set(x)=={'approvalRef'} and re.fullmatch('K01_TWO_IMPORTS_APPROVED_[A-Za-z0-9_-]{12,160}',x['approvalRef'])
           elif action=='checkpoint':assert set(x)=={'tag','manifestSha256','admissionSha256'} and re.fullmatch('hub-runtime-[a-f0-9]{8}-[0-9]+',x['tag']) and all(re.fullmatch('[a-f0-9]{64}',x[k]) for k in ('manifestSha256','admissionSha256'))
           else:assert action=='inspect' and (not x or x=={'verifyTextPdfs':True})
           with open(os.environ['GITHUB_ENV'],'a') as f:
            f.write('HUB_K01_ACTION='+action+'\n')
+           if action=='repair':f.write('HUB_K01_APPROVAL_REF='+x['approvalRef']+'\n')
            if action=='stage':f.write('HUB_K01_INPUT='+json.dumps(x,separators=(',',':'))+'\n')
            if action=='activate':f.write('HUB_K01_CHECKPOINT_SHA='+x['controlSha256']+'\n')
            if action=='inspect' and x:f.write('HUB_K01_PDF_PREFLIGHT=true\n')

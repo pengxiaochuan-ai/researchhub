@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 [[ -n "${ALIBABA_CLOUD_ACCESS_KEY_ID:-}" && -n "${ALIBABA_CLOUD_ACCESS_KEY_SECRET:-}" ]]
 [[ "${ALIYUN_ECS_INSTANCE_ID:-}" =~ ^i-[A-Za-z0-9]+$ ]]
-[[ "${HUB_K01_ACTION:-}" == stage || "${HUB_K01_ACTION:-}" == activate || "${HUB_K01_ACTION:-}" == inspect ]]
+[[ "${HUB_K01_ACTION:-}" == stage || "${HUB_K01_ACTION:-}" == activate || "${HUB_K01_ACTION:-}" == inspect || "${HUB_K01_ACTION:-}" == repair ]]
 export ALIBABA_CLOUD_IGNORE_PROFILE=TRUE
 region=cn-hangzhou
 task_dir="$(mktemp -d)"
@@ -12,7 +12,7 @@ printf '%s  %s\n' 0823286604dbd8beb8d65dd0694d23c913e7c5d5a02b20a3593a4f8a6517f1
 tar -xzf "${task_dir}/cli.tgz" -C "${task_dir}" aliyun
 python3 - > "${task_dir}/payload" <<'PY'
 import os,json,pathlib,base64,zlib
-values={k:os.environ.get(k,'') for k in ('HUB_K01_INPUT','HUB_K01_CHECKPOINT_SHA','HUB_K01_PDF_PREFLIGHT')};action=os.environ['HUB_K01_ACTION'];assert action in ('stage','activate','inspect')
+values={k:os.environ.get(k,'') for k in ('HUB_K01_INPUT','HUB_K01_CHECKPOINT_SHA','HUB_K01_PDF_PREFLIGHT','HUB_K01_APPROVAL_REF')};action=os.environ['HUB_K01_ACTION'];assert action in ('stage','activate','inspect','repair')
 source=base64.b64encode(zlib.compress(pathlib.Path('scripts/hub-k01-runtime.py').read_bytes(),9)).decode()
 script="python3 - "+action+" <<'HUB_K01'\nimport os,base64,zlib\nos.environ.update("+repr(values)+")\nexec(compile(zlib.decompress(base64.b64decode("+repr(source)+")), '<hub-k01>', 'exec'))\nHUB_K01\n"
 encoded=base64.b64encode(script.encode()).decode();assert len(encoded)<24000
