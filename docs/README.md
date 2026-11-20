@@ -2,7 +2,6 @@
 
 [生产记录](testing/k01-production-parity-2026-11-20.md)：同版发布095b6f39，扫描PDF→审核→向量→真实问答→固定版引用；阅读区体验待确认，不代表全部AI入口完成。
 
-
 ## 2026-11-20 · 公开页401请求修复已上线
 
 [规格](product/public-auth-401-2026-11-20.md) · [生产验收](testing/public-auth-401-2026-11-20.md)：公开页零认证请求，保护页校验保留。
@@ -18,6 +17,18 @@ https://hub.pengxc.com/默认进入P002，账号图片/演示入口清理同批�
 ## 2026-11-20 · 账号三页图片性能
 
 P003/P004/P005本机已复用无损小图与缓存，每页冷图片4.96MB→1.99MB，线上尚未发布。见[规格](product/account-image-performance-2026-11-20.md)和[验收](testing/account-image-performance-2026-11-20.md)。
+
+## 2026-11-20 · P002图片优化已上线
+
+[线上发布与真实域名验收](testing/p002-image-live-release-2026-11-20.md) · [发布控制与回退](technical/p002-image-live-release-2026-11-20.md)。
+
+## 2026-11-20 · P002无损图片与按区加载
+
+[专项规格](product/p002-image-performance-2026-11-20.md) · [验收记录](testing/p002-image-performance-2026-11-20.md) · [统一复验步骤](product/用户验证与操作手册.md#p002首页图片加载复验2026-11-20本机验收通过)。50份素材逐像素无损，19.14MB→6.12MB；首屏立即、其余按区提前240px，原外观与原PNG共享兼容保留。新素材仅内容哈希与实际SHA256一致时在Node静态服务immutable，HTML/API不扩。19501本机验收通过，线上未发布，远端缓存启用另验。
+
+## 2026-11-20 · F06→F07→F08串行补齐
+
+[现行规格V0.4](product/f06-f08-hub-knowledge-map-spec-2026-11-20.md) · [固定报告来源计划](planning/client-scope-f06-f08-2026-11-20/report-source-plan.md)。F06原创及当前原生固定报告跨课题链本机真实通过，[报告验收](testing/f06-hub-assets-2026-11-20.md)。F07三类个人记录/固定来源已真实验收，[实现](technical/f07-personal-records-2026-11-20.md) · [测试及窄屏限制](testing/f07-personal-records-2026-11-20.md) · [统一用户步骤](product/用户验证与操作手册.md)。真实AI采纳依用户确认并入K01单列待验，F08排队，生产/用户签收另验，不占用19501/19502。
 
 ## 2026-11-19 · 公开页面字号与留白规则
 
@@ -36,6 +47,84 @@ P003/P004/P005本机已复用无损小图与缓存，每页冷图片4.96MB→1.9
 - [独立后端与线上前端实际交付](technical/hub-live-backend-release-2026-11-19.md)
 - [真实登录与目录读取验证](testing/hub-live-backend-release-2026-11-19.md)
 - [用户统一体验步骤](product/用户验证与操作手册.md#线上独立演示环境登录与查看2026-11-19)
+
+## 2026-11-19 · 两类公开详情延续横幅
+
+[实际截图与验证](testing/public-detail-banners-2026-11-19.md) · [统一复验](product/用户验证与操作手册.md#公开动态与帮助详情横幅复验--2026-11-19)。本机技术通过，用户视觉与生产另验。
+
+## 2026-11-19 · P008第三版问答横幅
+
+[规格](product/help-center-content-2026-11-19.md) · [实际截图／验证](testing/p008-questions-2026-11-19.md) · [统一复验](product/用户验证与操作手册.md#p008第三版问答横幅复验--2026-11-19)。仅本机，生产及用户视觉另验。
+
+## 2026-11-19 · EEGLAB原件上传与访视归档
+
+[功能与操作](product/eeglab-ingestion-2026-11-19.md) · [接口/本机启用](technical/eeglab-ingestion-2026-11-19.md) · [四层验收](testing/eeglab-ingestion-2026-11-19.md) · [统一操作手册](product/用户验证与操作手册.md#eeglab原件上传与访视归档2026-11-19)。
+
+## 2026-11-19 · P011第一版写实书桌横幅
+
+[规格与选图](product/public-academic-directory-2026-11-19.md) · [视觉／四层验证](testing/p011-daylight-2026-11-19.md) · [统一复验](product/用户验证与操作手册.md#p011第一版写实书桌横幅复验--2026-11-19)。仅P011列表顶部，本机已应用，生产另验。
+
+## 2026-11-19 · 语音原件与访视归档
+
+[功能与操作](product/audio-ingestion-2026-11-19.md) · [接口/本机升级](technical/audio-ingestion-2026-11-19.md) · [四层验收](testing/audio-ingestion-2026-11-19.md) · [统一操作手册](product/用户验证与操作手册.md#语音原件上传与访视归档2026-11-19)。
+
+## 2026-11-19 · 公开学术动态列表与详情
+
+[功能规格](product/public-academic-directory-2026-11-19.md) · [四层验收](testing/public-academic-directory-2026-11-19.md) · [统一复验](product/用户验证与操作手册.md#公开学术动态列表与详情复验--2026-11-19)。19501公开浏览路径已通，成员边界保留；生产与内容确认另验。
+
+## 2026-11-19 · 独立演示库数据恢复接续
+
+用户RDS已完成00–04的182表；现交付冻结单租户98,565行恢复器与05–07接续，目标researchhub、旧aisci不动。仅本机已验数据/账号，RDS后续待现场。[执行说明](technical/manual-rds-demo-restore-2026-11-19.md) · [验证](testing/manual-rds-demo-restore-2026-11-19.md)。
+
+## 2026-11-19 · 门户浏览路径交付验收
+
+[完整验收与限制](testing/portal-delivery-acceptance-2026-11-19.md) · [统一复验步骤](product/用户验证与操作手册.md#门户浏览路径交付验收复验--2026-11-19)。19501本机浏览通过，57项相关测试／129项浏览器检查；真实邮件、合成活动处理、备案外网与生产环境未混作通过。
+
+## 2026-11-19 · 舌图上传与访视归档
+
+[功能与操作约定](product/tongue-image-ingestion-2026-11-19.md) · [接口/本机升级](technical/tongue-image-ingestion-2026-11-19.md) · [四层验收](testing/tongue-image-ingestion-2026-11-19.md) · [统一操作手册](product/用户验证与操作手册.md#舌图上传与访视归档2026-11-19)。
+
+## 2026-11-19 · RDS扩展元数据兼容，仅续04
+
+用户真实RDS的00–03已成功；04误把vector扩展自动创建的vector.rabitq_info当作已有业务表。只读回执确认marker=initialized、唯一表为该具名持久对象、owner=aisci_control、直接属vector0.8.1.2。现仅04空库判断精确允许此对象，未知表仍拒绝；不删表，不重建库/角色，不重跑all/03。26项规则/CLI及真实13.23的14组本机模拟元数据流程通过，182业务表/4NOLOGIN/成员0与元数据哨兵均保持；模拟测试不冒称RDS二进制验收。修正版新目录researchhub-rds-04-rabitq先验SHA，再python3 run-server.py 04 --allow-vpc-demo-non-tls。实际RDS04结果待用户反馈，其他7份SQL和执行器保持。
+
+[修正与续行说明](technical/manual-rds-vector-metadata-2026-11-19.md)。
+
+## 2026-11-19 · 研究数据与岐研AI联动
+
+[入口/字段矩阵与实施状态](product/study-data-linkage-2026-11-19.md) · [API/原生权限与本机函数升级](technical/study-data-linkage-2026-11-19.md) · [验收及截图](testing/study-data-linkage-2026-11-19.md) · [统一操作](product/用户验证与操作手册.md#研究数据与岐研ai联动2026-11-19)。本机四页面和AI原始资料联动已验，原始登记与可分析状态分别保留，临床/生产未扩。
+
+## 2026-11-19 · 帮助中心内容落地
+
+[内容规格](product/help-center-content-2026-11-19.md) · [验证记录](testing/help-center-content-2026-11-19.md) · [统一复验](product/用户验证与操作手册.md#帮助中心内容复验--2026-11-19)。七类26篇，现有使用与规划分开，搜索和详情有实际证据；用户专业确认与生产另验。
+
+## 2026-11-19 · 服务器已有psql13.23兼容修正
+
+用户现场13.23被原>=16门槛挡住，尚未连接DB。现经真实13.23＋同版libpq、SSL/SCRAM及9组隔离流程，修正版只新增该版本，不要求升级服务器；25条规则/CLI通过，8SQL不变。[兼容证据](technical/manual-rds-client13-compatibility-2026-11-19.md) · [新包与命令](technical/manual-rds-server-runner-2026-11-19.md)。先重新check；TLS例外仍未批准。
+
+## 2026-11-19 · 客户交付页面文案清理
+
+[规格](product/client-facing-copy-cleanup-2026-11-19.md) · [验证记录](testing/client-facing-copy-cleanup-2026-11-19.md) · [统一用户手册](product/用户验证与操作手册.md#客户交付文案复验--2026-11-19)。页面清理已在本机验证；历史保存测试内容另列清单，正式资料选择和生产另验。
+
+## 2026-11-19 · 服务器手动执行00–04
+
+[脚本与逐条命令](technical/manual-rds-server-runner-2026-11-19.md) · [安全与隔离PG证据](testing/manual-rds-server-runner-2026-11-19.md)。新版私有包带run-server.py，默认check不连接，安全读旧DIRECT_URL，all逐步核库/owner/marker后只到04；失败不重试。原8份SQL保持，生产及非TLS例外尚未执行/确认。
+
+## 2026-11-19 · P01工作台直接新建课题
+
+[验收与截图](testing/p01-create-entry-2026-11-19.md) · [统一操作](product/用户验证与操作手册.md#p01工作台直接新建课题2026-11-19)。仅在工作台原“我的课题”标题行加创建按钮，19501本机已验证，整体栏位及原查看更多不变。
+
+## 2026-11-19 · researchhub手动建库SQL交付
+
+[执行说明](technical/manual-rds-setup-2026-11-19.md) · [本机验证](testing/manual-rds-sql-2026-11-19.md)。完整182表SQL仅本机私有交付；用户先在postgres执行00–02，再切researchhub执行03–04后停。演示行数据/文件恢复后才05–07，不接aisci、不自动发布。
+
+## 2026-11-19 · P007研究者共创版
+
+[规格](product/p007-researcher-initiative-2026-11-19.md) · [验证](testing/p007-researcher-initiative-2026-11-19.md) · [统一用户步骤](product/用户验证与操作手册.md#2026-11-19--p007学术发起第三版复验)。按用户第三版选择实施，本机已验，用户视觉及生产另验。
+
+## 2026-11-19 · 门户顶部导航收紧
+
+[验证与截图](testing/p002-header-2026-11-19.md) · [用户复验](product/用户验证与操作手册.md#2026-11-19--门户顶部导航间距复验)。仅P002桌面高度与垂直留白；本机已验，用户视觉／生产另验。
 
 ## 2026-11-19 · 当前优先：独立数据库演示交付
 

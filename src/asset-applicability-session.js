@@ -1,6 +1,6 @@
 import {makeCrfMethodAssetUrl} from './crf-method-assets-session.js';
 const key='[A-Za-z0-9_-]{1,160}',valid=v=>typeof v==='string'&&new RegExp('^'+key+'$').test(v),version=v=>/^(?:[1-9]|[12][0-9]|30)$/.test(String(v));
-const fail=()=>{throw Error('资产核对入口或固定版本无效，不回退演示或其他研究。');};
+const fail=()=>{throw Error('资产核对链接或版本无效，请从科研资产重新打开。');};
 export const applicabilityLabels={question:'研究问题与PICO',eligibility:'人群与入排标准',outcomes:'结局声明',visits:'访视声明',crf_mapping:'CRF与结局映射',method_scope:'方法覆盖范围'};
 export const isAssetApplicabilityRoute=(page,search)=>['a01','a02'].includes(page)&&['assetApplicability','applicabilityId','applicabilityVersion'].some(k=>new URLSearchParams(search).has(k));
 export function readAssetApplicabilityLocation(page,search){

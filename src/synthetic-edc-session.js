@@ -1,5 +1,5 @@
 const valid=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,160}$/.test(v);
-const fail=()=>{throw Error('合成采集入口或范围无效，不回退演示或切换Study。');};
+const fail=()=>{throw Error('合成采集链接或研究范围无效，请从当前研究重新进入。');};
 export const isSyntheticEdcRoute=(pageId,search)=>['s03','s04','s05'].includes(pageId)&&new URLSearchParams(search).has('syntheticCapture');
 export function readSyntheticEdcLocation(pageId,search){
  const p=new URLSearchParams(search),allowed=['syntheticCapture','studyGroupId','researchProjectId','researchPlanId','collectionId','recordId'];

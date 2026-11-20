@@ -13,7 +13,7 @@ export async function verifyPublishFeedback({base,tenantSlug,password}){
  const request=(path,method='GET',data)=>context.request.fetch(base+path,{method,headers:{Origin:base,'Content-Type':'application/json','X-ResearchHub-Request':'session-v1'},...(data?{data}:{})});
  const openItem=async()=>{await page.locator('.academic-table tbody tr').filter({hasText:'F03合成发布反馈验收'}).getByRole('button',{name:'编辑',exact:true}).click();await page.getByLabel('标题（必填）',{exact:true}).waitFor();};
  async function acknowledge(title,finishRead){
-  const dialog=page.getByRole('dialog',{name:title,exact:true});await dialog.waitFor();
+  const dialog=page.getByRole('dialog',{name:title,exact:true});await dialog.waitFor();assert.equal(await dialog.locator('.ui-confirm-dialog-body').count(),0);assert(!(await page.locator('body').innerText()).includes('已返回资讯与活动列表，按当前筛选展示。'));
   assert.equal(new URL(page.url()).searchParams.has('contentId'),false,'success has already returned to list');
   assert.equal(await page.getByLabel('标题（必填）',{exact:true}).count(),0,'editor has closed');
   assert.equal(await dialog.getByRole('button').count(),1,'one acknowledgement action');

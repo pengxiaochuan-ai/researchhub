@@ -9,12 +9,13 @@ export function validArticleBinding(b){return Boolean(b&&Object.keys(b).length==
   new RegExp('^'+b.recordId.slice(4)+'[.][1-9][0-9]{0,2}$').test(b.articleVersion??'')&&sha.test(b.rawSha256??'')&&/^(?:article:)?[1-9][0-9]{0,18}$/.test(b.reviewVersion??''));}
 export function readArticleAiRoute(search=''){
   const p=new URLSearchParams(search);if(!p.size)return {kind:'none'};
-  if(p.has('sessionId')||p.has('uploadStudyId'))return [...p.keys()].every(k=>['sessionId','uploadStudyId'].includes(k)&&p.getAll(k).length===1&&/^[A-Za-z0-9_-]{1,160}$/.test(p.get(k)??''))?{kind:'hub',...(p.has('sessionId')?{sessionId:p.get('sessionId')}:{}),...(p.has('uploadStudyId')?{uploadStudyId:p.get('uploadStudyId')}:{})}:{kind:'invalid'};
+  const hubKeys=['sessionId','uploadStudyId','uploadSubjectId','uploadVisitId'];
+  if(hubKeys.some(k=>p.has(k)))return [...p.keys()].every(k=>hubKeys.includes(k)&&p.getAll(k).length===1&&/^[A-Za-z0-9_-]{1,160}$/.test(p.get(k)??''))&&(!p.has('uploadSubjectId')||p.has('uploadStudyId'))&&(!p.has('uploadVisitId')||p.has('uploadSubjectId'))?{kind:'hub',...Object.fromEntries(hubKeys.filter(k=>p.has(k)).map(k=>[k,p.get(k)]))}:{kind:'invalid'};
   if([...p.keys()].some(k=>!['articleId','requestKey','inputHash'].includes(k)||p.getAll(k).length!==1)||!pmc.test(p.get('articleId')??'')||
     (p.has('requestKey')!==p.has('inputHash'))||(p.has('requestKey')&&(!key.test(p.get('requestKey'))||!sha.test(p.get('inputHash')))))return {kind:'invalid'};
   return {kind:'article',recordId:p.get('articleId'),recovery:p.has('requestKey')?{requestKey:p.get('requestKey'),inputHash:p.get('inputHash')}:null};
 }
-export function hubAiHref(sessionId,uploadStudyId){const p=new URLSearchParams();if(sessionId)p.set('sessionId',sessionId);if(uploadStudyId)p.set('uploadStudyId',uploadStudyId);if(p.size&&readArticleAiRoute(p.toString()).kind!=='hub')fail('会话入口无效。');return'/pages/ai01/'+(p.size?'?'+p:'');}
+export function hubAiHref(sessionId,uploadStudyId,context={}){if(Object.keys(context).some(k=>!['uploadSubjectId','uploadVisitId'].includes(k)))fail('会话入口无效。');const p=new URLSearchParams();if(sessionId)p.set('sessionId',sessionId);if(uploadStudyId)p.set('uploadStudyId',uploadStudyId);for(const key of ['uploadSubjectId','uploadVisitId'])if(context[key]!==undefined)p.set(key,context[key]);if(p.size&&readArticleAiRoute(p.toString()).kind!=='hub')fail('会话入口无效。');return'/pages/ai01/'+(p.size?'?'+p:'');}
 export function articleAiHref(recordId,recovery=null){
   if(!pmc.test(recordId??''))fail();const p=new URLSearchParams({articleId:recordId});
   if(recovery){if(!key.test(recovery.requestKey)||!sha.test(recovery.inputHash))fail();p.set('requestKey',recovery.requestKey);p.set('inputHash',recovery.inputHash);}

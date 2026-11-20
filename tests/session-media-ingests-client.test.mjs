@@ -15,6 +15,12 @@ test('registration pending record contains only scoped IDs and intent; unknown p
  assert.deepEqual(api.readMediaIngestPending(JSON.stringify(value)),value);
  for(const v of [{...value,body:{...value.body,filename:'personal.mp4'}},{...value,requestKey:'../bad'},{...value,body:{...value.body,requestKey:'different'}}])assert.equal(api.readMediaIngestPending(JSON.stringify(v)),null);
 });
+test('acquisition target lookup accepts one explicit Study filter only',async()=>{
+ assert.equal(sessionMediaRequestAllowed('GET','/sessions/session/media/media/ingest-targets?studyId=study'),true);
+ for(const q of ['studyId=study&studyId=other','studyId=study&admin=true','studyId=../other','studyId=','subjectId=subject'])assert.equal(sessionMediaRequestAllowed('GET','/sessions/session/media/media/ingest-targets?'+q),false,q);
+ const client=createKnowledgeClient({scope:()=>({studyGroupId:'group',researchProjectId:'project'}),fetchImpl:async()=>new Response('{}',{headers:{'Content-Type':'application/json'}})});
+ await client.get('/sessions/session/media/media/ingest-targets?studyId=study');
+});
 test('untrusted receipt cannot introduce another media, subject or a foreign content URL',()=>{
  assert(api,'media ingest client missing');assert.throws(()=>api.assertMediaIngest({state:'committed'},'media'),/MEDIA_INGEST_RESPONSE/);
  assert.equal(api.mediaIngestSubjectHref({study:{id:'study'},subject:{id:'subject'}}),'/pages/s04/?formalSubjects=1&studyId=study&subjectId=subject');

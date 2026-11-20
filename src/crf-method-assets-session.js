@@ -2,7 +2,7 @@ import {makeCrfMethodsUrl,readCrfMethodsLocation} from './crf-methods-session.js
 const key='[A-Za-z0-9_-]{1,160}',base='/crf-method-asset-drafts';
 const valid=v=>typeof v==='string'&&new RegExp('^'+key+'$').test(v);
 const version=v=>/^(?:[1-9]|[12][0-9]|30)$/.test(String(v));
-const fail=()=>{throw Error('方法资产入口或版本无效，不回退演示、旧候选或其他Study。');};
+const fail=()=>{throw Error('方法资产链接或版本无效，请从科研资产重新打开。');};
 export const crfMethodAssetReadFailure=e=>({state:e.status===409?'invalid':'unverified',message:e.message??'当前读取无法核实，请重试。'});
 export const crfMethodAssetReadState=(local,probe)=>[local,probe].find(v=>v?.state==='invalid')??local??probe??null;
 export const formatCrfMethodAssetOptions=options=>options.map(o=>typeof o==='string'?o:o.label+'='+o.value).join('，');

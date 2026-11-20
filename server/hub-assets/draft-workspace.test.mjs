@@ -1,0 +1,14 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {createHubCopyWorkspace} from './draft-workspace.mjs';
+import {myResearchDraftLink} from '../../src/my-research-draft-route.js';
+const p={tenantId:'t',accountId:'u',authVersion:1,role:'researcher',isTenantAdmin:false};
+const d={id:'target',studyGroupId:'g',researchProjectId:'p',typeKey:'protocol_draft',ownerAccountId:'u',createdBy:'u',idempotencyKey:'hub-asset-copy:u:request_123'};
+const blocks=[{type:'rh-hub-asset-copy.v1',ownerAccountId:'u',targetStudyId:'study',targetProjectId:'p'}];
+test('old drafts never query the new schema; Hub hint requires actual own copy and target read',async()=>{let calls=0,allowed=true;const fact={actor_id:'u',target_artifact_id:'target',target_study_id:'study'},tx={account:{findFirst:async()=>({id:'u'})},$queryRawUnsafe:async sql=>{calls++;if(sql.startsWith('SELECT set_config'))return[];if(sql.includes('rh_admission'))return[{status:'approved'}];if(sql.includes('copy_fact'))return[{fact}];if(sql.includes('study_binding'))return[{id:'study',study_group_id:'g',execution_project_id:'p'}];throw Error('unexpected query');}};
+ const canOpen=createHubCopyWorkspace({readTarget:async(_tx,_p,input)=>{assert.equal(input.copyFact,fact);if(!allowed)throw Object.assign(Error('denied'),{status:403});return{id:'target',studyId:'study'};}});
+ assert.equal(await canOpen(tx,p,{...d,idempotencyKey:'old'},blocks),false);assert.equal(calls,0);
+ assert.equal(await canOpen(tx,p,d,blocks),true);allowed=false;assert.equal(await canOpen(tx,p,d,blocks),false);
+ assert.equal(await canOpen(tx,p,{...d,ownerAccountId:'other'},blocks),false);
+ assert.equal(await canOpen(tx,p,d,[{...blocks[0],targetProjectId:'other'}]),false);
+});
+test('Hub copy hint routes to existing H01 copy editor without source Study parameters',()=>{const url=new URL(myResearchDraftLink({...d,canOpenWorkspace:true,workspace:{kind:'hub-copy'}}).href,'http://local');assert.equal(url.pathname,'/pages/h01/');assert.deepEqual([...url.searchParams], [['hubKey','lingshu-xinyu'],['section','assets'],['copyId','target']]);});

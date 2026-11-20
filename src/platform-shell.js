@@ -395,7 +395,8 @@ function createContextHeader(config, pageId) {
       if (config.active === label) button.setAttribute('aria-current', 'page');
       button.textContent = label;
       button.addEventListener('click', () => {
-        if(realIdentityMode&&(isStudyOverviewRoute(pageId,location.search)||isStudyTaskRoute(pageId,location.search))){
+        if(realIdentityMode&&config.nav===HUB_NAV&&label==='科研资产')window.location.assign('/pages/h01/?hubKey=lingshu-xinyu&section=assets');
+        else if(realIdentityMode&&(isStudyOverviewRoute(pageId,location.search)||isStudyTaskRoute(pageId,location.search))){
           let scopeSearch=location.search;
           if(isStudyTaskRoute(pageId,location.search)){try{scopeSearch='?'+new URLSearchParams(readStudyTaskLocation(location.search).scope);}catch{scopeSearch='';}}
           const url=studyOverviewNavUrl(label,scopeSearch);
@@ -460,7 +461,7 @@ function mountContextHeader(pageId) {
     if (pageId === 'h01') config = { workspace: '领域研究',
       crumbs: [['领域研究', 'h05'], ['针灸治疗情志病']], title: '针灸治疗情志病',
       concept: 'Research Hub', description: "浏览当前领域及已审核公开资料。",
-      actions: [], nav: HUB_NAV, active: '总览', hide: ['.crumb', '.hero', '.tabs'] };
+      actions: [], nav: HUB_NAV, active: new URLSearchParams(location.search).get('section')==='assets'?'科研资产':'总览', hide: ['.crumb', '.hero', '.tabs'] };
     if (pageId === 'c01') config = { workspace: '领域研究',
       crumbs: [['领域研究', 'h05'], ['针灸治疗情志病', 'h01'], ['临床注册']],
       title: '临床注册', description: '仅浏览当前获准公开的临床注册来源书目字段；不展示未经核验的研究统计。',
@@ -498,7 +499,7 @@ function mountContextHeader(pageId) {
   }
   if(realIdentityMode&&['h05','h01','c01','c03','e01','e02','ai01'].includes(pageId)&&['live','entry'].includes(realModeRouteState(pageId,window.location.search,{configured:Boolean(import.meta.env.VITE_AUTH_TENANT_SLUG),explicitDemo}))){
     const original=pageContexts[pageId];
-    config={...config,crumbs:original.crumbs,title:original.title,nav:original.nav,active:original.active,
+    config={...config,crumbs:original.crumbs,title:original.title,nav:original.nav,active:pageId==='h01'&&new URLSearchParams(location.search).get('section')==='assets'?'科研资产':original.active,
       actions:(original.actions??[]).map(([label,target,primary])=>pageId==='ai01'?[label,target,primary]:[pageId==='h01'&&label==='已关注'?'关注（此处状态未核验）':label,null,primary,pageId==='h01'&&label==='已关注'?'请在领域目录中查看关注状态并操作。':"此操作暂不可用或未获授权。"])};
   }
   if(realIdentityMode&&isStudyOverviewRoute(pageId,window.location.search))config=studyOverviewHeader(pageContexts.s01);

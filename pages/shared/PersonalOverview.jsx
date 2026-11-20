@@ -17,7 +17,7 @@ function ProjectDirectoryPreview({directory,unverified,onRetry}){
       {directory.kind==='error'&&<><p className="empty-state" role="alert">{directory.message||'课题暂时无法读取，请重试。'}</p><Button onClick={onRetry}>重新读取课题</Button></>}
       {directory.kind==='restricted'&&<p className="empty-state" role="status">{directory.message||'当前账号无权查看课题，请核对当前身份与授权。'}</p>}
       {projects.map(project=><div className="project" key={project.key}><div className="picon"><CalendarDays/></div><div><b>{project.title}</b><small>{project.studyGroupName||projectStatus[project.status]||'状态待核对'}</small></div>{project.links?.primary&&<a className="text-link" href={project.links.primary} aria-label={`查看${project.title}`}><ArrowRight/></a>}</div>)}
-      {empty&&<><p className="empty-state">尚无可查看的课题与草稿。</p>{directory.capabilities?.canCreateProject&&<a className="primary-link personal-project-empty-new" href={researchProjectUrl()}>新建课题</a>}</>}
+      {empty&&<p className="empty-state">尚无可查看的课题与草稿。</p>}
       {ready&&!empty&&!projects.length&&<p className="empty-state">课题预览暂不可用，请查看完整列表。</p>}
       {ready&&<a className="personal-project-more" href={researchProjectsUrl}>查看更多课题 →</a>}
     </>}
@@ -26,6 +26,7 @@ function ProjectDirectoryPreview({directory,unverified,onRetry}){
 export default function PersonalOverview({data,unverified=false,notice,onAccessLost,projectDirectory=pendingProjectDirectory,onRetryProjectDirectory}){
   const directory=projectDirectory??pendingProjectDirectory;
   const projectCount=!unverified&&directory.kind==='ready'&&Number.isSafeInteger(directory.total)&&directory.total>=0?directory.total:'—';
+  const canCreateProject=!unverified&&directory.kind==='ready'&&directory.capabilities?.canCreateProject===true;
   return <>{notice}<div className="hello"><div><h1>{unverified?'我的工作台':data.profile.displayName+'，您好'}</h1><p>专注于证据，推动更好的临床实践。</p></div><time>{day}</time></div>
     <div className="workspace"><div className="center"><section className="hub"><div className="hubMain"><div className="hubIcon"><Landmark/></div><div><small>当前科研工作空间 · {data.profile.tenantName}</small><h2>Research Hub</h2><p>负责人及参与关系暂不可查询。</p><div className="hubMeta">课题与草稿 {projectCount} 项 · 本人草稿 {data.summary.ownDraftCount} 份</div></div></div><div className="hubNews"><b>领域最新变化</b><p>尚无已核验的个性化领域动态。</p><a href="/pages/h01/">进入领域研究 →</a></div></section>
       <div className="stats"><Stat Icon={Folder} title="我的课题" value={`${projectCount} 项`} detail="当前可查看课题与草稿"/><Stat Icon={AlertTriangle} title="需要判断" value="—" detail="判断事项汇总暂不可用"/><Stat Icon={ClipboardCheck} title="待我处理" value={`${data.summary.myOpenTaskCount} 项`} detail="分配给我的未完成任务"/><Stat Icon={BrainCircuit} title="岐研 AI" value={<a href="/pages/ai01/">进入 AI ›</a>} detail="按当前授权与Token额度使用"/></div>
@@ -33,7 +34,7 @@ export default function PersonalOverview({data,unverified=false,notice,onAccessL
         <details className="personal-task-details"><summary>待我处理 · {data.summary.myOpenTaskCount} 项任务</summary><PersonalRecordList kind="tasks" data={data} unverified={unverified} onAccessLost={onAccessLost}/></details>
       </div></section>
       <div className="briefTitle"><h2>与你相关的研究简报</h2><span>个性化简报暂不可用</span><button disabled>查看全部 →</button></div><div className="briefs">{['最新研究证据','研究方法进展','潜在研究机会'].map(label=><article key={label}><b><FileText/>{label}</b><p>暂无已核验的个性化简报。</p></article>)}</div>
-    </div><div className="rail"><section className="railCard"><h2><a href="/pages/k01/">个人知识库 →</a></h2><p>管理本人文献与知识资料</p></section><section className="railCard"><div className="railTitle"><h2>我的课题</h2><span>{projectCount} 项</span></div><ProjectDirectoryPreview directory={directory} unverified={unverified} onRetry={onRetryProjectDirectory}/>
+    </div><div className="rail"><section className="railCard"><h2><a href="/pages/k01/">个人知识库 →</a></h2><p>管理本人文献与知识资料</p></section><section className="railCard"><div className="railTitle personal-project-title"><h2>我的课题</h2><div className="personal-project-title-actions"><span>{projectCount} 项</span>{canCreateProject&&<Button primary className="personal-project-create" onClick={()=>location.assign(researchProjectUrl())}>新建课题</Button>}</div></div><ProjectDirectoryPreview directory={directory} unverified={unverified} onRetry={onRetryProjectDirectory}/>
       <details className="personal-draft-details"><summary>本人研究草稿 · {data.summary.ownDraftCount} 份</summary><PersonalRecordList kind="drafts" data={data} unverified={unverified} onAccessLost={onAccessLost}/></details>
     </section><section className="railCard recent"><div className="railTitle"><h2>近期重要动态</h2></div><p className="empty-state">研究事件与领域动态暂不可用。</p><details><summary>本人草稿更新时间（不是研究动态）</summary><ul className="activity-list">{data.activity.map(item=><li key={item.id}><Clock/><div><b>{item.title}</b><small>{date(item.updatedAt)}</small></div></li>)}</ul></details></section></div></div>
   </>;

@@ -7,6 +7,13 @@ import {runtimeDependencies} from './dependencies.mjs';
 import {createHubAuth} from '../auth/controller.mjs';
 import {assembleAdmission} from '../admission/assembly.mjs';
 import {assembleAcademicContent} from '../academic-content/assembly.mjs';
+import {createHubAssetsService} from '../hub-assets/service.mjs';
+import {createHubAssetsController} from '../hub-assets/controller.mjs';
+import {createHubAssetSourceReader} from '../hub-assets/source-reader.mjs';
+import {createHubReportSourceVerifier} from '../hub-assets/report-source-verifier.mjs';
+import {createHubCopyWorkspace} from '../hub-assets/draft-workspace.mjs';
+import {withDeploymentTransaction} from '../database/transactions.mjs';
+import {createRuntimeMaterials} from './materials.mjs';
 
 // PrismaService captures its URLs synchronously in field initializers. Limit the
 // inherited process-env bridge to construction; async lifecycle uses the clients.
@@ -75,8 +82,12 @@ export async function bootResearchRuntime(env=process.env,options={}){
   const controllerFactory=options.controllerFactory??(await import('../research-studies/controller.mjs')).createResearchStudiesController;
   const StudiesController=await controllerFactory({require,load,prisma,scope:config.scope,origin:config.origin,...(foundation?{storage:foundation.storage,ingestService,createAnalysisServices:analysis?.create}:{} )});
   const assets=foundation?(await import('./assets.mjs')).createRuntimeAssets({config,foundation,load,require,readReport:analysis?.readReport}):null;
+  if(assets)foundation.setHubCopyWorkspace(createHubCopyWorkspace({readTarget:assets.hubBridge.readTarget}));
+  const hubAssets=assets?createHubAssetsService({tenantId:config.scope.defaultTenantId,transact:fn=>withDeploymentTransaction(foundation.transactionEnv,'app',fn),lockAuthorization:load('common/worker-publication','lockAuthorizationMutation'),...assets.hubBridge,readHubSource:createHubAssetSourceReader({verifyReport:createHubReportSourceVerifier({load,syntheticStudyIds:(env.HUB_SYNTHETIC_STUDY_IDS??'').split(',').filter(Boolean)})})}):null;
+  const HubAssetsController=hubAssets?createHubAssetsController({require,service:hubAssets,origin:config.origin}):null;
+  const materials=foundation?createRuntimeMaterials({foundation,config,load,require,getService:(path,name)=>app.get(load(path,name))}):null;
   class ResearchRuntimeModule{}
-  Module({controllers:[hubAuth.Controller,admission.Controller,...academic.Controllers,StudiesController,...(assets?.Controllers??[]),...(foundation?.Controllers??[]),...(accounts?.Controllers??[])],providers:foundation?.providers??[{provide:load('prisma/prisma.service','PrismaService'),useValue:prisma}]})(ResearchRuntimeModule);
+  Module({controllers:[hubAuth.Controller,admission.Controller,...academic.Controllers,StudiesController,...(assets?.Controllers??[]),...(HubAssetsController?[HubAssetsController]:[]),...(materials?[materials.Controller]:[]),...(foundation?.Controllers??[]),...(accounts?.Controllers??[])],providers:foundation?.providers??[{provide:load('prisma/prisma.service','PrismaService'),useValue:prisma}]})(ResearchRuntimeModule);
   app=await NestFactory.create(ResearchRuntimeModule,{logger:false,bodyParser:false,abortOnError:false});
   app.setGlobalPrefix('api');
   installHttpPolicy(app,config,require,foundation);

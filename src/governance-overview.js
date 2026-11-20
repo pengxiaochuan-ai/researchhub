@@ -1,5 +1,6 @@
 import {isPendingReview,isDecidedReview,sourceReviewCopy} from './source-review-queue.js';
 import {safeAcademicReturn} from './academic-content-route.js';
+import {safeHubAssetReturn} from './hub-asset-route.js';
 import {reportAssetReviewUrl,validReportAssetReview} from './report-asset-context.js';
 import {parseReviewPage,parseDecisionPage} from './protocol-review-queue.js';
 import {protocolReviewDetailHref} from './governance-protocol-route.js';
@@ -59,6 +60,7 @@ export function governanceItemHref(item,location){
 }
 export const governanceBackHref=search=>governanceOverviewHref(governanceOverviewLocation(search,'overview'));
 export function safeGovernanceReturn(value){
+ const hubAsset=safeHubAssetReturn(value);if(hubAsset?.startsWith('/pages/g02/'))return hubAsset;
  const academic=safeAcademicReturn(value);if(academic?.startsWith('/pages/g02/'))return academic;
  const fallback='/pages/p01/';let url;
  try{url=new URL(value,'http://researchhub.local');}catch{return fallback;}

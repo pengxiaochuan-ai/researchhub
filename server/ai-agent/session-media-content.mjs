@@ -12,7 +12,7 @@ export function createSessionMediaContent({access,storage,configHash,authorizeSt
   if(!contentId(sid)||!contentId(mid))fail('MEDIA_CONTENT_INPUT',400);
   const [m]=await tx.$queryRawUnsafe(`SELECT * FROM rh_ai.session_media_uploads WHERE id=$1 AND session_id=$2 AND account_id=$3 AND tenant_id=$4 FOR SHARE`,mid,sid,u.accountId,u.tenantId);
   if(!m)fail('MEDIA_CONTENT_NOT_FOUND',404);
-  if(m.archive_state!=='archived'||m.inspection_state!=='complete'||m.inspection_classification!=='valid')fail('MEDIA_CONTENT_SOURCE');
+  if(m.archive_state!=='archived'||m.inspection_state!=='complete'||m.inspection_classification!=='valid'||!['mp4','mov','webm'].includes(m.extension)||m.inspection?.hasVideo!==true)fail('MEDIA_CONTENT_SOURCE');
   return m;
  }
  async function current(tx,u,sid,mid,runId,{lock=true}={}){

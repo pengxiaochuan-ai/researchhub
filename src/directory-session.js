@@ -3,7 +3,7 @@ const routeKeys=[...listKeys,'view','hubId'];
 const sorts=['relevance','publications','clinicalTrials','members'];
 const researcherKeys=['q','direction','region','organizationId','researchRole','rank','sort','page','pageSize'];
 const id=v=>{if(typeof v!=='string'||!/^[A-Za-z0-9_-]{1,160}$/.test(v))throw Error('目录标识不正确。');return v;};
-const details={DIRECTORY_ORIGIN_REJECTED:'请求来源未通过本机安全校验，未执行目录操作；请从本机正式入口重试，输入已保留。',DIRECTORY_DRAFT_LIMIT:'该团队资料及历史记录超过可保存大小，输入已保留；请联系维护人员处理，历史不会被自动删除。',DIRECTORY_REQUEST_CONFLICT:'此提交编号已有其他用途，请先核对原提交结果，不要重复提交。',DIRECTORY_VERSION_CONFLICT:'团队资料或依据已变化，输入已保留；请查看最新资料后决定如何继续。',DIRECTORY_SOURCE_CHANGED:'所选资料依据已变化或不可用，请重新核对来源；输入已保留。'};
+const details={DIRECTORY_ORIGIN_REJECTED:'当前页面未通过安全校验，未执行操作；请从平台入口重新进入，输入已保留。',DIRECTORY_DRAFT_LIMIT:'该团队资料及历史记录超过可保存大小，输入已保留；请联系维护人员处理，历史不会被自动删除。',DIRECTORY_REQUEST_CONFLICT:'本次操作与已有提交不一致，请先核对原提交结果，不要重复提交。',DIRECTORY_VERSION_CONFLICT:'团队资料或依据已变化，输入已保留；请查看最新资料后决定如何继续。',DIRECTORY_SOURCE_CHANGED:'所选资料依据已变化或不可用，请重新核对来源；输入已保留。'};
 const failure=(status,code,extra={})=>Object.assign(new Error(details[code]??({400:'目录条件或字段不正确，请核对输入。',401:'会话已失效，请重新登录。',403:'当前身份没有此目录操作权限。',404:'当前没有可访问的对象或匹配回执。',409:'目录版本或来源已变化，请保留输入并重新核对。',413:'目录输入超过大小上限，请精简内容。'})[status]??'目录服务暂不可用，操作结果未确认；请核对原提交，不会自动重试。'),{status,code,...extra});
 export function readTeamLocation(search=''){
  const p=new URLSearchParams(search);if([...p.keys()].some(k=>!routeKeys.includes(k)||p.getAll(k).length!==1))throw failure(400,'DIRECTORY_INVALID_ROUTE');

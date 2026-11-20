@@ -1,0 +1,5 @@
+.study-data-ai-context{margin:0 0 16px;padding:12px 14px;border:1px solid var(--border,#e2e8f0);border-radius:8px;background:var(--surface,#fff);font-size:14px;line-height:22px;overflow-wrap:anywhere}
+.study-data-ai-context p{margin:0 0 6px}
+.study-data-ai-context a{display:inline-flex;align-items:center;min-height:44px;color:var(--brand-primary,#4f46e5);font-size:14px;line-height:22px}
+.study-data-ai-context a:focus-visible{outline:2px solid var(--brand-primary,#4f46e5);outline-offset:3px}
+.study-data-ai-context .ui-button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 14px;border:1px solid var(--brand-primary,#4f46e5);border-radius:6px;background:var(--surface,#fff);color:var(--brand-primary,#4f46e5);font-size:14px;line-height:22px;cursor:pointer}

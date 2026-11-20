@@ -1,3 +1,4 @@
+import useStudyDataLeaveGuard from './useStudyDataLeaveGuard.jsx';
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {createKnowledgeClient} from '../../src/knowledge-session.js';
 import AgentQuestion from './AgentQuestion.jsx';
@@ -18,7 +19,7 @@ import {resolveHubAgentAvailability} from '../../src/hub-agent-availability.js';
 const hubKey='lingshu-xinyu';
 const displayError=error=>error?.message||'服务暂时不可用，请刷新核对。';
 
-export default function HubAgentPanel({user,layout,paused=false,sessionId,onSessionCreated,uploadStudyId}){
+export default function HubAgentPanel({user,layout,paused=false,sessionId,onSessionCreated,uploadStudyId,acquisitionContext,contextNotice}){
   // The browser auth profile deliberately omits permission arrays. The real
   // controller and AgentAccess check decide capability, not a UI role guess.
   const currentGroup=user?.studyGroups?.find(item=>item.researchProjects?.length);
@@ -28,6 +29,7 @@ export default function HubAgentPanel({user,layout,paused=false,sessionId,onSess
   const [state,setState]=useState({kind:'loading'}),[session,setSession]=useState(null),[question,setQuestion]=useState(''),[answer,setAnswer]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const active=useRef(0),pendingKey=useRef(null);
   const selectedId=useRef(sessionId),[messages,setMessages]=useState([]);
+  const [composerDirty,setComposerDirty]=useState(false);
   const [nextCursor,setNextCursor]=useState(null),[running,setRunning]=useState(false);
   const [jobs,setJobs]=useState([]);
   const [pendingCommand,setPendingCommand]=useState(null);
@@ -93,8 +95,9 @@ export default function HubAgentPanel({user,layout,paused=false,sessionId,onSess
   };
   const materialIdentity=[user?.tenantId,user?.accountId,scope?.studyGroupId,scope?.researchProjectId].join(':');
   const researchData=useResearchData({client,identity:materialIdentity,sessionId:session?.id,enabled:state.materialUpload?.researchDataEnabled===true,overviewEnabled:state.materialUpload?.researchDataOverviewReady===true,analysisReady:state.materialUpload?.researchDataAnalysisReady===true,paused:paused||state.kind!=='ready'});
-  const media=useAgentMedia({client,identity:materialIdentity,sessionId:session?.id,enabled:state.materialUpload?.mediaEnabled===true,resumable:state.materialUpload?.mediaResumable===true,registrationEnabled:state.materialUpload?.mediaRegistrationEnabled===true,registrationState:state.materialUpload?.mediaRegistrationState,contentEnabled:state.materialUpload?.mediaContentEnabled===true,contentState:state.materialUpload?.mediaContentState,paused:paused||state.kind!=='ready'});
+  const media=useAgentMedia({client,identity:materialIdentity,sessionId:session?.id,enabled:state.materialUpload?.mediaEnabled===true,resumable:state.materialUpload?.mediaResumable===true,registrationEnabled:state.materialUpload?.mediaRegistrationEnabled===true,registrationState:state.materialUpload?.mediaRegistrationState,contentEnabled:state.materialUpload?.mediaContentEnabled===true,contentState:state.materialUpload?.mediaContentState,acquisitionContext,paused:paused||state.kind!=='ready'});
   const materials=useAgentMaterials({client,identity:materialIdentity,sessionId:session?.id,getSession:ensureQueueSession,enabled:state.materialUpload?.enabled===true,analysisReady:state.materialUpload?.analysisReady===true,researchData:state.materialUpload?.researchDataEnabled===true?researchData:undefined,media,paused:paused||state.kind!=='ready',contextStudyId:uploadStudyId});
+  const leaveGuard=useStudyDataLeaveGuard({enabled:layout==='workbench',dirty:composerDirty||Boolean(materials.dataSelection)||materials.uploading||media.uploading||media.registrationDirty});
   const send=async event=>{
     event.preventDefault();if(paused||!session||busy||running||state.quota?.blocked)return;
     const text=question.trim(),inputError=agentQuestionError(text);if(inputError){setError(inputError);return;}
@@ -120,16 +123,16 @@ export default function HubAgentPanel({user,layout,paused=false,sessionId,onSess
     window.addEventListener('qiyan:page-action',create);
     return()=>window.removeEventListener('qiyan:page-action',create);
   });
-  if(layout==='workbench')return <div className="workspace">
+  if(layout==='workbench')return <div className="workspace" ref={leaveGuard.fallback}>{leaveGuard.dialog}
     <section className="conversationList" aria-label="会话列表"><button type="button" className="newChat" onClick={begin} disabled={paused||busy||state.kind!=='ready'}>{busy?'正在处理…':'＋ 新建对话'}</button>
       {['unavailable','restricted','error'].includes(state.kind)?<div className="dateLabel">本人历史会话</div>:<AgentHistory client={client} paused={paused||!allowed||state.kind!=='ready'} selectedId={session?.id} refreshKey={historyVersion}/>}</section>
-    <section className="chat" aria-label="科研 Agent 对话"><div className="thread" ref={threadRef}>
+    <section className="chat" aria-label="科研 Agent 对话"><div className="thread" ref={threadRef}>{contextNotice}
       {state.kind==='loading'?<p role="status">正在加载会话…</p>:state.kind==='unavailable'?<p role="status">{state.message}</p>:state.kind==='restricted'?<p role="status">当前账号没有此会话的使用权限。</p>:state.kind==='error'?<p role="alert">{state.message}</p>:null}
       {nextCursor&&<button type="button" disabled={paused||busy} onClick={()=>load(session.id,active.current,nextCursor).catch(reason=>setError(displayError(reason)))}>加载更早消息</button>}
       {!paused&&state.kind==='ready'&&<AgentMessages messages={messages} jobs={jobs} media={media}/>}{!paused&&!busy&&state.kind==='ready'&&<AgentPendingMessage command={pendingCommand} messages={messages}/>}{running&&!jobs.some(j=>['queued','processing'].includes(j.status)&&messages.some(m=>m.id===j.userMessageId))&&<p role="status">正在处理，可继续输入下一条指令。</p>}
       {error&&<p role="alert">{error} {session&&<button type="button" onClick={()=>load(session.id).then(()=>setError('')).catch(reason=>setError(displayError(reason)))}>重新获取状态</button>}</p>}
       {!paused&&state.kind==='ready'&&<ResearchDataPreview data={researchData}/>}</div>
-      <div className="composer"><AgentMaterialsView materials={materials} scope={scope} analysisReady={state.materialUpload?.analysisReady===true}/>{networkEnabled&&(materials.hasMaterials||researchData.hasData)&&<p role="status">请先关闭“智能搜索”再分析本会话资料；私有资料不会用于联网搜索。</p>}<AgentCommandComposer key={composerEpoch} client={client} sessionId={session?.id} paused={paused} inputUnavailable={busy||state.kind!=='ready'||Boolean(selectedId.current&&!session)} unavailable={busy||state.kind!=='ready'||Boolean(selectedId.current&&!session)||materials.blocksAnalysis||researchData.blocksAnalysis||networkEnabled&&(materials.hasMaterials||researchData.hasData)} running={running} onRefresh={()=>selectedId.current?load(selectedId.current):null} getSession={ensureQueueSession} onPendingChange={setPendingCommand} quota={state.quota} networkIntent={{schema:'hub-network-intent.v1',enabled:networkEnabled}}/>
+      <div className="composer"><AgentMaterialsView materials={materials} scope={scope} analysisReady={state.materialUpload?.analysisReady===true}/>{networkEnabled&&(materials.hasMaterials||researchData.hasData)&&<p role="status">请先关闭“智能搜索”再分析本会话资料；私有资料不会用于联网搜索。</p>}<AgentCommandComposer key={composerEpoch} client={client} sessionId={session?.id} paused={paused} inputUnavailable={busy||state.kind!=='ready'||Boolean(selectedId.current&&!session)} unavailable={busy||state.kind!=='ready'||Boolean(selectedId.current&&!session)||materials.blocksAnalysis||researchData.blocksAnalysis||networkEnabled&&(materials.hasMaterials||researchData.hasData)} running={running} onRefresh={()=>selectedId.current?load(selectedId.current):null} getSession={ensureQueueSession} onPendingChange={setPendingCommand} onDirtyChange={setComposerDirty} quota={state.quota} networkIntent={{schema:'hub-network-intent.v1',enabled:networkEnabled}}/>
         <div className="composerTools"><button type="button" onClick={materials.pick} disabled={paused||busy||state.kind!=='ready'||Boolean(selectedId.current&&!session)||state.materialUpload?.enabled!==true||materials.uploading||media.uploading}>上传文件</button><button type="button" disabled>深度分析</button><button type="button" aria-pressed={networkEnabled} disabled={paused||state.kind!=='ready'} onClick={()=>setNetworkEnabled(value=>!value)}>智能搜索</button></div>
       </div></section></div>;
   return <section className="real-entry-card hub-agent-panel" aria-labelledby="hub-agent-title">

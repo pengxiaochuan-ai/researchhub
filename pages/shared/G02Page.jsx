@@ -1,4 +1,5 @@
 import ReportAssetReview from './ReportAssetReview.jsx';
+import HubAssetWorkspace from './HubAssetWorkspace.jsx';
 import {AcademicManagement} from './AcademicContent.jsx';
 import React from 'react';
 import {
@@ -146,11 +147,12 @@ function G02RealPage() {
   const directoryOpen = new URLSearchParams(window.location.search).get('view') === 'directory-review';
   const billingOpen = new URLSearchParams(window.location.search).get('view') === 'token-reconciliation';
   const assetOpen = new URLSearchParams(window.location.search).get('view') === 'asset-review';
+  const hubAssetOpen = new URLSearchParams(window.location.search).get('view') === 'hub-assets';
   return <Shell className="g02-page g02-real-page" active="管理与治理" hero={{
     breadcrumb:'管理与治理', title:'管理与治理',
     subtitle:'保障研究合规、数据安全、质量可控，促进多中心协作与科研价值的可持续发展。',
   }}>
-    {academicOpen ? <AcademicManagement/> : assetOpen ? <ReportAssetReview/> : billingOpen ? <TokenReconciliation/> : directoryOpen ? <section className="governance-workspace g02-team-maintenance" aria-label="数据治理 · 团队资料维护"><GovernanceSectionHeader title="团队资料维护" description="草稿仅管理员可见，审核通过后按所选范围展示。" backHref={governanceBackHref(window.location.search)}/><DirectoryWorkbench showTaskDescription={false}/></section> : sourceOpen ? <section className="governance-workspace governance-source-workspace" aria-label="数据治理 · 来源审核">
+    {hubAssetOpen ? <HubAssetWorkspace view="review"/> : academicOpen ? <AcademicManagement/> : assetOpen ? <ReportAssetReview/> : billingOpen ? <TokenReconciliation/> : directoryOpen ? <section className="governance-workspace g02-team-maintenance" aria-label="数据治理 · 团队资料维护"><GovernanceSectionHeader title="团队资料维护" description="草稿仅管理员可见，审核通过后按所选范围展示。" backHref={governanceBackHref(window.location.search)}/><DirectoryWorkbench showTaskDescription={false}/></section> : sourceOpen ? <section className="governance-workspace governance-source-workspace" aria-label="数据治理 · 来源审核">
       <GovernanceSectionHeader title="来源审核" description="选择内容并核对原文，然后确认可见范围。" backHref={governanceBackHref(window.location.search)}/>
       <HubSourceWorkbench embedded showTaskDescription={false}/>
     </section> : <GovernanceOverview/>}

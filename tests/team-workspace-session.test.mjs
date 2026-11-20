@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {createDirectoryClient} from '../src/directory-session.js';
 test('origin rejection is not mislabeled as missing business permission and draft-limit conflict is specific',async()=>{
- for(const[code,text]of [['DIRECTORY_ORIGIN_REJECTED','请求来源'],['DIRECTORY_DRAFT_LIMIT','大小']]){
+ for(const[code,text]of [['DIRECTORY_ORIGIN_REJECTED','安全校验'],['DIRECTORY_DRAFT_LIMIT','大小']]){
  const c=createDirectoryClient({fetchImpl:async()=>({ok:false,status:code==='DIRECTORY_ORIGIN_REJECTED'?403:409,json:async()=>({code})})});
  await assert.rejects(c.teamWorkspaces(),e=>e.code===code&&e.message.includes(text));}
 });

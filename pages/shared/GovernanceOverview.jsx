@@ -10,6 +10,7 @@ import {createGovernanceUsersClient} from '../../src/governance-users-session.js
 import {createAccountAccessClient} from '../../src/account-session.js';
 import {loadGovernanceResults} from '../../src/governance-loading.js';
 import {createAcademicContentClient} from '../../src/academic-content-client.js';
+import {createHubAssetClient} from '../../src/hub-asset-client.js';
 import {academicHref} from '../../src/academic-content-route.js';
 import './governance-overview.css';
 
@@ -54,10 +55,12 @@ function GovernanceQueue({result,module,disposition,ready,page:controlledPage,on
 }
 
 function OverviewContent({identity}){
+ const [hubAssetAccess,setHubAssetAccess]=useState(false);
  const [academicAccess,setAcademicAccess]=useState(false);
  const [location,setLocation]=useState(()=>governanceOverviewLocation(window.location.search)),[history,setHistory]=useState(false),[refresh,setRefresh]=useState(0);
  const [attentionOpen,setAttentionOpen]=useState(Boolean(location.attentionPage));
  const ready=!identity.checking&&!identity.unavailable&&identity.user.authenticated;
+ useEffect(()=>{setHubAssetAccess(false);if(!ready)return;let active=true;const controller=new AbortController();void createHubAssetClient().reviews({}, {signal:controller.signal}).then(()=>{if(active)setHubAssetAccess(true);}).catch(()=>{});return()=>{active=false;controller.abort();};},[ready,identity.identityKey]);
  useEffect(()=>{setAcademicAccess(false);if(!ready)return;let active=true;const controller=new AbortController();void createAcademicContentClient().adminList({}, {signal:controller.signal}).then(()=>{if(active)setAcademicAccess(true);}).catch(()=>{});return()=>{active=false;controller.abort();};},[ready,identity.identityKey]);
  const supported=location.module==='all'||governanceModules[location.module].adapters.length>0;
  const result=useGovernanceResults('pending',identity,refresh),processed=useGovernanceResults('processed',identity,refresh,history&&governanceCoverage(null,location.module,'processed').selected.length>0);
@@ -67,7 +70,7 @@ function OverviewContent({identity}){
  function change(next){const value={...location,...next};if(next.module!==undefined&&next.module!==location.module)delete value.attentionPage;setLocation(value);window.history.replaceState(null,'',governanceOverviewHref(value));}
  useEffect(()=>{const show=e=>{if(e.persisted)setRefresh(v=>v+1);};window.addEventListener('pageshow',show);return()=>window.removeEventListener('pageshow',show);},[]);
  return <div className="governance-overview">
-  {ready&&(access.length>0||academicAccess)&&<section className="governance-panel governance-common" aria-labelledby="governance-common"><h2 id="governance-common">常用管理</h2><nav className="governance-shortcuts" aria-label="常用管理">{access.map(k=><a key={k} href={governanceLink(k)}>{governanceKinds[k]}</a>)}{academicAccess&&<a href={academicHref({management:true})}>资讯与活动</a>}</nav></section>}
+  {ready&&(access.length>0||academicAccess||hubAssetAccess)&&<section className="governance-panel governance-common" aria-labelledby="governance-common"><h2 id="governance-common">常用管理</h2><nav className="governance-shortcuts" aria-label="常用管理">{access.map(k=><a key={k} href={governanceLink(k)}>{governanceKinds[k]}</a>)}{academicAccess&&<a href={academicHref({management:true})}>资讯与活动</a>}{hubAssetAccess&&<a href="/pages/g02/?view=hub-assets">成果纳入审核</a>}</nav></section>}
   <section className="governance-panel" aria-labelledby="governance-pending"><h2 id="governance-pending">待处理事项</h2><p className="governance-muted">汇总范围：方案审核、数据治理、用户与权限、系统配置</p>
    <div className="governance-toolbar"><label>所属模块<select aria-label="所属模块" value={location.module} onChange={e=>change({module:e.target.value,page:1})}><option value="all">全部模块</option>{Object.entries(governanceModules).map(([key,value])=><option key={key} value={key}>{value.name}</option>)}</select></label><Button disabled={!ready||!result||Object.values(result).some(x=>x.state==='loading')||!supported} onClick={()=>setRefresh(v=>v+1)}>刷新待办</Button></div>
    {location.module==='ethics'&&<p className="governance-muted">此处处理研究方案审核，不代表外部伦理审批。</p>}

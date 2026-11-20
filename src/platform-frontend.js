@@ -31,7 +31,7 @@ function localSearch(){const node=dialog('搜索本机演示与页面');text(nod
 function notifications(){const node=dialog('本机操作与提醒');text(node,"此处显示浏览器内的演示操作记录，不发送通知。");try{const records=browserDemoStore().list('events').slice(0,12);if(!records.length)text(node,'暂无本机操作记录。');records.forEach(item=>text(node,item.title+' · '+item.at));action(node,'打开演示任务',()=>goToPage('q02',{projectId:null,protocolId:null}));}catch(err){text(node,err.message);}node.showModal();}
 function userMenu(){
  if(realIdentityMode){const user=getPlatformUser(),node=dialog('当前真实账号');text(node,user.displayName+' · '+user.roleName);const status=text(node,'操作权限以当前研究授权为准。');status.setAttribute('role','status');
-  action(node,'本人资料',()=>location.assign('/pages/p006/'));action(node,'登录或切换账号',()=>location.assign('/pages/p003/'));action(node,'刷新会话',async()=>{await platformAuth.refresh();const next=getPlatformUser();status.textContent=next.displayName+' · '+next.roleName;});
+  action(node,'本人资料',()=>location.assign('/pages/p006/'));action(node,'登录或切换账号',()=>location.assign('/pages/p003/'));action(node,'检查登录状态',async()=>{await platformAuth.refresh();const next=getPlatformUser();status.textContent=next.displayName+' · '+next.roleName;});
   if(user.authenticated)action(node,'退出当前浏览器会话',async event=>{event.currentTarget.disabled=true;try{await platformAuth.logout();window.dispatchEvent(new Event('qiyan:auth-changed'));status.textContent='已退出当前浏览器会话，不代表撤销其他设备。';}catch(e){status.textContent=e.message;event.currentTarget.disabled=false;}});
   node.showModal();return;
  }

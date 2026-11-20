@@ -50,15 +50,16 @@ export async function createRuntimeFoundation({config,env,load,require,prisma,jw
   return withDeploymentTransaction(transactionEnv,'app',async tx=>{await lock(tx,p.tenantId,{includeOfficial:true});return fn(tx);});
  },legacyUpdate:(tx,user,id,dto)=>new(load('accounts/accounts.service','AccountsService'))(bound(tx,user.tenantId)).update(user,id,dto),legacyChangeMember:(tx,user,id,input)=>new(load('pi-governance/pi-governance.service','PiGovernanceService'))(bound(tx,user.tenantId)).changeMember(user,id,input)});
  const readState=async()=>({account:{configured:true},email:{configured:env.HUB_MAIL_MODE==='capture'},parser:{configured:Boolean(env.KB_DOC_PARSER_URL)},vector:{configured:Boolean(env.KB_EMBED_URL)},ai:{configured:env.HUB_PAID_AI_ENABLED==='true'&&Boolean(env.DEEPSEEK_API_KEY)}});
- let chat,queue;
+ let chat,queue,hubCopyWorkspace;
  const ChatController=createRuntimeChatController({require,load,getChat:()=>chat,getQueue:()=>queue});
  const Controllers=[load('knowledge/knowledge.controller','KnowledgeController'),ChatController,
   createHubController({env:transactionEnv,ids,require}),createHubSourceReadController({env:transactionEnv,ids,require,secret:config.jwtSecret,readPmcAsset:createPmcObjectReader(storage,ids.tenant)}),createHubSourceReviewController({env:transactionEnv,ids,require,readPmcAsset:createPmcObjectReader(storage,ids.tenant)}),createHubSourceAgentController({env:transactionEnv,ids,require}),
   await createDirectoryController({env:transactionEnv,ids,require,runtimePolicy}),await createReferenceController({env:transactionEnv,require,runtimePolicy}),await createResearchIdentityController({env:transactionEnv,ids,load,require,runtimePolicy}),
   createGovernanceAuditController({env:transactionEnv,ids,require,load}),createGovernanceSystemController({env:transactionEnv,ids,require,readState}),createGovernanceUsersController({require,service:users,origin:config.origin}),
-  createMyResearchController({ids,prisma,load,require,runtime:true})];
+  createMyResearchController({ids,prisma,load,require,runtime:true,canOpenHubCopy:(...args)=>hubCopyWorkspace?hubCopyWorkspace(...args):false})];
  const providers=createRuntimeProviders({load,require,prisma,scope:config.scope,cookieName:config.cookieName,jwt,storage,embeddingMode,stopGates,modelEnabled:env.HUB_PAID_AI_ENABLED==='true',chatBudget,coreDigest:config.core.digest,executionProfile:config.executionProfile,createChat:services=>(chat=createRuntimeChat({config,env,transactionEnv,prisma,load,services,chatBudget}))});
  return{Controllers,providers,storage,transactionEnv,runtimePolicy,ids,
+  setHubCopyWorkspace:check=>{if(typeof check!=='function'||hubCopyWorkspace)throw Error('HUB_COPY_WORKSPACE_BINDING_REJECTED');hubCopyWorkspace=check;},
   bindWorkers:app=>{queue=app.get(load('sessions/knowledge-chat-queue.service','KnowledgeChatQueueService'));for(const[path,name]of [['knowledge/knowledge-import.service','KnowledgeImportService'],['ingest/raw-processing.service','RawProcessingService']]){
    const instance=app.get(load(path,name));
    if(name==='KnowledgeImportService'&&config.executionProfile==='bounded-hub-knowledge-v2'){

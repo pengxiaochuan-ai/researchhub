@@ -6,6 +6,8 @@ import {assertMaterialUploadRetry} from '../../src/session-material-recovery.js'
 import {AgentMediaView} from './AgentMedia.jsx';
 import {assertResearchDataPage} from '../../src/research-data-session.js';
 import {createUploadStudyIntents,selectUploadStudy,requiresStudyUpload} from '../../src/research-data-upload-intent.js';
+import {mediaFileExtension,mediaMaxBytes} from '../../src/session-media-types.js';
+import {isEeglabSelection} from '../../src/eeglab-envelope.js';
 import StudyUploadDialog from './StudyUploadDialog.jsx';
 
 export function useAgentMaterials({client,identity,sessionId,getSession,enabled,analysisReady=false,researchData,media,paused=false,contextStudyId}){
@@ -20,7 +22,7 @@ export function useAgentMaterials({client,identity,sessionId,getSession,enabled,
  async function verified(sid,turn,requiresData=false,requiresMedia=false){
   while(alive.current&&turn===epoch.current&&(sidRef.current==null||sidRef.current===sid)){
    if(!verification.current.enabled)return false;
-   if(!verification.current.paused){if(requiresData&&!verification.current.researchData){setError('研究数据上传权限已变化，本次未继续处理；已保存文件请核对。');return false;}if(requiresMedia&&!verification.current.media?.enabled){setError('视频上传权限已变化，本次未继续上传。');return false;}return true;}
+   if(!verification.current.paused){if(requiresData&&!verification.current.researchData){setError('研究数据上传权限已变化，本次未继续处理；已保存文件请核对。');return false;}if(requiresMedia&&!verification.current.media?.enabled){setError('原件上传权限已变化，本次未继续上传。');return false;}return true;}
    await new Promise(resolve=>{verificationWaiter.current=resolve;});
   }return false;
  }
@@ -89,7 +91,7 @@ export function useAgentMaterials({client,identity,sessionId,getSession,enabled,
  }
  async function routeSelection(files){
   let priorIntent;try{if(retryUpload.current&&sessionId)priorIntent=intents(sessionId).forUpload(retryUpload.current.key);}catch(e){setError(e.message);return;}
-  if(!requiresStudyUpload(files,priorIntent))return uploadFiles(files);
+  if(!requiresStudyUpload(files,priorIntent,contextStudyId))return uploadFiles(files);
   if(paused||!enabled||writing.current)return;
   const turn=epoch.current,generation=++selectionGeneration.current,returnFocus=uploadTrigger.current?.isConnected?uploadTrigger.current:document.activeElement;
   try{const sid=sessionId??await getSessionRef.current();if(!alive.current||turn!==epoch.current||generation!==selectionGeneration.current||sidRef.current!=null&&sidRef.current!==sid)return;
@@ -100,7 +102,14 @@ export function useAgentMaterials({client,identity,sessionId,getSession,enabled,
  async function uploadSelection(){const draft=selectionRef.current;if(!draft||draft.loading||draft.submitting||!draft.targets.some(t=>t.id===draft.studyId)||draft.client!==client||draft.identity!==identity||draft.sessionId!==sessionId||paused||!enabled)return;setDataSelection(s=>({...s,submitting:true}));await uploadFiles(draft.files,{studyId:draft.studyId});if(draft.generation===selectionGeneration.current)setDataSelection(null);}
  async function uploadFiles(files,{studyId}={}){
   if(paused||!enabled||writing.current)return;
-  if(files.length>20||files.some(f=>!f.size||(/\.(mp4|mov|webm)$/i.test(f.name)?!media?.enabled||f.size>500*1024*1024:/\.(csv|xlsx)$/i.test(f.name)?!researchData||f.size>25*1024*1024:f.size>100*1024*1024||!/\.(?:pdf|docx|txt|md|markdown)$/i.test(f.name)))){setError(media?.enabled?'请选择最多20份支持的文件；视频不超过500MiB，文献不超过100MiB，CSV/XLSX不超过25MiB。':researchData?'请选择最多20份文件；文献不超过100MiB，CSV/XLSX研究数据不超过25MiB。':'请选择最多20份PDF、DOCX、TXT或Markdown文献，每份不超过100MiB。');return;}
+  media?.clearSelectionError?.();
+  if(isEeglabSelection(files)){
+   if(!media?.enabled){setError('当前原件上传不可用，请核对权限后重试。');return;}
+   const turn=epoch.current;writing.current=true;setUploading(true);setError('');
+   try{const sid=sessionId??await getSessionRef.current();if(await verified(sid,turn,false,true))await verification.current.media.upload(files,sid);}catch(e){if(alive.current&&turn===epoch.current&&!e.mediaHandled)setError(e.message);}finally{writing.current=false;if(alive.current&&turn===epoch.current)setUploading(false);}return;
+  }
+  if(files.some(f=>/\.eeglab$/i.test(f.name))){setError('请选择原SET及配套FDT，系统会自动整理完整原件包。');return;}
+  if(files.length>20||files.some(f=>!f.size||(mediaFileExtension(f.name)?!media?.enabled||f.size>mediaMaxBytes(mediaFileExtension(f.name)):/\.(csv|xlsx)$/i.test(f.name)?!researchData||f.size>25*1024*1024:f.size>100*1024*1024||!/\.(?:pdf|docx|txt|md|markdown)$/i.test(f.name)))){setError(media?.enabled?'请选择最多20份支持的文件；语音WAV/MP3/M4A不超过200MiB，舌图PNG/JPG/JPEG不超过25MiB，视频不超过500MiB，文献不超过100MiB，CSV/XLSX不超过25MiB。':researchData?'请选择最多20份文件；文献不超过100MiB，CSV/XLSX研究数据不超过25MiB。':'请选择最多20份PDF、DOCX、TXT或Markdown文献，每份不超过100MiB。');return;}
   const retry=retryUpload.current;retryUpload.current=null;let originalKey;try{originalKey=assertMaterialUploadRetry(retry,{sessionId,identity,client},files);}catch(e){setError(e.message);return;}
   writing.current=true;setUploading(true);setError('');const turn=epoch.current;
   try{
@@ -109,8 +118,8 @@ export function useAgentMaterials({client,identity,sessionId,getSession,enabled,
    const acceptedData=[],dataKeys=[],requestKeys=files.map(f=>/\.(csv|xlsx)$/i.test(f.name)?originalKey??'research-data-'+crypto.randomUUID():null);
    if(studyId){if(originalKey){if(!intents(sid).forUpload(originalKey))intents(sid).begin(originalKey,studyId);intents(sid).assertFile(originalKey,files[0]);}else{const dataFiles=files.filter((_,i)=>requestKeys[i]);const batchKeys=requestKeys.filter(Boolean);if(keys(sid).length+batchKeys.length>20)throw Error('请先核对尚未完成的上传，再添加这批文件。');intents(sid).beginBatch(batchKeys,studyId,dataFiles);saveKeys(sid,[...new Set([...keys(sid),...batchKeys])],{required:true});}}
    for(const [fileIndex,file] of files.entries()){
-    const dataFile=/\.(csv|xlsx)$/i.test(file.name),videoFile=/\.(mp4|mov|webm)$/i.test(file.name);if(!await verified(sid,turn,dataFile,videoFile))return;
-    if(videoFile){await verification.current.media.upload(file,sid);continue;}
+    const dataFile=/\.(csv|xlsx)$/i.test(file.name),mediaFile=Boolean(mediaFileExtension(file.name));if(!await verified(sid,turn,dataFile,mediaFile))return;
+    if(mediaFile){await verification.current.media.upload(file,sid);continue;}
     const key=requestKeys[fileIndex]??originalKey??'material-'+crypto.randomUUID(),saved=keys(sid);if(!saved.includes(key)&&saved.length>=20)throw Error('请先核对尚未确认的上传结果，再添加资料。');
     if(dataFile&&studyId)intents(sid).begin(key,studyId);
     saveKeys(sid,[...new Set([...saved,key])],{required:true});++sequence.current;
@@ -141,7 +150,8 @@ export function AgentMaterialsView({materials,scope,analysisReady=false}){
  const {items,pending,uploading,error,nextCursor}=materials;
  return <>
   <StudyUploadDialog draft={materials.dataSelection} onCancel={materials.cancelSelection} onUpload={materials.uploadSelection} onChange={materials.selectStudy} onReload={materials.reloadStudies}/>
-  <input ref={materials.input} type="file" data-agent-materials accept={'.pdf,.docx,.txt,.md,.markdown'+(materials.researchData?',.csv,.xlsx':'')+(materials.media?.enabled?',.mp4,.mov,.webm':'')} multiple hidden onChange={materials.selected}/>
+  {materials.media?.enabled&&<p data-eeglab-upload-guidance>EEG上传前请在EEGLAB去除身份信息并重新保存；选择SET及它需要的同次导出FDT。</p>}
+  <input ref={materials.input} type="file" data-agent-materials accept={'.pdf,.docx,.txt,.md,.markdown'+(materials.researchData?',.csv,.xlsx':'')+(materials.media?.enabled?',.mp4,.mov,.webm,.png,.jpg,.jpeg,.wav,.mp3,.m4a,.set,.fdt':'')} multiple hidden onChange={materials.selected}/>
   {materials.media&&<AgentMediaView media={materials.media}/>}
   {materials.researchData?.items.length>0&&<section className="agent-materials" aria-label="本会话研究数据"><details><summary>本会话研究数据 · {materials.researchData.nextCursor?'已显示':''}{materials.researchData.items.length}份</summary><ul>{materials.researchData.items.map(item=><li key={item.id}><span className="agent-material-name">{item.name}</span><span>{item.state==='ready'?'已暂存':'当前不可用'}</span></li>)}</ul>{materials.researchData.nextCursor&&<Button disabled={materials.researchData.loading} onClick={materials.researchData.more}>更多数据文件</Button>}</details>{!materials.researchData.analysisReady?<p>本会话研究数据的AI分析暂不可用。</p>:materials.researchData.imports?.item?.state!=='committed'?<p>完成上方导入确认后，可提问本批数据。</p>:null}</section>}
   {(items.length>0||pending.length>0||uploading&&!materials.media?.uploading||error)&&<section className="agent-materials" aria-label="本会话资料" aria-busy={uploading}>

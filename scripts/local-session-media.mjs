@@ -7,22 +7,26 @@ import {inspectMediaSchema,mediaSqlHash} from './ai-session-media-schema.mjs';
 import {withFixtureTransaction} from '../../app/server/scripts/wp01/fixture-guard.mjs';
 import {createMediaChunkSnapshot} from '../server/ai-agent/session-media-snapshot.mjs';
 import {mediaSourceAllowed,mediaSourceMetadata} from '../server/ai-agent/session-media-origin.mjs';
+import {assertEeglabSchemaReady} from './ai-session-eeglab-schema.mjs';
+import {createEeglabInspection,inspectEeglabSignature,assertEeglabRuntimeReady,defaultEeglabPython} from './ai-session-eeglab-inspection.mjs';
 
 export async function createLocalSessionMedia({env,ids,load,require,storage,directory}){
  const state=await withFixtureTransaction(env,'direct',tx=>inspectMediaSchema(tx),{readOnly:true});
  if(state.receipt?.sqlHash!==mediaSqlHash||state.receipt.catalogHash!==state.catalogHash)throw Error('MEDIA_SCHEMA_NOT_READY');
+ await withFixtureTransaction(env,'direct',assertEeglabSchemaReady,{readOnly:true});
+ const eeglabPython=env.RH_EEGLAB_PYTHON??defaultEeglabPython,eeglabRuntime=await assertEeglabRuntimeReady(eeglabPython);
  const Chunk=load('sessions/chat-chunk-upload','ChatChunkUploadStore');
- const chunks=new Chunk({rootDirectory:directory,allowedExtensions:new Set(['.mp4','.mov','.webm'])});
+ const chunks=new Chunk({rootDirectory:directory,allowedExtensions:new Set(['.mp4','.mov','.webm','.png','.jpg','.jpeg','.wav','.mp3','.m4a','.eeglab'])});
  const service=createSessionMedia({access:createLocalMaterialAccess({env,ids,load}),chunks,storage,readChunks:createMediaChunkSnapshot({directory}),
-  inspectSignature:load('sessions/chat-upload-inspector','inspectChatUploadFile'),
-  inspectMedia:createMediaInspection({parse:load('ingest/media-inspection','parseFfprobeOutput'),classify:load('ingest/media-inspection','classifyFfprobeFailure')}),
+  inspectSignature:input=>/\.eeglab$/.test(input.filename)?inspectEeglabSignature(input):load('sessions/chat-upload-inspector','inspectChatUploadFile')(input),
+  inspectMedia:createMediaInspection({parse:load('ingest/media-inspection','parseFfprobeOutput'),classify:load('ingest/media-inspection','classifyFfprobeFailure'),inspectEeglab:createEeglabInspection({python:eeglabPython})}),
   parseRange:load('sessions/sessions.service','parseAttachmentByteRange')});
  const {Controller,Get,Post,Req,Res,Param,Body,Query,HttpException}=require('@nestjs/common');
  const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(coreSourcePath('common/decorators'));
  const only=(v,fields)=>{if(!v||Array.isArray(v)||Object.keys(v).some(k=>!fields.includes(k)))throw new HttpException({code:'MEDIA_INPUT',message:'视频请求无效，请核对后重试。'},400);};
- const messages={MEDIA_INPUT:'请选择MP4、MOV或WebM视频，单份不超过500MiB。',MEDIA_FILE_INVALID:'视频格式检查未通过，请核对文件后重新上传。',MEDIA_NOT_FOUND:'视频不存在或当前无权查看。',MEDIA_VERSION:'视频状态已变化，请重新核对。',MEDIA_REQUEST_CONFLICT:'本次操作对应的视频已不同，请核对原上传。',MEDIA_SOURCE_CHANGED:'视频原件或状态无法核对，当前未继续读取。',MEDIA_NOT_ARCHIVED:'视频尚未归档完成，请核对上传状态。',MEDIA_CHECK_RUNNING:'视频正在检查，请稍后核对。',MEDIA_ALREADY_ARCHIVED:'视频已归档，请核对已有结果。',HUB_MATERIAL_ACCESS_REJECTED:'当前会话或视频权限已变化，请核对后再操作。'};
- messages.MEDIA_UPLOAD_EXPIRED='视频上传已过期，未完成归档。请重新选择文件上传。';
- messages.MEDIA_FILE_IDENTITY_CHANGED='上传内容与原视频不一致，请重新选择原视频继续上传。';
+ const messages={MEDIA_INPUT:'EEG请选择SET及配套FDT整组上传。其他原件请选择WAV、MP3或M4A语音（不超过200MiB），PNG/JPEG舌图（不超过25MiB），或MP4/MOV/WebM视频（不超过500MiB）。',MEDIA_FILE_INVALID:'文件格式检查未通过，请核对原件后重新上传。',MEDIA_NOT_FOUND:'文件不存在或当前无权查看。',MEDIA_VERSION:'文件状态已变化，请重新核对。',MEDIA_REQUEST_CONFLICT:'本次操作对应的文件已不同，请核对原上传。',MEDIA_SOURCE_CHANGED:'原件或状态无法核对，当前未继续读取。',MEDIA_NOT_ARCHIVED:'文件尚未归档完成，请核对上传状态。',MEDIA_CHECK_RUNNING:'正在检查文件，请稍后核对。',MEDIA_ALREADY_ARCHIVED:'文件已归档，请核对已有结果。',HUB_MATERIAL_ACCESS_REJECTED:'当前会话或文件权限已变化，请核对后再操作。'};
+ messages.MEDIA_UPLOAD_EXPIRED='文件上传已过期，未完成归档。请重新选择文件上传。';
+ messages.MEDIA_FILE_IDENTITY_CHANGED='上传内容与原文件不一致，请重新选择原文件继续上传。';
  messages.MEDIA_CHUNKS_UNAVAILABLE='暂时无法核对已上传的内容，请稍后核对原上传。';
  async function invoke(req,operation){
   req.res?.setHeader('Cache-Control','no-store');
@@ -37,7 +41,7 @@ export async function createLocalSessionMedia({env,ids,load,require,storage,dire
   onModuleDestroy(){chunks.onModuleDestroy();}
   initialize(req,sid,body){return invoke(req,()=>service.initialize(req.user,sid,body));}
   chunk(req,sid,uploadId,index){return invoke(req,()=>{
-   if(req.headers['content-type']?.split(';')[0]!=='application/octet-stream')throw new HttpException('请使用视频分片上传。',400);
+   if(req.headers['content-type']?.split(';')[0]!=='application/octet-stream')throw new HttpException('请使用文件分片上传。',400);
    return service.chunk(req.user,sid,uploadId,Number(index),req,Number(req.headers['content-length']));
   });}
   complete(req,sid,uploadId,body){only(body,[]);return invoke(req,()=>service.complete(req.user,sid,uploadId));}
@@ -70,5 +74,5 @@ export async function createLocalSessionMedia({env,ids,load,require,storage,dire
  Controller('sessions')(SessionMediaContentController);
  const p=SessionMediaContentController.prototype,d=Object.getOwnPropertyDescriptor(p,'content');
  Get(':id/media/:mediaId/content')(p,'content',d);Req()(p,'content',0);Param('id')(p,'content',1);Param('mediaId')(p,'content',2);Res()(p,'content',3);
- return{Controllers:[SessionMediaController,SessionMediaContentController],service};
+ return{Controllers:[SessionMediaController,SessionMediaContentController],service,eeglabRuntime};
 }

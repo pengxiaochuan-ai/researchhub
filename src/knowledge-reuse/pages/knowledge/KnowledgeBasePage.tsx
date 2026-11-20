@@ -61,6 +61,7 @@ import KnowledgeTrashDialog from './KnowledgeTrashDialog';
 import { BookOpen } from 'lucide-react';
 import { canEditKnowledgeScope } from '../../../knowledge-session.js';
 import {assertMaterialDocumentVersion} from '../../../session-material-session.js';
+import {knowledgeRecordTemplate,knowledgeDocumentSource,knowledgeRecordLinks,appendKnowledgeAnswer} from '../../../knowledge-records.js';
 
 const WikiEditor = lazy(() => import('./WikiEditor'));
 
@@ -197,6 +198,10 @@ export default function KnowledgeBasePage({
   const [doc, setDoc] = useState<DocDetail | null>(null);
   const [draftMd, setDraftMd] = useState('');
   const [draftTitle, setDraftTitle] = useState('');
+  const recordIdentity = [user?.tenantId, user?.accountId, user?.authVersion, scope?.studyGroupId, scope?.researchProjectId].join(':');
+  const recordContextRef = useRef('');
+  recordContextRef.current = recordIdentity + ':' + kbId;
+  const pendingTemplateRef = useRef<{id:string;kbId:string;identity:string;contentMd:string}|null>(null);
   const [viewMode, setViewMode] = useState<KnowledgeDocumentView>('wysiwyg');
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -211,6 +216,7 @@ export default function KnowledgeBasePage({
   const [documentTitleDialog, setDocumentTitleDialog] = useState<DocumentTitleDialogState | null>(null);
   const [documentTitleBusy, setDocumentTitleBusy] = useState(false);
   const [documentTitleError, setDocumentTitleError] = useState('');
+  const documentTitleOpenerRef = useRef<HTMLElement | null>(null);
   const pendingDiscardActionRef = useRef<(() => void) | null>(null);
   const [discardDialog, setDiscardDialog] = useState<{ targetLabel: string } | null>(null);
   const [deleteDocOpen, setDeleteDocOpen] = useState(false);
@@ -371,7 +377,10 @@ export default function KnowledgeBasePage({
       const d = scopedDocument(value);
       if (!alive) return;
       setKbId(d.kbId);
-      setDoc(d); setDraftMd(d.contentMd); setDraftTitle(d.title); setDirty(false);
+      const pending = pendingTemplateRef.current;
+      const template = pending?.id === d.id && pending.kbId === d.kbId && pending.identity === recordContextRef.current && d.canEdit ? pending.contentMd : '';
+      if (pending?.id === d.id) pendingTemplateRef.current = null;
+      setDoc(d); setDraftMd(template || d.contentMd); setDraftTitle(d.title); setDirty(!!template && template !== d.contentMd);
       setViewMode(defaultKnowledgeDocumentView(d.sourceFile, d.canEdit));
     }).catch((error) => { if (alive) { setDoc(null); setBanner(error instanceof ApiError || error?.code==='HUB_PRIVATE_DOCUMENT_CHANGED' ? error.message : '文档加载失败，请重试'); } });
     return () => { alive = false; };
@@ -496,6 +505,7 @@ export default function KnowledgeBasePage({
     }
   }
   function newDoc(parent?: TreeNode) {
+    documentTitleOpenerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     requestDiscardNavigation('新建并切换到另一篇文章', () => {
       setDocumentTitleError('');
       setDocumentTitleDialog({
@@ -507,34 +517,49 @@ export default function KnowledgeBasePage({
   }
 
   function openRenameDocument(node: TreeNode) {
+    documentTitleOpenerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setDocumentTitleError('');
     setDocumentTitleDialog({ mode: 'rename', docId: node.id, title: node.title });
   }
 
   function closeDocumentTitleDialog() {
     if (documentTitleBusy) return;
+    const opener = documentTitleOpenerRef.current;
     setDocumentTitleDialog(null);
     setDocumentTitleError('');
+    requestAnimationFrame(() => { if (opener?.isConnected) opener.focus(); });
   }
 
-  async function submitDocumentTitle(title: string) {
+  async function submitDocumentTitle(title: string, template = 'document', sourceId = '') {
     if (!documentTitleDialog || !kbId || !canWrite || documentTitleBusy) return;
     setDocumentTitleBusy(true);
     setDocumentTitleError('');
     try {
       if (documentTitleDialog.mode === 'create') {
+        const context = recordContextRef.current;
+        let original;
+        if (template !== 'document' && sourceId) {
+          const selected = await api.get<DocDetail>(`/knowledge/docs/${sourceId}`);
+          if (selected.kbId !== kbId) throw new Error('原资料不在当前知识库，请重新选择。');
+          original = await knowledgeDocumentSource(selected, scope);
+        }
+        const contentMd = knowledgeRecordTemplate(template, original);
+        if (!aliveRef.current || recordContextRef.current !== context) return;
         const d = await api.post<{ id: string }>('/knowledge/docs', {
           kbId,
           parentId: documentTitleDialog.parentId,
           title,
         });
+        if (!aliveRef.current || recordContextRef.current !== context) return;
+        pendingTemplateRef.current = {id:d.id,kbId,identity:context,contentMd};
         await loadTree(kbId);
         await loadBases();
+        if (!aliveRef.current || recordContextRef.current !== context) return;
         setDirty(false);
         setDocId(d.id);
         setTab('editor');
         onRouteChange?.({ kbId, docId: d.id });
-        setBanner('知识文档已创建，当前为待审核草稿');
+        setBanner(contentMd ? '记录已创建，请补充内容后保存。' : '知识文档已创建，当前为待审核草稿');
       } else {
         await api.patch(`/knowledge/docs/${documentTitleDialog.docId}`, { title });
         await loadTree(kbId);
@@ -546,7 +571,7 @@ export default function KnowledgeBasePage({
       }
       setDocumentTitleDialog(null);
     } catch (e) {
-      setDocumentTitleError(e instanceof ApiError ? e.message : '保存文章标题失败');
+      setDocumentTitleError(e instanceof Error ? e.message : '保存文章标题失败');
     } finally {
       setDocumentTitleBusy(false);
     }
@@ -673,7 +698,7 @@ export default function KnowledgeBasePage({
       const queued = r.results.filter(
         (item): item is ImportResult & { taskId: string } => item.ok && !!item.taskId,
       );
-      setBanner(`已上传 ${r.queued} 篇，等待处理${r.failed ? `；${r.failed} 篇未进入队列` : ''}`);
+      setBanner(`已上传 ${r.queued} 篇，正在解析${r.failed ? `；${r.failed} 篇未进入队列` : ''}`);
       let finalTasks: ImportTaskView[] = queued.map((item) => ({
         id: item.taskId,
         filename: item.filename,
@@ -803,6 +828,22 @@ export default function KnowledgeBasePage({
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty, importing, saving, reviewing, managing, documentTitleBusy, deleteDocBusy, aiActivity]);
 
+  const sourceOptions = useMemo(() => {
+    const result: Array<{id:string;title:string}> = [];
+    const visit = (nodes:TreeNode[]) => {for (const node of nodes) {result.push({id:node.id,title:node.title});visit(node.children || []);}};
+    visit(tree);return result;
+  }, [tree]);
+  const recordLinks = useMemo(() => knowledgeRecordLinks(draftMd, scope), [draftMd, scope]);
+  const adoptionTargetKey = [recordIdentity, kbId, doc?.id, doc?.version].join(':');
+  const adoptionTarget = useRef({key:'',allowed:false,contentMd:''});
+  adoptionTarget.current = {key:adoptionTargetKey, contentMd:draftMd, allowed:!!doc?.canEdit && doc.scope === 'personal' && currentBase?.scope === 'personal' && canWrite && !saving && !importing && ['wysiwyg','markdown'].includes(viewMode)};
+  const adoptIntoDraft = useCallback((contentMd:string, targetKey:string) => {
+    if (!aliveRef.current || !adoptionTarget.current.allowed || adoptionTarget.current.key !== targetKey) throw new Error('当前文档或权限已变化，未修改草稿；请重新选择本人可编辑文档。');
+    const appended = appendKnowledgeAnswer(adoptionTarget.current.contentMd, contentMd);
+    setDraftMd(appended);
+    setDirty(true);setTab('editor');setBanner('已追加到当前草稿，请核对后保存。');
+  }, []);
+
   const roTitle = '该库只读，你无写权限';
   const paneGridStyle = {
     gridTemplateColumns: `${paneLayout.left}px 6px minmax(480px, 1fr) 6px ${paneLayout.right}px`,
@@ -912,7 +953,7 @@ export default function KnowledgeBasePage({
           <div className="shrink-0 border-b border-brand-100 bg-brand-50/70 px-3 py-2 text-xs text-brand-800">
             <div className="mb-1 flex items-center justify-between gap-2">
               <span className="font-medium">
-                {uploadProgress ? '正在上传原始文献' : '正在解析与建立索引'}
+                {uploadProgress ? '正在上传原始文献' : '正在解析、OCR 与建立索引'}
               </span>
               <span>
                 {uploadProgress?.percent !== null && uploadProgress?.percent !== undefined
@@ -1091,6 +1132,10 @@ export default function KnowledgeBasePage({
               {doc.canEdit && <button onClick={save} disabled={!dirty || saving} className="btn-primary px-3 py-1 text-xs">{saving ? '保存中…' : dirty ? '保存' : '已保存'}</button>}
               {doc.canEdit && <button onClick={delDoc} className="text-xs text-ink-400 hover:text-red-500">删除</button>}
             </div>
+            {recordLinks.length > 0 && <div aria-label="关联资料" className="flex shrink-0 flex-wrap items-center gap-2 border-b border-ink-100 px-4 py-2 text-xs">
+              <span className="text-ink-500">关联资料</span>
+              {recordLinks.map(link => <a key={link.href} href={link.href} target="_top" className="min-w-0 max-w-full break-words text-brand-600 underline" onClick={event => {if(event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return; event.preventDefault(); requestDiscardNavigation('回看原资料', () => window.top!.location.assign(link.href));}}>{link.title}</a>)}
+            </div>}
             {doc.safetyLevel === 'warning' && !doc.reviewed && (
               <div className="shrink-0 border-b border-orange-100 bg-orange-50 px-4 py-2 text-xs text-orange-800">
                 本文献检测到{formatSafetyCodes(doc.safetyCodes)}；请核对数据授权、使用范围和内容准确性后再审核发布。
@@ -1131,6 +1176,9 @@ export default function KnowledgeBasePage({
           kbId={kbId}
           kbName={currentBase?.name}
           onActivity={setAiActivity}
+          adoptionTargetKey={adoptionTargetKey}
+          canAdopt={adoptionTarget.current.allowed}
+          onAdopt={adoptIntoDraft}
           onOpenDoc={openDoc}
           onKbMutated={() => {
             // Agent 改动了知识库：刷新文档树 + 库计数；当前文档若未有未保存修改则重载（被删则清空）
@@ -1183,6 +1231,7 @@ export default function KnowledgeBasePage({
           onInputChange={() => setDocumentTitleError('')}
           onClose={closeDocumentTitleDialog}
           onSubmit={submitDocumentTitle}
+          sourceOptions={sourceOptions}
         />
       )}
 

@@ -1,6 +1,7 @@
 import{withDeploymentTransaction}from'../database/transactions.mjs';
 import{readAssetOverviewScopes}from'../research-assets/overview-scopes.mjs';
 import{createLegacyAssetReader}from'../research-assets/legacy-read.mjs';
+import{createHubAssetBridge}from'./hub-asset-bridge.mjs';
 import{authorizeBusinessAssetStudy}from'../research-assets/business-access.mjs';
 import{createBusinessAssetRegistration}from'../research-assets/business-registration.mjs';
 import{createReportSourceService}from'../research-assets/report-source-service.mjs';
@@ -85,7 +86,9 @@ export function createRuntimeAssets({config,foundation,load,require,readReport})
  };
  const reuse=createBusinessAssetReuse({withAccess,assertSources,loadRecords,artifacts});
  const readOptions={withAccess,assertSources,loadRecords},baseReader=createAssetCatalogReader({...readOptions,previewProjection:previewAssetView}),views=createAssetViewReader(readOptions);
- const reader={...baseReader,async detail(user,id,v){const result=await baseReader.detail(user,id,v);if(legacy?.has(id))return{...result,compatibilityReadOnly:true};return result.ownerAccountId===user.accountId&&result.kind==='publication'&&result.state==='approved'&&result.sourceOrigin?{...result,reportQaEligible:true}:result;}};
+ const reader={...baseReader,async detail(user,id,v){const result=await baseReader.detail(user,id,v);if(legacy?.has(id))return{...result,compatibilityReadOnly:true};
+  if(result.family==='business'&&result.ownerAccountId===user.accountId){const bindings=await withDeploymentTransaction(env,'direct',tx=>tx.$queryRawUnsafe('SELECT id FROM rh_research.study_binding WHERE tenant_id=$1 AND study_group_id=$2 AND execution_project_id=$3',result.tenantId,result.studyGroupId,result.researchProjectId),{readOnly:true});if(bindings.length===1)result.hubSourceStudyId=bindings[0].id;}
+  return result.ownerAccountId===user.accountId&&result.kind==='publication'&&result.state==='approved'&&result.sourceOrigin?{...result,reportQaEligible:true}:result;}};
  const materialBasis=createMaterialAiBasisService({withAccess,readNativeReport:async(tx,p,ref)=>{const s=await readSource(tx,p,{studyId:ref.studyId,reportId:ref.reportId});if(s.target.version!==ref.version)fail('REPORT_SOURCE_CHANGED',409);return s.value;}});
  const reportQa=createBusinessReportAiService({withAccess,assertSources,readSource});
  const registration=createBusinessAssetRegistration({withAccess,assertSources,listRecipients,uploads,resolveSource:(tx,p,v,c)=>originalAssetInputOnly(tx,p,v,c,{allowUpload:true})}),reportSource=createReportSourceService({withAccess,assertSources,readSource,syntheticOnly:false});
@@ -109,5 +112,20 @@ export function createRuntimeAssets({config,foundation,load,require,readReport})
  const common={require,load,runtimePolicy:foundation.runtimePolicy,origin:config.origin,scopedUser};
  const Registration=createAssetRegistrationController({...common,registration,reportSource,materialBasis,reportContext:blocked,governance,usage,lifecycle,uploads});
  const Catalog=createAssetCatalogController({...common,reader,views,details,overview,comments,files,reuse,ai:blocked,reportQa});
- return{Controllers:[Registration,Catalog],withAccess,readSource,assertSources,loadRecords,registration,reportSource,materialBasis,reportQa,reuse,uploads,files,governance,reader,overview};
+ const hubBridge=createHubAssetBridge({
+  tenantId:config.scope.defaultTenantId,
+  resolveScope:(user,ref)=>withDeploymentTransaction(env,'direct',async tx=>{
+   const rows=await tx.$queryRawUnsafe(`SELECT b.tenant_id AS "tenantId",b.study_group_id AS "studyGroupId",b.execution_project_id AS "researchProjectId" FROM rh_research.study_binding b WHERE b.tenant_id=$1 AND b.id=$2 ${ref.assetId?'AND EXISTS(SELECT 1 FROM rh_asset.asset_registry r WHERE r.asset_id=$3 AND r.tenant_id=b.tenant_id AND r.study_group_id=b.study_group_id AND r.research_project_id=b.execution_project_id)':''}`,user.tenantId,ref.studyId,...(ref.assetId?[ref.assetId]:[]));
+   if(rows.length!==1)fail('NOT_FOUND',404);return rows[0];
+  },{readOnly:true}),
+  authorize:async(tx,user,scope,permission)=>{await context(tx,scope);return authorizeBusinessAssetStudy({tx,user,scope,permission});},
+  readRecords:(tx,p,assetId)=>loadCatalogRecords(tx,p,assertSources,{family:'business',...(assetId?{assetId}:{})}),
+  readBody:async(tx,p,id,version,policy)=>{const row=await tx.researchArtifactVersion.findFirst({where:{id:policy.artifactVersionId,artifactId:id,versionNo:version,tenantId:p.tenantId,studyGroupId:p.studyGroupId,researchProjectId:p.researchProjectId},select:{contentMd:true}});return row?.contentMd;},
+  createArtifact:(tx,p,input)=>artifacts(tx,p).create(p,input),
+  readArtifact:(tx,p,id)=>tx.researchArtifact.findFirst({where:{id,tenantId:p.tenantId,studyGroupId:p.studyGroupId,researchProjectId:p.researchProjectId}}),
+  readVersions:(tx,p,artifactId)=>tx.researchArtifactVersion.findMany({where:{artifactId,tenantId:p.tenantId,studyGroupId:p.studyGroupId,researchProjectId:p.researchProjectId},orderBy:{versionNo:'asc'}}),
+  saveVersion:(tx,p,id,input)=>artifacts(tx,p).createVersion(p,id,input),
+  readScopes:user=>withDeploymentTransaction(env,'direct',tx=>tx.$queryRawUnsafe('SELECT b.id AS "studyId",i.title FROM rh_research.study_binding b JOIN rh_research.project_intent i ON i.id=b.project_intent_id AND i.tenant_id=b.tenant_id WHERE b.tenant_id=$1 ORDER BY b.id',user.tenantId),{readOnly:true})
+ });
+ return{Controllers:[Registration,Catalog],hubBridge,withAccess,readSource,assertSources,loadRecords,registration,reportSource,materialBasis,reportQa,reuse,uploads,files,governance,reader,overview};
 }

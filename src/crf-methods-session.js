@@ -1,5 +1,5 @@
 const valid=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,160}$/.test(v);
-const fail=()=>{throw Error('合成方法入口或范围无效，不回退演示或切换Study。');};
+const fail=()=>{throw Error('合成方法链接或研究范围无效，请从当前研究重新进入。');};
 export const isCrfMethodsRoute=(pageId,search)=>pageId==='s06'&&new URLSearchParams(search).has('crfMethods');
 export function readCrfMethodsLocation(pageId,search){
  const p=new URLSearchParams(search),allowed=['crfMethods','studyGroupId','researchProjectId','researchPlanId','collectionId','runId','compareRunId','methodReportId','methodReportVersion'];

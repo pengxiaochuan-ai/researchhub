@@ -1,7 +1,7 @@
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,160}$/.test(x);
 const fail=()=>{throw Error('上传归属或批次无法核对，请先核对原操作，不要重复上传。');};
 const refs=files=>{if(!Array.isArray(files)||!files.length||files.length>20||files.some(f=>!id(f.id)||!Number.isSafeInteger(f.version)||f.version<1)||new Set(files.map(f=>f.id)).size!==files.length)fail();return files.map(({id,version})=>({id,version})).sort((a,b)=>a.id.localeCompare(b.id));};
-export const requiresStudyUpload=(files,retryIntent)=>Boolean(retryIntent)||files.some(f=>/\.xlsx$/i.test(f.name));
+export const requiresStudyUpload=(files,retryIntent,contextStudyId)=>Boolean(retryIntent)||files.some(f=>/\.xlsx$/i.test(f.name)||Boolean(contextStudyId)&&/\.csv$/i.test(f.name));
 export function selectUploadStudy(targets,{contextStudyId,pinnedStudyId}={}){
  if(!Array.isArray(targets)||targets.some(t=>!id(t.id)||typeof t.name!=='string')||new Set(targets.map(t=>t.id)).size!==targets.length)fail();
  const explicit=pinnedStudyId??contextStudyId;if(explicit)return targets.some(t=>t.id===explicit)?explicit:'';return targets.length===1?targets[0].id:'';

@@ -5,8 +5,10 @@ import useAgentCommands from './useAgentCommands.js';
 import {useRecordAgentHistory} from './AgentHistory.jsx';
 import {agentCommandView} from '../../src/agent-command-view.js';
 import {agentQuestionError,agentQuestionLength,AGENT_QUESTION_MAX_CHARACTERS} from '../../src/agent-question.js';
-export default function AgentCommandComposer({client,sessionId,paused=false,unavailable=false,inputUnavailable=unavailable,running=false,onRefresh,getSession,onPendingChange,initialQuestion='',label='研究问题',inputId='hub-agent-question',quota,networkIntent}){
+export default function AgentCommandComposer({client,sessionId,paused=false,unavailable=false,inputUnavailable=unavailable,running=false,onRefresh,getSession,onPendingChange,onDirtyChange,initialQuestion='',label='研究问题',inputId='hub-agent-question',quota,networkIntent}){
  const [question,setQuestion]=useState(initialQuestion),[editing,setEditing]=useState(null),[editText,setEditText]=useState(''),[mutating,setMutating]=useState(false);
+ useEffect(()=>{onDirtyChange?.(Boolean(question.trim()||editing));},[question,editing,onDirtyChange]);
+ useEffect(()=>()=>onDirtyChange?.(false),[onDirtyChange]);
  const currentQuestion=useRef(question),composing=useRef(false);currentQuestion.current=question;
  const commands=useAgentCommands({client,sessionId,paused:paused||unavailable,onRefresh});
  const recordHistory=useRecordAgentHistory();

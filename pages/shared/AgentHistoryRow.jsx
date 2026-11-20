@@ -2,7 +2,8 @@ import React,{useEffect,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 import {MoreHorizontal,Pencil,Pin,PinOff,Trash2} from 'lucide-react';
 import ConfirmDialog from './ConfirmDialog.jsx';
-import {articleAiHref} from '../../src/article-ai-session.js';
+import {articleAiHref,readArticleAiRoute} from '../../src/article-ai-session.js';
+import {studyDataHistoryHref} from '../../src/study-data-navigation.js';
 import {agentHistoryTitle} from '../../src/agent-history-timeline.js';
 export default function AgentHistoryRow({item,selectedId,navigate,client,paused,onChanged,fallbackFocus}){
  const [menu,setMenu]=useState(null),[dialog,setDialog]=useState(null),[title,setTitle]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false);
@@ -14,7 +15,7 @@ export default function AgentHistoryRow({item,selectedId,navigate,client,paused,
  function open(){if(menu){close();return;}const r=trigger.current.getBoundingClientRect();setError('');setMenu({left:Math.max(8,Math.min(window.innerWidth-164,r.right-148)),top:Math.max(8,Math.min(window.innerHeight-164,r.bottom+4))});}
  function choose(action){setMenu(null);setError('');if(action==='pin'){void save({action:'pin',pinned:!item.pinned});}else{setTitle(item.title??'');setDialog(action);}}
  async function save(body){if(saving.current||paused)return;saving.current=true;setBusy(true);setError('');try{await client.patch(`/sessions/${item.id}/history-action`,body);if(!live.current)return;setDialog(null);onChanged(item,body.action);if(body.action==='delete'&&item.id===selectedId)navigate?.('/pages/ai01/');}catch(e){if(live.current)setError(e.message||'操作结果暂时无法核对，请刷新会话列表后查看。');}finally{saving.current=false;if(live.current)setBusy(false);}}
- const href=item.kind==='article'?articleAiHref(item.recordId,item.recovery):'/pages/ai01/?sessionId='+encodeURIComponent(item.id);
+ const href=item.kind==='article'?articleAiHref(item.recordId,item.recovery):studyDataHistoryHref(item.id,readArticleAiRoute(globalThis.location?.search??''));
  return <div className={'agent-history-row'+(selectedId===item.id?' selected':'')}>
   <a className={'conv'+(selectedId===item.id?' selected':'')} title={item.title} aria-label={(item.title||'新对话')+' · '+(item.kind==='article'?'文章解读':'Hub 问答')} aria-current={selectedId===item.id?'page':undefined} href={href} onClick={e=>{if(navigate&&!e.defaultPrevented&&e.button===0&&!e.metaKey&&!e.ctrlKey&&!e.shiftKey&&!e.altKey){e.preventDefault();navigate(href);}}}><b>{agentHistoryTitle(item.title)}</b><span>{item.kind==='article'?'文章解读':'Hub 问答'}</span></a>
   <button type="button" className="history-more" ref={trigger} aria-label={'更多操作：'+(item.title||'新对话')} aria-haspopup="menu" aria-expanded={Boolean(menu)} disabled={paused||busy} onClick={open}><MoreHorizontal size={18}/></button>

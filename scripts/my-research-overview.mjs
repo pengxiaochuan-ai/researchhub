@@ -23,7 +23,7 @@ export function projectPermits(project,menu,button){return project.permissions.m
 export function canOpenDesignWorkspace(project,accountId,ids){return project.id===ids.project&&project.studyGroupId===ids.group&&[ids.owner,ids.admin].includes(accountId)&&['knowledge','workbench','artifacts'].every(menu=>projectPermits(project,menu))&&['chat.use','artifact.read'].every(button=>project.permissions.buttons.includes(button));}
 export function canOpenPlanFlow(draft,accountId,designAllowed){return designAllowed&&draft.typeKey==='protocol_draft'&&draft.ownerAccountId===accountId&&draft.createdBy===accountId&&draft.idempotencyKey?.startsWith('rh-plan-20261022:'+accountId+':')===true;}
 
-export function createMyResearchOverview({prisma,lockAuthorization,tenantId,ids,canOpenApplicability,runtime=false}){
+export function createMyResearchOverview({prisma,lockAuthorization,tenantId,ids,canOpenApplicability,canOpenHubCopy,runtime=false}){
  return async (user,query={})=>{
   const {draftPage,taskPage}=readOverviewPages(query),pageSize=5;
   if(user.tenantId!==tenantId)throw new Error('OVERVIEW_TENANT_REJECTED');
@@ -56,7 +56,9 @@ export function createMyResearchOverview({prisma,lockAuthorization,tenantId,ids,
    const versions=drafts.length?await tx.researchArtifactVersion.findMany({where:{tenantId,OR:drafts.map(d=>({artifactId:d.id,versionNo:d.currentVersionNo}))},select:{artifactId:true,versionNo:true,contentBlocks:true},take:pageSize}):[];
    const projectedDrafts=[];
    for(const d of drafts){
-    const allowed=projects.some(p=>p.id===d.researchProjectId&&p.studyGroupId===d.studyGroupId&&canOpenDesignWorkspace(p,user.accountId,ids)),version=versions.find(v=>v.artifactId===d.id&&v.versionNo===d.currentVersionNo),workspace=draftWorkspace(d,version?.contentBlocks,user.accountId,allowed);
+    const allowed=projects.some(p=>p.id===d.researchProjectId&&p.studyGroupId===d.studyGroupId&&canOpenDesignWorkspace(p,user.accountId,ids)),version=versions.find(v=>v.artifactId===d.id&&v.versionNo===d.currentVersionNo);
+    let workspace=draftWorkspace(d,version?.contentBlocks,user.accountId,allowed);
+    if(!workspace&&canOpenHubCopy&&await canOpenHubCopy(tx,user,d,version?.contentBlocks))workspace={kind:'hub-copy'};
     const canOpenWorkspace=workspace?.kind==='applicability'?Boolean(canOpenApplicability&&await canOpenApplicability(tx,user,d,version.contentBlocks[0])):workspace!==null||canOpenPlanFlow(d,user.accountId,allowed);
     projectedDrafts.push({id:d.id,studyGroupId:d.studyGroupId,researchProjectId:d.researchProjectId,typeKey:d.typeKey,title:d.title,updatedAt:d.updatedAt.toISOString(),version:d.currentVersionNo,canOpenPlanFlow:canOpenPlanFlow(d,user.accountId,allowed),workspace,canOpenWorkspace});
    }
@@ -73,9 +75,9 @@ export function createMyResearchOverview({prisma,lockAuthorization,tenantId,ids,
  };
 }
 
-export function createMyResearchController({root,ids,prisma,load,require,canOpenApplicability,runtime=false}){
+export function createMyResearchController({root,ids,prisma,load,require,canOpenApplicability,canOpenHubCopy,runtime=false}){
  const {Controller,Get,Req,Query,BadRequestException,UnauthorizedException}=require('@nestjs/common');
- const overview=createMyResearchOverview({prisma,tenantId:ids.tenant,ids,canOpenApplicability,runtime,lockAuthorization:load('common/worker-publication','lockAuthorizationMutation')});
+ const overview=createMyResearchOverview({prisma,tenantId:ids.tenant,ids,canOpenApplicability,canOpenHubCopy,runtime,lockAuthorization:load('common/worker-publication','lockAuthorizationMutation')});
  class MyResearchController{async get(req,query){req.res?.setHeader('Cache-Control','no-store');try{return await overview(req.user,query);}catch(error){if(error.message==='OVERVIEW_QUERY_INVALID')throw new BadRequestException({code:'MY_RESEARCH_QUERY_INVALID',message:'列表页码无效，请返回第一页重试。'});if(['OVERVIEW_TENANT_REJECTED','OVERVIEW_SESSION_REJECTED'].includes(error.message))throw new UnauthorizedException('登录会话已失效');throw error;}}}
  Controller('my-research')(MyResearchController);
  Get('overview')(MyResearchController.prototype,'get',Object.getOwnPropertyDescriptor(MyResearchController.prototype,'get'));

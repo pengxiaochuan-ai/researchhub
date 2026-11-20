@@ -13,6 +13,7 @@ export function myResearchDraftLink(draft){
  if(!w)return draft.canOpenPlanFlow?{href:makeDesignWorkspaceUrl('q01',scope,draft.id),label:'继续草稿 →'}:null;
  if(['trial-report','edc-report','method-report'].includes(w.kind)&&(!Number.isSafeInteger(draft.version)||draft.version<1||draft.version>30))throw Error('报告版本无效');
  switch(w.kind){
+ case 'hub-copy':return{href:'/pages/h01/?'+new URLSearchParams({hubKey:'lingshu-xinyu',section:'assets',copyId:draft.id}),label:'继续方案草稿 →'};
  case 'plan':return{href:makeDesignWorkspaceUrl('q01',scope,draft.id),label:'继续方案草稿 →'};
  case 'applicability':return{href:makeAssetApplicabilityUrl(scope,draft.id),label:'继续适用性核对 →'};
  case 'method-asset':return{href:makeCrfMethodAssetUrl('a02',scope,draft.id),label:'继续方法资产候选 →'};

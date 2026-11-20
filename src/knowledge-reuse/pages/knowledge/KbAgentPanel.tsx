@@ -4,12 +4,13 @@ import {useAuth} from '../../store/auth';
 import {canUseKnowledgeAi,canUseResearchPlans} from '../../../knowledge-session.js';
 import {makeDesignWorkspaceUrl} from '../../../research-design-session.js';
 import Markdown from '../../components/Markdown';
+import {adoptKnowledgeAnswer} from '../../../knowledge-records.js';
 import {buildKnowledgeConversationItems,isKnowledgeChatNearBottom,type KnowledgeMessage,type KnowledgeQueueJob} from './knowledge-chat-state';
 
 type Source={docId:string;docTitle:string;kbName:string;version:number;contentHash:string;chunkId:string;quote:string;page?:number;section?:string;retrievedAt:string;status?:string};
 type State={messages:KnowledgeMessage[];jobs:KnowledgeQueueJob[];nextCursor?:string};
 type Quota={effectiveRemainingTokens?:string;requiredTokens:string;blocked:boolean;canStart:boolean;message:string};
-function Reply({message,sessionId,onOpenDoc}:{message:KnowledgeMessage;sessionId:string;onOpenDoc?:(id:string)=>void}){
+function Reply({message,sessionId,onOpenDoc,onAdopt,adopting}:{message:KnowledgeMessage;sessionId:string;onOpenDoc?:(id:string)=>void;onAdopt?:(message:KnowledgeMessage)=>void;adopting?:boolean}){
   const [source,setSource]=useState<Source|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(false);
   const sources=(message.meta?.provenance as any)?.knowledgeSources as Source[]|undefined;
   const planResult=(message.meta?.provenance as any)?.researchPlanResult;
@@ -19,6 +20,7 @@ function Reply({message,sessionId,onOpenDoc}:{message:KnowledgeMessage;sessionId
     {planResult&&<p className="mb-2 text-ink-500" role="status">科研候选历史消息 · 绑定草稿 v{planResult.version}。不代表当前PICO或正式方案；请在原方案草稿页核对最新版本。</p>}
     {message.meta?.sourceStatus==='stale'&&<p className="mb-2 text-amber-700" role="status">历史回答：引用版本已变化，请重新核对；不会作为新回答的证据。</p>}
     <div className="qa-answer"><Markdown allowImages={false}>{message.content}</Markdown></div>
+    {onAdopt && message.role === 'assistant' && message.meta?.sourceStatus === 'current' && sources?.length > 0 && <button type="button" className="btn-outline mt-3" disabled={adopting} onClick={() => onAdopt(message)}>{adopting ? '正在核对资料…' : '整理到当前文档'}</button>}
     {sources?.length>0&&<div className="mt-3 flex flex-wrap gap-2" aria-label="回答来源">{sources.map((s,i)=><button type="button" key={s.chunkId+'-'+i} className="btn-outline qa-source-button" onClick={()=>void open(i+1)}>查看来源 [{i+1}]《{s.docTitle}》· v{s.version}</button>)}</div>}
     {loading&&<p role="status">正在核验来源的当前访问权限…</p>}
     {error&&<p role="alert" className="mt-2 text-red-700">{error}。请刷新会话重新核对。</p>}
@@ -32,21 +34,24 @@ function Reply({message,sessionId,onOpenDoc}:{message:KnowledgeMessage;sessionId
   </div>;
 }
 
-export default function KbAgentPanel({kbId,kbName,onOpenDoc,onActivity}:{kbId?:string;kbName?:string;onOpenDoc?:(id:string)=>void;onKbMutated?:()=>void;onActivity?:(v:{dirty:boolean;inFlight:boolean})=>void}){
+export default function KbAgentPanel({kbId,kbName,onOpenDoc,onActivity,onAdopt,canAdopt=false,adoptionTargetKey=''}:{kbId?:string;kbName?:string;onOpenDoc?:(id:string)=>void;onKbMutated?:()=>void;onActivity?:(v:{dirty:boolean;inFlight:boolean})=>void;onAdopt?:(contentMd:string,targetKey:string)=>void;canAdopt?:boolean;adoptionTargetKey?:string}){
   const {user,scope}=useAuth(),allowed=canUseKnowledgeAi(user,scope);
-  const [creatingPlan,setCreatingPlan]=useState(false),[plansReady,setPlansReady]=useState(false),planRequest=useRef('');
+  const [adopting,setAdopting]=useState(false),[plansReady,setPlansReady]=useState(true);
+  const adoptionRef=useRef({key:adoptionTargetKey,allowed:canAdopt});
+  adoptionRef.current={key:adoptionTargetKey,allowed:canAdopt};
+  const [creatingPlan,setCreatingPlan]=useState(false),planRequest=useRef('');
   const [planList,setPlanList]=useState<{items:Array<{id:string;version:number;stage:string;sourceStatus:string}>;nextCursor?:string}|null>(null);
   const [sessionId,setSessionId]=useState(''),[state,setState]=useState<State>({messages:[],jobs:[]}),[draft,setDraft]=useState(''),[error,setError]=useState(''),[initializing,setInitializing]=useState(false),[sending,setSending]=useState(false),[quota,setQuota]=useState<Quota|null>(null),[attempt,setAttempt]=useState(0);
   const drafts=useRef(new Map<string,string>()),request=useRef<{text:string;key:string}|null>(null),scopeKey=[user?.tenantId,user?.accountId,user?.authVersion,scope?.studyGroupId,scope?.researchProjectId,kbId].join(':'),active=useRef(scopeKey),scroll=useRef<HTMLDivElement>(null);
   active.current=scopeKey;
   const followLatest=useRef(true);
   useLayoutEffect(()=>{if(scroll.current&&followLatest.current)scroll.current.scrollTop=scroll.current.scrollHeight;},[state]);
-  useEffect(()=>{onActivity?.({dirty:!!draft.trim(),inFlight:sending||creatingPlan});},[draft,sending,creatingPlan,onActivity]);
+  useEffect(()=>{onActivity?.({dirty:!!draft.trim(),inFlight:sending||creatingPlan||adopting});},[draft,sending,creatingPlan,adopting,onActivity]);
   useEffect(()=>()=>onActivity?.({dirty:false,inFlight:false}),[onActivity]);
   const pending=state.jobs.some(j=>j.status==='queued'||j.status==='processing');
   const items=useMemo(()=>buildKnowledgeConversationItems(state.messages,state.jobs),[state]);
   useEffect(()=>{
-    let alive=true;setSessionId('');setState({messages:[],jobs:[]});setQuota(null);setPlansReady(false);setError('');setDraft(drafts.current.get(scopeKey)||'');request.current=null;planRequest.current='';setPlanList(null);
+    let alive=true;setSessionId('');setState({messages:[],jobs:[]});setQuota(null);setPlansReady(true);setError('');setDraft(drafts.current.get(scopeKey)||'');request.current=null;planRequest.current='';setPlanList(null);
     if(!allowed||!kbId)return;
     setInitializing(true);
     (async()=>{try{
@@ -76,6 +81,17 @@ export default function KbAgentPanel({kbId,kbName,onOpenDoc,onActivity}:{kbId?:s
     catch(e){if(active.current===key)setError((e instanceof Error?e.message:'提交失败')+' 输入已保留；请先刷新会话核对。相同问题再次提交沿用原请求标识，不自动重发。');}
     finally{if(active.current===key)setSending(false);}
   }
+  async function adoptAnswer(message:KnowledgeMessage){
+    if(adopting || !onAdopt || !adoptionRef.current.allowed || !sessionId || !kbId) return;
+    const key=adoptionTargetKey,context=scopeKey;
+    setAdopting(true);setError('');
+    try{
+      const contentMd=await adoptKnowledgeAnswer({get:api.get,sessionId,kbId,message,scope});
+      if(active.current!==context || adoptionRef.current.key!==key || !adoptionRef.current.allowed) throw new Error('当前文档已变化，未修改草稿；请重新选择本人可编辑文档。');
+      onAdopt(contentMd,key);
+    }catch(e){if(active.current===context)setError(e instanceof Error?e.message:'整理失败，当前草稿保持不变。');}
+    finally{setAdopting(false);}
+  }
   async function createPlan(){
     if(!plansReady){setError('研究设计功能暂未就绪，请先完成资料问答。');return;}if(!sessionId||creatingPlan||draft.trim())return;setCreatingPlan(true);setError('');
     planRequest.current||='plan-'+crypto.randomUUID();
@@ -90,9 +106,9 @@ export default function KbAgentPanel({kbId,kbName,onOpenDoc,onActivity}:{kbId?:s
       <div ref={scroll} onScroll={()=>{if(scroll.current)followLatest.current=isKnowledgeChatNearBottom(scroll.current);}} className="min-h-0 flex-1 overflow-auto p-3" aria-label="问答历史">
         {initializing&&<p role="status">正在加载本账号与当前知识库的真实会话…</p>}
         {!initializing&&!items.length&&<p className="text-ink-500">可以问：“这些资料支持哪些研究构想？还缺少哪些信息？”没有审核依据时不生成回答。</p>}
-        <div className="space-y-4">{items.map(item=>item.kind==='message'?<Reply key={item.id} message={item.message} sessionId={sessionId} onOpenDoc={onOpenDoc}/>:<article key={item.id} className="space-y-2" aria-label="一轮科研问答">
+        <div className="space-y-4">{items.map(item=>item.kind==='message'?<Reply key={item.id} message={item.message} sessionId={sessionId} onOpenDoc={onOpenDoc} onAdopt={canAdopt?adoptAnswer:undefined} adopting={adopting}/>:<article key={item.id} className="space-y-2" aria-label="一轮科研问答">
           <div className="rounded-lg bg-brand-50 p-3 whitespace-pre-wrap break-words">{item.userMessage.content}</div>
-          {item.assistantMessage?<Reply message={item.assistantMessage} sessionId={sessionId} onOpenDoc={onOpenDoc}/>:<p role="status" className={item.job?.status==='failed'?'text-red-700':'text-ink-500'}>{item.job?.status==='failed'?`本次未交付回答：${item.job.errorMessage||'执行失败，请核对后另行提问。'}`:item.job?.status==='processing'?'正在检索已审核资料、核验并生成回答…':'已入队，等待前序问题完成。'}</p>}
+          {item.assistantMessage?<Reply message={item.assistantMessage} sessionId={sessionId} onOpenDoc={onOpenDoc} onAdopt={canAdopt?adoptAnswer:undefined} adopting={adopting}/>:<p role="status" className={item.job?.status==='failed'?'text-red-700':'text-ink-500'}>{item.job?.status==='failed'?`本次未交付回答：${item.job.errorMessage||'执行失败，请核对后另行提问。'}`:item.job?.status==='processing'?'正在检索已审核资料、核验并生成回答…':'已入队，等待前序问题完成。'}</p>}
         </article>)}</div>
       </div>
       <div className="shrink-0 border-t border-ink-200 p-3">

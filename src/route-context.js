@@ -1,6 +1,7 @@
 import {readArticleAiRoute,articleAiHref,hubAiHref} from './article-ai-session.js';
 import {safeSessionReturn,isProtectedPage} from './session-lifecycle.js';
 import {safeAcademicReturn} from './academic-content-route.js';
+import {safeHubAssetReturn} from './hub-asset-route.js';
 export const CONTEXT_KEYS=['hubId','opportunityId','projectId','protocolId','subjectId','assetId','outputId','view','returnTo'];
 export function safeReturnTo(value){
   if(typeof value!=='string'||!/^\/pages\/[a-z0-9]+\/(?:[?#].*)?$/.test(value)||/[\\\r\n]/.test(value))return '/pages/q02/';
@@ -8,6 +9,7 @@ export function safeReturnTo(value){
 }
 const AUTH_ENTRY_PAGES=new Set(['p01','q02','k01','ai01','a01','s11','p006']);
 export function safeAuthenticatedReturnTo(value){
+  const hubAsset=safeHubAssetReturn(value);if(hubAsset)return hubAsset;
   const academic=safeAcademicReturn(value);if(academic)return academic;
   const fallback='/pages/p01/';
   if(typeof value!=='string'||!value.startsWith('/pages/')||/[\\\r\n]/.test(value))return fallback;
@@ -16,7 +18,7 @@ export function safeAuthenticatedReturnTo(value){
   if(url.origin!=='http://researchhub.local'||!AUTH_ENTRY_PAGES.has(page)&&!isProtectedPage(url.pathname))return fallback;
   if(page==='p006')return !url.hash&&!url.search?url.pathname:!url.hash&&url.searchParams.size===1&&url.searchParams.getAll('section').length===1&&['research-identity','admission'].includes(url.searchParams.get('section'))?'/pages/p006/?section='+url.searchParams.get('section'):fallback;
   if(page==='ai01'&&url.searchParams.has('reportQa'))return safeSessionReturn(value);
-  if(page==='ai01'&&url.search){const route=readArticleAiRoute(url.search);return url.hash?fallback:route.kind==='article'?articleAiHref(route.recordId,route.recovery):route.kind==='hub'?hubAiHref(route.sessionId,route.uploadStudyId):fallback;}
+  if(page==='ai01'&&url.search){const route=readArticleAiRoute(url.search);return url.hash?fallback:route.kind==='article'?articleAiHref(route.recordId,route.recovery):route.kind==='hub'?hubAiHref(route.sessionId,route.uploadStudyId,{...(route.uploadSubjectId?{uploadSubjectId:route.uploadSubjectId}:{}),...(route.uploadVisitId?{uploadVisitId:route.uploadVisitId}:{})}):fallback;}
   if(page==='s11'&&url.searchParams.has('invitationId'))return safeSessionReturn(value);
   if(page!=='q02'&&page!=='s11'||url.searchParams.has('executionPreparation'))return safeSessionReturn(value);
   if(!url.search)return url.pathname;

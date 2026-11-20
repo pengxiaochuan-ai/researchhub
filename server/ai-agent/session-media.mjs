@@ -2,36 +2,42 @@ import {randomUUID} from 'node:crypto';
 import {materialDigest} from './session-material-contract.mjs';
 import {validMediaIdentity,MEDIA_IDENTITY_SCHEMA} from '../../src/media-content-identity.js';
 import {identityFromMediaPath} from './session-media-snapshot.mjs';
+import {AUDIO_MAX_BYTES,mediaIsAudio,mediaAudioFactsValid,projectAudioFacts} from './session-audio-contract.mjs';
+import {mediaIsEeglab,validEeglabFacts,projectEeglabFacts} from './session-eeglab-contract.mjs';
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,160}$/.test(x);
-export const MEDIA_MAX_BYTES=500*1024*1024,MEDIA_CHUNK_BYTES=1024*1024;
+export const MEDIA_MAX_BYTES=500*1024*1024,MEDIA_IMAGE_MAX_BYTES=25*1024*1024,MEDIA_CHUNK_BYTES=1024*1024;
 export const mediaError=(code,status=409)=>Object.assign(Error(code),{code,status});
 const fail=(code,status)=>{throw mediaError(code,status);};
 const scope=(u,sid)=>[u.tenantId,u.studyGroupId,u.researchProjectId,u.accountId,sid];
 const where='tenant_id=$1 AND study_group_id=$2 AND research_project_id=$3 AND account_id=$4 AND session_id=$5';
-const types={mp4:'video/mp4',mov:'video/quicktime',webm:'video/webm'};
+const types={mp4:'video/mp4',mov:'video/quicktime',webm:'video/webm',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',wav:'audio/wav',mp3:'audio/mpeg',m4a:'audio/mp4',eeglab:'application/zip'};
+const audioMimes={wav:['audio/x-wav','audio/wave'],mp3:['audio/mp3'],m4a:['audio/m4a','audio/x-m4a']};
+export const mediaIsImage=row=>['png','jpg','jpeg'].includes(row?.extension);
+export const mediaImageDimensions=inspection=>Number.isSafeInteger(inspection?.width)&&Number.isSafeInteger(inspection?.height)&&inspection.width>0&&inspection.height>0&&inspection.width<=20000&&inspection.height<=20000&&inspection.width*inspection.height<=40000000;
 export async function assertMediaQuestionReadableInTx(tx,u,sid,text=''){
  const action=/(?:分析|解读|总结|概括|转写|识别|描述|提取|看一下|说了|讲了|summari[sz]|analy[sz]|transcrib|describe)/i.test(text);
- const explicitVideo=/(?:视频|录像|录屏|画面|\bvideo\b|\bclip\b)/i.test(text);
+ const explicitVideo=/(?:视频|录像|录屏|画面|舌图|舌象|图片|照片|语音|音频|录音|脑电|EEGLAB|\bEEG\b|\bvideo\b|\bclip\b|\bimage\b|\bphoto\b|\baudio\b|\brecording\b)/i.test(text);
  if(!action&&!explicitVideo)return;
- const currentVideo=/(?:这(?:段|个|些)?(?:视频|录像|录屏)|(?:视频|录像|录屏)(?:里|中|内|的内容|内容|讲|说)|上传.{0,8}(?:视频|录像|录屏)|(?:this|uploaded|attached).{0,8}(?:video|clip))/i.test(text);
+ const currentVideo=/(?:这(?:段|张|份|个|些)?(?:视频|录像|录屏|舌图|舌象|图片|照片|语音|音频|录音|脑电|EEGLAB|EEG)|(?:视频|录像|录屏|舌图|图片|照片|语音|音频|录音|脑电|EEGLAB|EEG)(?:里|中|内|的内容|内容|讲|说)|上传.{0,8}(?:视频|录像|录屏|舌图|舌象|图片|照片|语音|音频|录音|脑电|EEGLAB|EEG)|(?:this|uploaded|attached).{0,8}(?:video|clip|image|photo|audio|recording|EEG|EEGLAB))/i.test(text);
  if(!currentVideo&&/(?:\b(?:pdf|docx|csv|xlsx|pubmed|hub)\b|文献|论文|表格|研究方向|研究方案)/i.test(text))return;
  await tx.$queryRawUnsafe(`SELECT set_config('app.account_id',$1,true)`,u.accountId);
- const [state]=await tx.$queryRawUnsafe(`SELECT EXISTS(SELECT 1 FROM rh_ai.session_media_uploads WHERE ${where}) AS media,EXISTS(SELECT 1 FROM rh_ai.session_materials WHERE ${where} AND deleted_at IS NULL) OR EXISTS(SELECT 1 FROM rh_ai.research_data_uploads WHERE ${where}) AS other`,...scope(u,sid));
- if(state?.media&&(explicitVideo||!state.other||/(?:附件|上传|全部材料|所有文件|这些文件|这个文件|attached|this file)/i.test(text)))throw Object.assign(mediaError('MEDIA_CONTENT_UNAVAILABLE'),{publicMessage:'视频已归档，可先播放核对；当前没有可供AI解读的画面或转写内容。'});
+ const [state]=await tx.$queryRawUnsafe(`SELECT EXISTS(SELECT 1 FROM rh_ai.session_media_uploads WHERE ${where}) AS media,EXISTS(SELECT 1 FROM rh_ai.session_media_uploads WHERE ${where} AND extension IN ('png','jpg','jpeg')) AS image,EXISTS(SELECT 1 FROM rh_ai.session_media_uploads WHERE ${where} AND extension IN ('wav','mp3','m4a')) AS audio,EXISTS(SELECT 1 FROM rh_ai.session_media_uploads WHERE ${where} AND extension='eeglab') AS eeg,EXISTS(SELECT 1 FROM rh_ai.session_materials WHERE ${where} AND deleted_at IS NULL) OR EXISTS(SELECT 1 FROM rh_ai.research_data_uploads WHERE ${where}) AS other`,...scope(u,sid));
+ if(state?.media&&(explicitVideo||!state.other||/(?:附件|上传|全部材料|所有文件|这些文件|这个文件|attached|this file)/i.test(text)))throw Object.assign(mediaError('MEDIA_CONTENT_UNAVAILABLE'),{publicMessage:state.eeg?'EEG原件已归档，可下载完整资料；当前未进行波形分析、预处理或特征提取。':state.audio?'语音已归档，可播放核对；当前尚不能转写语音或提取声学指标。':state.image?'舌图已归档，可查看原图；当前尚不能解读舌象或提取图像指标。':'视频已归档，可先播放核对；当前没有可供AI解读的画面或转写内容。'});
 }
 export function normalizeMediaInput(body){
  if(!body||!['filename,mimeType,requestKey,size','fileIdentity,filename,mimeType,requestKey,size'].includes(Object.keys(body).sort().join(','))||Object.hasOwn(body,'fileIdentity')&&!validMediaIdentity(body.fileIdentity)||!id(body.requestKey)||typeof body.filename!=='string'||body.filename.length>255||/[\x00-\x1f/\\]/.test(body.filename)||!Number.isSafeInteger(body.size)||body.size<1||body.size>MEDIA_MAX_BYTES)fail('MEDIA_INPUT',400);
  const extension=/\.([a-z0-9]+)$/i.exec(body.filename)?.[1].toLowerCase(),contentType=types[extension];
- if(!contentType||!['',contentType,...(extension==='mp4'?['application/mp4']:[])].includes(body.mimeType))fail('MEDIA_INPUT',400);
+ const mimeType=mediaIsAudio({extension})&&typeof body.mimeType==='string'?body.mimeType.split(';')[0].trim().toLowerCase():body.mimeType;
+ if(!contentType||!['',contentType,...(extension==='mp4'?['application/mp4']:[]),...(audioMimes[extension]??[])].includes(mimeType)||mediaIsImage({extension})&&body.size>MEDIA_IMAGE_MAX_BYTES||mediaIsAudio({extension})&&body.size>AUDIO_MAX_BYTES)fail('MEDIA_INPUT',400);
  return{requestKey:body.requestKey,extension,contentType,byteSize:body.size,...(body.fileIdentity?{fileIdentity:body.fileIdentity}:{})};
 }
 const rowInput=row=>({requestKey:row.request_key,extension:row.extension,contentType:row.content_type,byteSize:Number(row.byte_size)});
 const identityMode=row=>materialDigest(rowInput(row))===row.request_fingerprint?'legacy':MEDIA_IDENTITY_SCHEMA;
 export function projectMedia(row){
  const inspection=row.inspection??{};
- return{id:row.id,version:row.version,name:row.safe_filename,extension:row.extension,byteSize:Number(row.byte_size),
+ return{id:row.id,version:row.version,name:row.safe_filename,extension:row.extension,byteSize:Number(row.byte_size),...(mediaIsEeglab(row)?{modality:'eeg'}:mediaIsAudio(row)?{modality:'audio'}:mediaIsImage(row)?{modality:'tongue'}:{}),
   archiveState:row.archive_state,inspectionState:row.inspection_state,classification:row.inspection_classification,
-  inspection:{...(Number.isFinite(inspection.durationSeconds)?{durationSeconds:inspection.durationSeconds}:{}),hasVideo:inspection.hasVideo===true,hasAudio:inspection.hasAudio===true},
+  inspection:mediaIsEeglab(row)?projectEeglabFacts(inspection):mediaIsAudio(row)?projectAudioFacts(inspection):{...(Number.isFinite(inspection.durationSeconds)?{durationSeconds:inspection.durationSeconds}:{}),hasVideo:inspection.hasVideo===true,hasAudio:inspection.hasAudio===true,...(mediaIsImage(row)?{hasImage:inspection.hasImage===true,...(mediaImageDimensions(inspection)?{width:inspection.width,height:inspection.height}:{})}:{})},
   canRecheck:row.archive_state==='archived'&&(row.inspection_state==='pending'||row.inspection_state==='unavailable'||row.inspection_state==='running'&&new Date(row.lease_expires_at)<=new Date()),
   contentUnderstood:false,createdAt:row.created_at.toISOString()};
 }
@@ -81,7 +87,7 @@ export function createSessionMedia({access,chunks,storage,inspectSignature,inspe
    if(row.inspection_attempt_id===attempt&&['complete','unavailable'].includes(row.inspection_state))return{row,replay:true};
    if(row.version!==expectedVersion)fail('MEDIA_VERSION');
    if(row.inspection_state==='running'&&new Date(row.lease_expires_at)>new Date())fail('MEDIA_CHECK_RUNNING');
-   return{row:await update(tx,row,`inspection_state='running',inspection_classification=NULL,inspection_attempt_id=$1::uuid,lease_expires_at=now()+interval '45 seconds'`,[attempt]),replay:false};
+   return{row:await update(tx,row,`inspection_state='running',inspection_classification=NULL,inspection_attempt_id=$1::uuid,lease_expires_at=now()+interval '${mediaIsAudio(row)||mediaIsEeglab(row)?120:45} seconds'`,[attempt]),replay:false};
   });
   if(claim.replay)return projectMedia(claim.row);
   let result;
@@ -96,7 +102,10 @@ export function createSessionMedia({access,chunks,storage,inspectSignature,inspe
   return access.transaction(u,sid,async(tx,current)=>{
    const row=await own(tx,current,sid,mediaId,'id',true);
    if(row.version!==claim.row.version||row.inspection_attempt_id!==attempt||row.inspection_state!=='running'||new Date(row.lease_expires_at)<=new Date())fail('MEDIA_VERSION');
-   const next=await update(tx,row,`inspection_state=$1,inspection_classification=$2,inspection=$3::jsonb,lease_expires_at=NULL`,[result.classification==='valid'?'complete':'unavailable',result.classification,JSON.stringify({hasVideo:result.hasVideo,hasAudio:result.hasAudio,...(Number.isFinite(result.durationSeconds)?{durationSeconds:result.durationSeconds}:{})})]);
+   if(result.classification==='valid'&&mediaIsImage(row)&&(!mediaImageDimensions(result)||result.hasImage!==true||result.hasVideo!==false||result.hasAudio!==false))fail('MEDIA_FILE_INVALID',400);
+   if(result.classification==='valid'&&mediaIsAudio(row)&&!mediaAudioFactsValid(result,row.extension))fail('MEDIA_FILE_INVALID',400);
+   if(result.classification==='valid'&&mediaIsEeglab(row)&&!validEeglabFacts(result))fail('MEDIA_FILE_INVALID',400);
+   const next=await update(tx,row,`inspection_state=$1,inspection_classification=$2,inspection=$3::jsonb,lease_expires_at=NULL`,[result.classification==='valid'?'complete':'unavailable',result.classification,JSON.stringify(mediaIsEeglab(row)?projectEeglabFacts(result):mediaIsAudio(row)?projectAudioFacts(result):{hasVideo:result.hasVideo,hasAudio:result.hasAudio,...(Number.isFinite(result.durationSeconds)?{durationSeconds:result.durationSeconds}:{}),...(mediaIsImage(row)?{hasImage:result.hasImage===true,...(mediaImageDimensions(result)?{width:result.width,height:result.height}:{})}:{})})]);
    await audit(tx,current,sid,'checked',next);return projectMedia(next);
   });
  }
@@ -152,7 +161,7 @@ export function createSessionMedia({access,chunks,storage,inspectSignature,inspe
     catch(e){if(e.name==='ChatUploadSignatureError'||e.name==='ChatUploadInspectionError'){
      if(!row.source_sha256)await markFailed(u,sid,row.id,true);fail('MEDIA_FILE_INVALID',400);
     }throw e;}
-    if(signature.modality!=='video'||signature.extension!==row.extension||file.size!==Number(row.byte_size))fail('MEDIA_FILE_INVALID',400);
+    if(signature.modality!==(mediaIsEeglab(row)?'eeg':mediaIsAudio(row)?'audio':mediaIsImage(row)?'image':'video')||signature.extension!==row.extension||file.size!==Number(row.byte_size))fail('MEDIA_FILE_INVALID',400);
     row=await access.transaction(u,sid,async(tx,current)=>{
      const currentRow=await own(tx,current,sid,row.id,'id',true);
      if(currentRow.archive_state==='failed')fail('MEDIA_FILE_INVALID',400);
@@ -203,7 +212,7 @@ export function createSessionMedia({access,chunks,storage,inspectSignature,inspe
    });
    await verify();const stream=await storage.getStream(row.storage_key,bounds?.start,bounds?.length);
    try{await verify(true);}catch(e){stream.destroy();throw e;}
-   const headers={'Cache-Control':'private, no-store','Content-Type':row.content_type,'Content-Disposition':`inline; filename="${row.safe_filename}"`,'Content-Length':String(bounds?.length??row.byte_size),'Accept-Ranges':'bytes','X-Content-Type-Options':'nosniff',...(bounds?{'Content-Range':`bytes ${bounds.start}-${bounds.end}/${row.byte_size}`}:{})};
+   const headers={'Cache-Control':'private, no-store','Content-Type':row.content_type,'Content-Disposition':mediaIsEeglab(row)?`attachment; filename="${row.id}.zip"`:`inline; filename="${row.safe_filename}"`,'Content-Length':String(bounds?.length??row.byte_size),'Accept-Ranges':'bytes','X-Content-Type-Options':'nosniff',...(bounds?{'Content-Range':`bytes ${bounds.start}-${bounds.end}/${row.byte_size}`}:{})};
    return{stream,status:bounds?206:200,headers};
   },
  };

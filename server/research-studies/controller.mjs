@@ -9,6 +9,7 @@ import {createProtocolReleaseService} from '../research-execution/protocol-relea
 import {createMigrationCandidates} from '../research-execution/migration-candidates.mjs';
 import {createProtocolMigrationService} from '../research-execution/protocol-migration.mjs';
 import {createSubjectsService} from '../research-execution/subjects.mjs';
+import {createSubjectDataService,canReadStudyDataInTx} from '../research-execution/subject-data.mjs';
 import {createEnrollmentService} from '../research-execution/enrollment.mjs';
 import {createFormalCaptureService} from '../research-capture/formal-capture.mjs';
 import {createVisitWorkflowService} from '../research-capture/visit-workflow.mjs';
@@ -55,11 +56,12 @@ export function createResearchStudiesController({require,load,prisma,scope,origi
  const subjectGroups=new(load('subject-groups/subject-groups.service','SubjectGroupsService'))(prisma);
  const subjectsCore=new(load('subjects/subjects.service','SubjectsService'))(prisma,subjectGroups);
  const subjects=createSubjectsService({studies:service,core:subjectsCore,limitedImportRead,limitedMediaRead});
+ const subjectData=createSubjectDataService({studies:service,limitedImportRead,limitedMediaRead,cursorSecret});
  const authorizeParticipation=load('study-operations/participation-authority','authorizeParticipation');
  const authorizeFormalResponse=load('study-operations/formal-response-authority','authorizeFormalResponse');
  const correctionImpact=createCorrectionImpactService({studies:service,cursorSecret,core:{authorize:authorizeFormalResponse,readAssignment:load('study-operations/formal-response-query','readFormalResponseInTransaction'),readVisit:load('study-operations/formal-response-visits','readFormalVisitInTransaction')}});
  const dueVisits=createDueVisitsService({studies:service,core:{authorize:authorizeFormalResponse}});
- const fileCore={readVisit:load('study-operations/formal-response-visits','readFormalVisitInTransaction'),lockBinding:load('study-operations/protocol-migration-lock','lockCaptureBinding'),uploadConfigured:Boolean(storage&&ingestService),authorizeUpload:(tx,user,s)=>load('ingest/ingest-authorization','authorizeIngestInTransaction')(tx,user,s.studyGroupId,s.researchProjectId)};
+ const fileCore={canReadFeatureValues:(tx,user,s)=>canReadStudyDataInTx(tx,user,{...s,executionProjectId:s.researchProjectId}),readVisit:load('study-operations/formal-response-visits','readFormalVisitInTransaction'),lockBinding:load('study-operations/protocol-migration-lock','lockCaptureBinding'),uploadConfigured:Boolean(storage&&ingestService),authorizeUpload:(tx,user,s)=>load('ingest/ingest-authorization','authorizeIngestInTransaction')(tx,user,s.studyGroupId,s.researchProjectId)};
  const files=createFileLinksService({studies:service,core:fileCore,cursorSecret});
  const fileUploads=storage&&ingestService?createVisitFileUploadService({studies:service,storage,core:{...fileCore,authorizeUpload:(tx,user,s)=>load('ingest/ingest-authorization','authorizeIngestInTransaction')(tx,user,s.studyGroupId,s.researchProjectId),ingest:ingestService.ingestPreprocessed.bind(ingestService)}}):null;
  const outreach=createOutreachService({studies:service,baseUrl:new URL('/',origin).href,mailer:studyMailer,core:{
@@ -131,6 +133,7 @@ export function createResearchStudiesController({require,load,prisma,scope,origi
  routes.push(['protocolReleaseReceipt',Get,'research-studies/:id/protocols/:protocolId/release-receipts/:requestKey',false]);
  routes.push(['protocolRelease',Get,'research-studies/:id/protocols/:protocolId/release',false],['savePolicy',Put,'research-studies/:id/protocols/:protocolId/policy',true]);
  routes.push(['migrationCandidates',Get,'research-studies/:id/protocols/:protocolId/migration-candidates',false],['migrationPreview',Post,'research-studies/:id/protocols/:protocolId/activation-preview',true],['migrationExecute',Post,'research-studies/:id/protocols/:protocolId/migration',true],['migrationReceipt',Get,'research-studies/:id/protocols/:protocolId/migration-receipts/:requestKey',false]);
+ routes.push(['subjectData',Get,'research-studies/:id/subjects/:subjectId/data',false]);
  routes.push(['subjects',Get,'research-studies/:id/subjects',false],['createSubject',Post,'research-studies/:id/subjects',true],['subjectReceipt',Get,'research-studies/:id/subjects/receipts/:requestKey',false],['subjectDetail',Get,'research-studies/:id/subjects/:subjectId',false],['participation',Get,'research-studies/:id/subjects/:subjectId/participation',false],['participationEvent',Post,'research-studies/:id/subjects/:subjectId/participation/events',true],['enrollSubject',Post,'research-studies/:id/subjects/:subjectId/participation/enroll',true],['participationReceipt',Get,'research-studies/:id/subjects/:subjectId/participation/receipts/:requestKey',false]);
  const captureWrites={formDraft:'draft',formSubmit:'submit',formCorrect:'correct'},captureReviews={formReview:'review',formLock:'lock',formUnlock:'unlock'};
  routes.push(['formHistory',Get,'research-studies/:id/assignments/:assignmentId/revisions',false],['formRevision',Get,'research-studies/:id/assignments/:assignmentId/revisions/:revisionNo',false]);
@@ -186,6 +189,7 @@ export function createResearchStudiesController({require,load,prisma,scope,origi
     if(name==='subjects')return await subjects.list(req.user,params.id,query);
     if(name==='createSubject')return await subjects.create(req.user,params.id,body);
     if(name==='subjectReceipt')return await subjects.receipt(req.user,params.id,params.requestKey);
+    if(name==='subjectData')return await subjectData.read(req.user,params.id,params.subjectId,query);
     if(name==='subjectDetail')return await subjects.detail(req.user,params.id,params.subjectId);
     if(name==='participation')return await participation.get(req.user,params.id,params.subjectId);
     if(name==='participationEvent')return await participation.record(req.user,params.id,params.subjectId,body);

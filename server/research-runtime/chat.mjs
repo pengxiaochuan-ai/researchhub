@@ -1,3 +1,4 @@
+import {ARTICLE_ORIGINAL_MISSING_MESSAGE} from '../hub-sources/article-asset-reader.mjs';
 import {createRuntimeArticle} from './article-runtime.mjs';
 import {parseArticleContext} from '../hub-sources/article-evidence.mjs';
 import {createPmcObjectReader} from './pmc-storage.mjs';
@@ -17,6 +18,7 @@ import {AsyncLocalStorage} from 'node:async_hooks';
 import {createRuntimeKnowledge}from'./knowledge-runtime.mjs';
 import {assembleKnowledgeModule}from'./knowledge-module.mjs';
 import {knowledgeContextId}from'./knowledge-evidence.mjs';
+import {createHistoryActions}from'../ai-agent/history-actions.mjs';
 
 export const HUB_CHAT=Symbol.for('researchhub.runtime.chat');
 const unavailable=()=>{throw Object.assign(Error('科研问答尚未配置，请联系管理员。'),{status:503,code:'HUB_CHAT_NOT_CONFIGURED'});};
@@ -88,7 +90,11 @@ export function createRuntimeChat({config,env,transactionEnv,prisma,load,service
   const campaign=knowledge.quota(user,query.kbId),canStart=result.enabled&&result.quota.businessReady&&!campaign.blocked;
   return{...result,quota:{...result.quota,...campaign,canStart,blocked:!canStart,message:!result.quota.businessReady?'当前AI可用额度不足，请联系管理员。':campaign.message??'当前可用额度充足。'},researchPlans:{enabled:false}};
  };
- return{...runtime,sessions,knowledge,article,status:entryStatus,requireReady,agentId,current,read,queueFence:article?{prisma:withQueueBranches(queueFence.prisma,[article.queueFence]),bind:queueFence.bind}:queueFence,chatBudget,withSessionAdmission};
+ const historyAction=createHistoryActions({agentId,
+  transaction:(fn,user)=>load('common/worker-publication','withAuthorizationMutation')(prisma,user.tenantId,fn,{studyGroupId:user.studyGroupId,researchProjectId:user.researchProjectId}),
+  authorize:async(tx,user)=>{await lock(tx,user.tenantId,{includeOfficial:true});await bindHubTransactionScope(tx,user);await assertHubAgent(scope(tx,user));},
+ });
+ return{...runtime,sessions,knowledge,article,status:entryStatus,requireReady,agentId,current,read,queueFence:article?{prisma:withQueueBranches(queueFence.prisma,[article.queueFence]),bind:queueFence.bind}:queueFence,chatBudget,withSessionAdmission,historyAction};
 }
 
 export function createRuntimeChatController({require,load,getChat,getQueue}){
@@ -131,14 +137,15 @@ export function createRuntimeChatController({require,load,getChat,getQueue}){
   async source(req,id,messageId,index){const chat=getChat();await chat.requireReady(req.user);const session=await own(chat,req.user,id);const n=Number(index);if(parseArticleContext(session.contextKey)){if(n!==1)invalid();const message=await chat.read(req.user,db=>db.message.findFirst({where:{id:messageId,sessionId:id,tenantId:req.user.tenantId,role:'assistant'}}));if(!message)invalid();return chat.article.source(req.user,session,message);}const hub=isHubConversation(session.contextKey);if(!Number.isSafeInteger(n)||n<1)invalid();const source=await chat.read(req.user,async db=>{const message=await db.message.findFirst({where:{id:messageId,sessionId:id,tenantId:req.user.tenantId,role:'assistant'}}),sources=message?.meta?.provenance?.[hub?'hubSources':'knowledgeSources'];if(!Array.isArray(sources)||!sources[n-1])invalid();if(hub)await assertCurrentAiSources({db,principal:req.user,tenantId:req.user.tenantId,hubKey:'lingshu-xinyu',sources:[sources[n-1]]});return sources[n-1];});const status=hub?'current':await chat.knowledge.evidence.status(req.user,knowledgeContextId(session.contextKey),source);if(status==='restricted')throw Object.assign(Error('当前来源不可查看，请刷新核对。'),{status:403,code:'KNOWLEDGE_SOURCE_RESTRICTED'});return{...source,index:n,status};}
   async articleContext(req,recordId,q){const chat=getChat();await chat.requireReady(req.user);if(Object.keys(q).some(k=>k!=='requestKey'))invalid();if(!chat.article)unavailable();req.res?.setHeader('Cache-Control','no-store');return chat.article.context(req.user,recordId,q.requestKey);}
   async notConfigured(req){await getChat().requireReady(req.user);unavailable();}
+  async historyAction(req,id,input){const chat=getChat();await chat.requireReady(req.user);return chat.historyAction(req.user,id,input);}
  }
  Controller()(HubChatController);
  const routes=[['agents',Get,'agents',[]],['status',Get,'knowledge/ai-status',[Query()]],['ensureHub',Post,'sessions/hub-source',[Body()]],['ensureKnowledge',Post,'sessions/knowledge',[Body()]],['history',Get,'sessions/hub-source/history',[Query()]],['state',Get,'sessions/:id/knowledge-state',[Param('id'),Query()]],['send',Post,'sessions/:id/knowledge-messages',[Param('id'),Body()]],['commands',Get,'sessions/:id/commands',[Param('id')]],['command',Post,'sessions/:id/commands',[Param('id'),Body()]],['source',Get,'sessions/:id/knowledge-sources/:messageId/:index',[Param('id'),Param('messageId'),Param('index')]]];
  // Separate contexts must never silently execute as a different evidence scope.
+ routes.push(['historyAction',Patch,'sessions/:id/history-action',[Param('id'),Body()]]);
  routes.push(['articleContext',Get,'hub-sources/article-context/:recordId',[Param('recordId'),Query()]]);
- {const name='unavailable'+routes.length;HubChatController.prototype[name]=HubChatController.prototype.notConfigured;routes.push([name,Patch,'sessions/:id/history-action',[]]);}
  for(const [method,verb,path,params]of routes){
-  const original=HubChatController.prototype[method];HubChatController.prototype[method]=async function(...args){try{return await original.apply(this,args);}catch(e){if(e.getStatus)throw e;throw new HttpException({code:e.code??'HUB_CHAT_UNAVAILABLE',message:e.status===400?e.message:e.code==='HUB_CHAT_NOT_CONFIGURED'?'科研问答尚未配置，请联系管理员。':e.code==='HUB_CHAT_COMMIT_PENDING'?'前次请求状态待核对，请联系管理员，暂勿重复提交。':e.code==='HUB_CHAT_SESSION_NOT_ADMITTED'?'此历史会话仅供查看，请使用新对话提问。':/^HUB_CHAT_(BUDGET_|SESSION_LIMIT)/.test(e.code??'')?'当前AI使用额度不可用，请联系管理员。':'当前会话或来源暂不可用，请重新核对后重试。'},e.status??503);}};
+  const original=HubChatController.prototype[method];HubChatController.prototype[method]=async function(...args){try{return await original.apply(this,args);}catch(e){if(e.getStatus)throw e;throw new HttpException({code:e.code??'HUB_CHAT_UNAVAILABLE',message:e.code==='ARTICLE_ORIGINAL_MISSING'?ARTICLE_ORIGINAL_MISSING_MESSAGE:e.status===400?e.message:e.code==='HUB_CHAT_NOT_CONFIGURED'?'科研问答尚未配置，请联系管理员。':e.code==='HUB_CHAT_COMMIT_PENDING'?'前次请求状态待核对，请联系管理员，暂勿重复提交。':e.code==='HUB_CHAT_SESSION_NOT_ADMITTED'?'此历史会话仅供查看，请使用新对话提问。':/^HUB_CHAT_(BUDGET_|SESSION_LIMIT)/.test(e.code??'')?'当前AI使用额度不可用，请联系管理员。':'当前会话或来源暂不可用，请重新核对后重试。'},e.status??503);}};
   const p=HubChatController.prototype;verb(path)(p,method,Object.getOwnPropertyDescriptor(p,method));Req()(p,method,0);params.forEach((d,i)=>d(p,method,i+1));
   if(!['status','agents'].includes(method))for(const decorate of [load('common/decorators','RequireStudyGroup')(),load('common/decorators','RequireResearchProject')(),load('common/decorators','RequireStudyGroupMenu')('workbench'),load('common/decorators','RequireStudyGroupPermission')('chat.use')])decorate(p,method,Object.getOwnPropertyDescriptor(p,method));
  }

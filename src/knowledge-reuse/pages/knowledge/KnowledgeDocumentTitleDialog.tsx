@@ -13,6 +13,7 @@ export default function KnowledgeDocumentTitleDialog({
   onClose,
   onInputChange,
   onSubmit,
+  sourceOptions = [],
 }: {
   mode: 'create' | 'rename';
   initialTitle?: string;
@@ -21,13 +22,16 @@ export default function KnowledgeDocumentTitleDialog({
   error?: string;
   onClose: () => void;
   onInputChange?: () => void;
-  onSubmit: (title: string) => void | Promise<void>;
+  onSubmit: (title: string, template?: string, sourceId?: string) => void | Promise<void>;
+  sourceOptions?: Array<{id: string; title: string}>;
 }) {
   const titleId = useId();
   const descriptionId = useId();
   const inputId = useId();
   const errorId = useId();
   const [title, setTitle] = useState(initialTitle);
+  const [template, setTemplate] = useState('document');
+  const [sourceId, setSourceId] = useState('');
   const [localError, setLocalError] = useState('');
 
   useEffect(() => {
@@ -52,7 +56,7 @@ export default function KnowledgeDocumentTitleDialog({
       setLocalError(validation.error);
       return;
     }
-    void onSubmit(validation.value);
+    void onSubmit(validation.value, template, template === 'document' ? '' : sourceId);
   }
 
   const isCreate = mode === 'create';
@@ -68,7 +72,7 @@ export default function KnowledgeDocumentTitleDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
-        className="card w-full max-w-lg overflow-hidden shadow-xl"
+        className="card max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto shadow-xl"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4 border-b border-ink-200 px-6 py-4">
@@ -99,6 +103,15 @@ export default function KnowledgeDocumentTitleDialog({
               新文档位置：<span className="font-medium text-ink-800">{parentTitle}</span> 下
             </div>
           )}
+          {isCreate && <div>
+            <label className="label" htmlFor={inputId + '-type'}>文档类型</label>
+            <select id={inputId + '-type'} className="input" value={template} disabled={busy} onChange={event => {setTemplate(event.target.value); onInputChange?.();}}>
+              <option value="document">普通文档</option>
+              <option value="reading">阅读笔记</option>
+              <option value="idea">研究想法</option>
+              <option value="guidance">指导记录</option>
+            </select>
+          </div>}
           <div>
             <label className="label" htmlFor={inputId}>文章标题</label>
             <input
@@ -118,6 +131,14 @@ export default function KnowledgeDocumentTitleDialog({
               <span className="shrink-0">{title.length}/{KNOWLEDGE_DOCUMENT_TITLE_MAX_LENGTH}</span>
             </div>
           </div>
+
+          {isCreate && template !== 'document' && <div>
+            <label className="label" htmlFor={inputId + '-source'}>关联原资料（可选）</label>
+            <select id={inputId + '-source'} className="input" value={sourceId} disabled={busy} onChange={event => setSourceId(event.target.value)}>
+              <option value="">暂不关联</option>
+              {sourceOptions.map(source => <option key={source.id} value={source.id}>{source.title}</option>)}
+            </select>
+          </div>}
 
           {displayedError && (
             <div id={errorId} role="alert" className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700">

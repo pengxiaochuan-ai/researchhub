@@ -28,6 +28,42 @@ comparison history: 首轮520px以上图形及左侧垂直居中造成较大顶�
 
 final result: passed
 
+# 公开动态与帮助详情延续横幅 · 2026-11-19
+
+source visual truth为现行同栏目列表：`docs/testing/evidence/public-detail-banners-2026-11-19/list-academic-1435.png`与`list-help-1435.png`；implementation为同目录`academic-1435.png`与`help-1435.png`。全部1435×1096 CSS／像素、DPR1，不需归一；状态为同一公开活动及报告帮助正文。源与实现同一比较输入查看，完整视图比较层级，焦点核对横幅、唯一文章h1和920px帮助阅读卡；另核对320窄屏及200%。
+
+两栏目各自列表／详情横幅图片URL、取景、尺寸和位置实测完全相等；标题视觉32／手机28、正文16沿现有规则。详情横幅栏目名为p，文章为唯一h1。列表文字／链接／控件与修改前相同，全部26帮助正文／链接与前相同。字体、间距、配色、图片质量与内容均核对，独立只读复评无本轮P0／P1／P2。
+
+48相关测试、26浏览器检查、九宽和两详情原生200%通过。初验脚本将select不存在的placeholder=undefined与JSON省略属性相比较，已统一JSON序列化后完整通过，未为此改产品；原失败留作harness-failure.json。IAB旧连接卡顿，重新打开帮助详情可见，但截图连接再次超时；正式视觉证据为独立Chrome真实截图，不把未完成的IAB链路写成通过。无业务写或科研模型请求，无新素材。
+
+final result: passed
+
+# P008第三版问答横幅 · 2026-11-19
+
+source visual truth: `docs/testing/evidence/p008-questions-2026-11-19/selected-third-mock.png`，用户最近帮助三图中的第三张，1435×1096。implementation screenshot: 同目录`implementation-1435.png`，1435×1096 CSS／像素，DPR1，无需密度归一。源／实现同一输入查看，状态同为未筛选帮助中心、26篇、四列卡片。
+
+完整画面对照层级，重点核对横幅和门户导航、右侧气泡全形、手机标题与输入重排。标题／卡片／正文32／20／16px、搜索760px及原卡片自然高度遵守项目现行约束，不追随生成稿近似字形放大或压缩。桌面220px、手机180px；不复用书籍／台历、不加客服或AI能力。字体、间距、颜色、图片质量与文案均核对。
+
+浏览器17项及独立只读视觉复评无P0／P1／P2；main全部文字／链接／控件与修改前相同、P009正文相同，门户导航横纵坐标／字号与高度同值。九宽、原生200%、图片失败、搜索／分类／详情刷新返回及当前IAB通过，pageerror0，0业务写。背景内置image_gen生成单列留痕，浏览器无科研模型请求。源与实现差异为上述现有字号／内容宽度硬约束，无额外未修问题。
+
+final result: passed
+
+# P011第一版写实书桌横幅 · 2026-11-19
+
+source visual truth: `docs/testing/evidence/p011-daylight-2026-11-19/selected-first-mock.png`（用户最近三张图中第一张，1487×1058）。implementation screenshot: 同目录`implementation-1487.png`；viewport1487×1058 CSS px，截图1487×1058像素，DPR1，无需密度缩放。state为匿名P011活动列表、同三条实际活动；源与实现同一比较输入查看。
+
+完整图比较布局／层级，焦点核对1487横幅、1920及2219宽屏物体与左侧衔接、320窄屏标题／筛选。主标题32px、卡片20px、正文16px及1440px最大内容宽沿原项目规则，不照生成位图的近似字形放大标题或压缩卡片；横幅220px在已讨论200–240范围，手机180px。复制、搜索／筛选、详情刷新／返回、图片失败、原生200%及菜单已实测。无页面异常或内容业务写；浏览器无科研模型请求，背景素材生成单列留痕。
+
+comparison history: 首次cover大屏裁掉台历，保留`iteration-cover-1487.png`；最终原图等比、显示宽上限1440px、靠右及44%纵向位置，完整台历和主要书籍保留。拉远草稿主体过小，未接入产品。最新完整图及九宽证据已复验，独立只读复评无P0/P1/P2；字体／间距／颜色／图片质量与内容五面均核对。P3仅为未来经用户反馈微调装饰取景，不影响当前任务。详情和后台／权限保持；不是完整无障碍认证或生产发布证明。
+
+final result: passed
+
+# P007背景连续延展 · 2026-11-19
+
+本轮视觉依据为用户要求背景向左延展，优先于第三版旧左右分区。比较wide-background/before-after.png（修改前／后均1440×650、DPR1），另看完整after-1440及1024／1025边界、手机截图。源背景由原图向左扩展，不拉伸人物；字号、正文、入口与Hero高度保持。左侧硬边消失、标题与介绍可读，无P0/P1/P2。独立只读复核通过；Chrome十宽、原生200%及当前IAB均有证，用户视觉及生产另验。证据：docs/testing/evidence/p007-redesign-2026-11-19/wide-background/。
+
+final result: passed
+
 # Design QA — O02 右侧 UI 复刻
 
 ## Comparison Target
@@ -83,3 +119,17 @@ final result: passed
 ## Final result
 
 passed
+
+## P007第三版视觉验收 · 2026-11-19
+
+source visual truth：`/Users/mac/.codex/generated_images/01a1e765-0f63-7be2-a0bd-9de7b0eed6e6/exec-9554b471-cbc0-4476-b567-bace1b15d70d.png`（1159×1358）。实际：`docs/testing/evidence/p007-redesign-2026-11-19/after-1159.png`，1159 CSS px、DPR1，比较其首1358px；无密度拉伸。完整对照：`design-comparison-final.png`，另看768／320聚焦区域及`after-preview.png`。状态：默认静态截图，实际按钮、键盘、减少动态效果另外实测。
+
+五面检查：中文系统字体按门户角色（桌面正文18／手机16），现有蓝紫色、左文右人物主视觉、证据重点区与右侧两行、参与方式顺序均保持选定方向。背景支持和示意／暂停控件为既有必要信息补充，原公共header未重做。素材约179KB，高分辨率，无可读虚构身份／研究数据。
+
+历史P2：768px文案叠图；提高上下排断点至1024后，十宽及相邻断点截图无叠图。间距比较后收紧桌面Hero与区块留白；正文不使用透明渐隐，避免短时降低对比。最终无P0/P1/P2；P3为生成图局部与装饰光线差异。未把审核限制、素材性质或AI责任因母版省略而删除。
+
+真实Chrome／IAB路径、暂停与Enter续播、reduced-motion及原生200%已验。0 pageerror；匿名身份GET预期401及构建大chunk告警完整登记，非“全零”。用户视觉签收与生产另计。
+
+final result: passed
+
+完整证据：`docs/testing/p007-researcher-initiative-2026-11-19.md`。

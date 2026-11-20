@@ -1,0 +1,22 @@
+import {createHash} from 'node:crypto';
+export const HUB_KEY='lingshu-xinyu';
+export const fail=(status,code,message='当前成果或使用条件已变化，请重新核对。')=>{throw Object.assign(Error(message),{status,code});};
+export const validId=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,160}$/.test(v);
+export const canonical=v=>JSON.stringify(v===null||typeof v!=='object'?v:Array.isArray(v)?v.map(x=>JSON.parse(canonical(x))):Object.fromEntries(Object.keys(v).sort().map(k=>[k,JSON.parse(canonical(v[k]))])));
+export const digest=v=>createHash('sha256').update(typeof v==='string'?v:canonical(v)).digest('hex');
+export const operationHash=(action,entryId,body,usageRequestId=null)=>digest({action,entryId,body,...(['decide_usage','revoke_usage'].includes(action)?{usageRequestId}:{} )});
+const fields={submit:['studyId','assetId','version','title','summary','rightsEvidence','expiresAt'],decide:['decision','reason'],withdraw:['reason'],revoke_usage:['reason'],request_usage:['actions','reason'],decide_usage:['decision','actions','expiresAt','reason'],cite:['targetStudyId','note'],copy:['targetStudyId','title']};
+export function validateMutation(action,body){
+ const keys=fields[action];if(!keys||!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['requestKey','expectedRevision',...keys].includes(k))||typeof body.requestKey!=='string'||!/^[A-Za-z0-9_-]{8,128}$/.test(body.requestKey)||!Number.isSafeInteger(body.expectedRevision)||body.expectedRevision<(action==='submit'?0:1)||action==='submit'&&body.expectedRevision!==0)fail(400,'HUB_ASSET_INPUT_INVALID');
+ const text=(k,max,optional=false)=>{if(optional&&body[k]===undefined)return;if(typeof body[k]!=='string'||!body[k].trim()||body[k].length>max||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(body[k]))fail(400,'HUB_ASSET_INPUT_INVALID');};
+ for(const k of ['studyId','assetId','targetStudyId'].filter(k=>keys.includes(k)))if(!validId(body[k]))fail(400,'HUB_ASSET_INPUT_INVALID');
+ if(action==='submit'){if(!Number.isSafeInteger(body.version)||body.version<1)fail(400,'HUB_ASSET_INPUT_INVALID');text('title',160);text('summary',2000);text('rightsEvidence',4000);}
+ if(keys.includes('actions')&&(!Array.isArray(body.actions)||body.actions.length<1||body.actions.length>3||new Set(body.actions).size!==body.actions.length||body.actions.some(x=>!['read','cite','copy'].includes(x))))fail(400,'HUB_ASSET_INPUT_INVALID');
+ if(keys.includes('decision')&&!['approved','rejected'].includes(body.decision))fail(400,'HUB_ASSET_INPUT_INVALID');
+ if(keys.includes('reason'))text('reason',2000,action==='decide'&&body.decision==='approved');
+ if(action==='copy')text('title',160);if(action==='cite')text('note',2000,true);
+ if(keys.includes('expiresAt')&&body.expiresAt!==null&&(typeof body.expiresAt!=='string'||!Number.isFinite(Date.parse(body.expiresAt))||new Date(body.expiresAt).toISOString()!==body.expiresAt))fail(400,'HUB_ASSET_INPUT_INVALID');
+ return body;
+}
+export function validateQuery(q={}){if(!q||Object.keys(q).some(k=>!['q','kind','view','page','status','assetId','version'].includes(k))||q.status!==undefined&&!['all','pending','approved','rejected','withdrawn'].includes(q.status)||q.q!==undefined&&(typeof q.q!=='string'||q.q.length>200)||q.kind!==undefined&&!['all','protocol','dataset','instrument','analysis','publication'].includes(q.kind)||q.view!==undefined&&!['catalog','author'].includes(q.view)||q.page!==undefined&&!/^[1-9][0-9]{0,4}$/.test(String(q.page)))fail(400,'HUB_ASSET_INPUT_INVALID');if((q.assetId!==undefined||q.version!==undefined)&&q.view!=='author'||q.assetId!==undefined&&!validId(q.assetId)||q.version!==undefined&&(q.assetId===undefined||!/^[1-9][0-9]*$/.test(String(q.version))||!Number.isSafeInteger(Number(q.version))))fail(400,'HUB_ASSET_INPUT_INVALID');return{...(q.assetId!==undefined?{assetId:q.assetId}:{}),...(q.version!==undefined?{version:Number(q.version)}:{}),status:q.status??'all',q:q.q??'',kind:q.kind??'all',view:q.view??'catalog',page:Number(q.page??1)};}
+export function capabilities(e,p,actions=[],admin=false,current=true){const owner=e.owner_id===p.accountId,live=e.status==='approved'&&current;return{canReview:admin&&e.status==='pending',canWithdraw:(owner||admin)&&!['withdrawn','rejected'].includes(e.status),canRequest:live&&!owner,canRead:live&&(owner||actions.includes('read')),canCite:live&&(owner||actions.includes('cite')),canCopy:live&&(owner||actions.includes('copy')),canDecideUsage:owner&&live};}

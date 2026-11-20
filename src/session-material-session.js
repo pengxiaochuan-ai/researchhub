@@ -17,7 +17,7 @@ export function materialKnowledgeHref(item,scope){
 }
 export async function assertMaterialDocumentVersion(doc,target){
  if(target?.docVersion==null&&target?.contentSha256==null)return true;
- const invalid=()=>{throw Object.assign(Error('资料已修订，与本次回答引用的版本不同。请返回原会话核对固定选段，或重新提问。'),{code:'HUB_PRIVATE_DOCUMENT_CHANGED'});};
+ const invalid=()=>{throw Object.assign(Error('资料已修订，与所关联的固定版本不同。请返回原记录核对，或重新选择资料。'),{code:'HUB_PRIVATE_DOCUMENT_CHANGED'});};
  if(doc?.id!==target.docId||doc.kbId!==target.kbId||doc.version!==target.docVersion||typeof doc.contentMd!=='string')invalid();
  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(doc.contentMd)),actual=Array.from(new Uint8Array(digest),n=>n.toString(16).padStart(2,'0')).join('');
  if(actual!==target.contentSha256)invalid();return true;

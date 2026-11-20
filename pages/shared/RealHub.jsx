@@ -9,6 +9,7 @@ import HubTeamMap from './HubTeamMap.jsx';
 import HubMetrics from './HubMetrics.jsx';
 import HubSourceCatalog from './HubSourceCatalog.jsx';
 import {AcademicDirectory} from './AcademicDirectory.jsx';
+import HubAssetWorkspace from './HubAssetWorkspace.jsx';
 
 const hubHref = key => `/pages/h01/?hubKey=${encodeURIComponent(key)}`;
 const errorText = error => error?.status === 403 ? '当前账号无权访问此领域。'
@@ -90,6 +91,7 @@ export function RealHubDirectory() {
 }
 
 export function RealHubOverview() {
+  if(new URLSearchParams(location.search).get('section')==='assets')return <HubAssetWorkspace entryId={new URLSearchParams(location.search).get('assetEntry')||undefined} copyId={new URLSearchParams(location.search).get('copyId')||undefined}/>;
   if(new URLSearchParams(location.search).has('section')||new URLSearchParams(location.search).has('contentId'))return <AcademicDirectory/>;
   return <HubOverviewContent/>;
 }

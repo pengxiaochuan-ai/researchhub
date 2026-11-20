@@ -35,7 +35,7 @@ export default function PreparationForm({config,onChange,onSave,disabled,busy,di
      <Button disabled={mapped('outcomeKey',o.key)} onClick={()=>change(c=>{c.outcomes.splice(i,1);})}>移除结局 {i+1}</Button>{mapped('outcomeKey',o.key)&&<p className="ep-helper">已有映射；需先移除对应映射，才能修改标识或移除结局。</p>}
     </fieldset>)}<Button disabled={config.outcomes.length>=8} onClick={()=>change(c=>{c.outcomes.push({key:nextKey('outcome',c.outcomes),label:'新结局',definition:'',unit:''});})}>添加结局</Button>
    </Card>
-   <Card title="2. 访视安排" className="ep-visits"><p className="ep-helper">最多4次。默认“基线／随访”为待确认占位，不表示访视周期已确认。</p>
+   <Card title="2. 访视安排" className="ep-visits"><p className="ep-helper">最多4次。访视名称与安排请按研究方案确认。</p>
     {config.visits.map((v,i)=><fieldset key={i} id={'ep-target-visits-'+v.key}><legend>访视 {i+1}</legend><div className="ep-grid">
      {field('visit-'+i+'-key','访视标识',v.key,x=>update('visits',i,'key',x),{required:true,pattern:keyPattern,maxLength:64,disabled:config.mappings.some(m=>m.visitKeys.includes(v.key))})}
      {field('visit-'+i+'-name','访视名称',v.name,x=>update('visits',i,'name',x),{required:true,maxLength:120})}

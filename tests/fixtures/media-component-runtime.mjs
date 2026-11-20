@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url),esbuild=createRequire(require.resolve('vite/package.json'))('esbuild');
+export async function compile(name,mocks={}){
+ const b=await esbuild.build({entryPoints:[new URL('../../pages/shared/'+name,import.meta.url).pathname],bundle:true,write:false,platform:'node',format:'cjs',packages:'external',loader:{'.css':'empty'},plugins:[{name:'test-boundaries',setup(build){build.onResolve({filter:/.*/},a=>{const k=Object.keys(mocks).find(k=>a.path.endsWith(k));return k?{path:k,namespace:'boundary'}:undefined;});build.onLoad({filter:/.*/,namespace:'boundary'},a=>({contents:mocks[a.path]}));}}]});return b.outputFiles[0].text;
+}
+export function render(bundle,exportName,props){
+ let slots=[],cursor=0,effects=[],changed=true,result;const listeners=new Map();
+ const previous=new Map(['window','document','location'].map(k=>[k,globalThis[k]]));
+ globalThis.location={pathname:'/pages/s09/',search:'?formalCapture=1&studyId=study&visitId=visit',hash:''};globalThis.document={activeElement:null,visibilityState:'visible',addEventListener:(n,f)=>{const a=listeners.get(n)||new Set();a.add(f);listeners.set(n,a);},removeEventListener:(n,f)=>listeners.get(n)?.delete(f)};globalThis.window={addEventListener:document.addEventListener,removeEventListener:document.removeEventListener};
+ const React={createElement:(type,props,...children)=>{if(typeof type==='function')return type({...props,children});if(props?.ref)props.ref.current={focus(){},scrollIntoView(){},pause(){},load(){},removeAttribute(){},play(){return Promise.resolve();},dataset:{},open:false};return{type,props:{...props,children}};},useRef(v){const i=cursor++;return slots[i]??(slots[i]={current:v});},useState(v){const i=cursor++;if(!(i in slots))slots[i]=typeof v==='function'?v():v;return[slots[i],n=>{slots[i]=typeof n==='function'?n(slots[i]):n;changed=true;}];},useEffect(fn,deps){const i=cursor++,old=slots[i];if(!old||!deps||deps.some((v,n)=>!Object.is(v,old.deps?.[n])))effects.push(()=>{old?.cleanup?.();slots[i]={deps,cleanup:fn()};});}};
+ const m={exports:{}};new Function('require','module','exports',bundle)(n=>n==='react'?React:require(n),m,m.exports);
+ const text=n=>n==null?'':Array.isArray(n)?n.map(text).join(''):typeof n==='object'?text(n.props?.children):String(n),walk=n=>n==null?[]:Array.isArray(n)?n.flatMap(walk):typeof n==='object'?[n,...walk(n.props?.children)]:[];
+ function run(){for(let i=0;changed&&i<15;i++){changed=false;cursor=0;effects=[];result=m.exports[exportName](props);for(const e of effects)e();}}
+ run();return{get value(){return result;},get text(){return text(result);},get nodes(){return walk(result);},update(patch){props={...props,...patch};changed=true;run();},click(pattern){const button=walk(result).find(n=>n.type==='button'&&pattern.test(text(n)));assert(button,'button missing: '+pattern);button.props.onClick();run();},focus(){for(const f of listeners.get('focus')??[])f();run();},async flush(){for(let i=0;i<12;i++){run();await new Promise(r=>setImmediate(r));}},dispose(){for(const s of slots)s?.cleanup?.();for(const[k,v]of previous)if(v===undefined)delete globalThis[k];else globalThis[k]=v;}};
+}

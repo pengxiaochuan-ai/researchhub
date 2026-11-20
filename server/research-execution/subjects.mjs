@@ -5,7 +5,7 @@ const fail=(status,code,message)=>{throw researchError(status,code,message);};
 const missing=()=>fail(404,'RESEARCH_NOT_FOUND','被试不存在或当前账号无权查看。');
 const scope=ctx=>({tenantId:ctx.tenantId,studyGroupId:ctx.studyGroupId,researchProjectId:ctx.executionProjectId});
 const code=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,64}$/.test(x);
-async function permissions(tx,user,ctx){
+export async function subjectPermissionsInTx(tx,user,ctx){
  if(!await tx.tenantFeatureEntitlement.findFirst({where:{tenantId:ctx.tenantId,featureKey:'study_operations',enabled:true}}))fail(403,'FEATURE_NOT_ENABLED','该功能尚未向当前租户开放。');
  const [account,projectMember,groupMember]=await Promise.all([
   tx.account.findFirst({where:{id:user.accountId,tenantId:ctx.tenantId},select:{role:true,isTenantAdmin:true}}),
@@ -17,9 +17,8 @@ async function permissions(tx,user,ctx){
  const has=(kind,value)=>Array.isArray(role?.[kind])&&role[kind].includes(value);
  return {canRead:admin||member&&has('menuPermissions','subjects'),canCreate:admin||member&&has('menuPermissions','subjects')&&has('buttonPermissions','subject.create'),canExecute:admin||member&&has('menuPermissions','workbench')&&has('buttonPermissions','study.execute')};
 }
-export function createSubjectsService({studies,core,receipts=repository,limitedImportRead,limitedMediaRead}){
- const run=(user,studyId,fn)=>studies.withResearchStudyTransaction(user,studyId,'read',async(tx,ctx)=>fn(tx,ctx,await permissions(tx,user,ctx)));
- const readLimit=async(tx,user,ctx,p)=>{
+export function createSubjectReadAccess({limitedImportRead,limitedMediaRead}={}){
+ return async(tx,user,ctx,p)=>{
   if(p.canRead)return null;
   const values=[],valid=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,160}$/.test(x);let denied;
   for(const reader of [limitedImportRead,limitedMediaRead].filter(Boolean)){
@@ -30,6 +29,10 @@ export function createSubjectsService({studies,core,receipts=repository,limitedI
   if(!values.length){if(denied)throw denied;fail(403,'RESEARCH_FORBIDDEN','当前账号无权查看被试。');}
   return{subjectIds:[...new Set(values.flatMap(x=>x.subjectIds))],visitIds:[...new Set(values.flatMap(x=>x.visitIds))]};
  };
+}
+export function createSubjectsService({studies,core,receipts=repository,limitedImportRead,limitedMediaRead}){
+ const run=(user,studyId,fn)=>studies.withResearchStudyTransaction(user,studyId,'read',async(tx,ctx)=>fn(tx,ctx,await subjectPermissionsInTx(tx,user,ctx)));
+ const readLimit=createSubjectReadAccess({limitedImportRead,limitedMediaRead});
  return {
   receipt:(user,studyId,requestKey)=>{
    validateMutation({requestKey});

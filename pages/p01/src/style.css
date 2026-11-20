@@ -55,6 +55,11 @@ body[data-platform-header="true"] #root>main{padding:80px 24px 30px!important;ov
 .rail{display:flex;flex-direction:column;gap:16px}
 .railCard{padding:16px}
 .personal-project-preview{min-width:0}
+.personal-project-title{align-items:center;flex-wrap:wrap}
+.personal-project-title h2{flex-shrink:0;white-space:nowrap}
+.personal-project-title-actions{display:flex;align-items:center;gap:12px;min-width:0;margin-left:auto}
+.personal-project-title-actions>span{white-space:nowrap}
+.personal-project-title .ui-button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 12px;border:1px solid var(--brand-primary,#4f46e5);border-radius:6px;background:var(--brand-primary,#4f46e5);color:#fff;font-size:14px;line-height:22px;font-weight:500;white-space:nowrap;cursor:pointer}
 .personal-project-preview .project small{font-size:14px;line-height:22px;overflow-wrap:anywhere}
 .personal-project-preview .project .text-link{min-width:40px;min-height:40px;flex-shrink:0;justify-content:center;font-size:14px;line-height:22px}
 .personal-project-more{display:flex;align-items:center;min-height:40px;width:100%;margin-top:8px;padding:8px 0;color:#4f46e5;font-size:14px;line-height:22px;text-decoration:none}
