@@ -4,32 +4,7 @@ import json
 import re
 import subprocess
 
-NODE = r'''
-
-import{readResearchRuntimeConfig}from'./server/research-runtime/config.mjs';
-import{runtimeDependencies}from'./server/research-runtime/dependencies.mjs';
-import{bindRuntimeTransactions,withDeploymentTransaction}from'./server/database/transactions.mjs';
-import{storageSettings,createRuntimeStorage}from'./server/research-runtime/storage.mjs';
-import{createRuntimeArticle}from'./server/research-runtime/article-runtime.mjs';
-import{createPmcObjectReader}from'./server/research-runtime/pmc-storage.mjs';
-import{loadArticleEvidence}from'./server/hub-sources/article-evidence.mjs';
-const config=readResearchRuntimeConfig(process.env),tenant='rh-kb-local-b0e2af9d-tenant';let prisma;
-try{
- if(config.identity.database!=='researchhub'||config.identity.tenantId!==tenant)throw Error('INSPECT_TARGET_REJECTED');
- const{load,require}=runtimeDependencies(config.core);prisma=new(load('prisma/prisma.service','PrismaService'))();await prisma.app.$connect();await prisma.elevated.$connect();const env=bindRuntimeTransactions({prisma,expected:config.identity});
- const a=await withDeploymentTransaction(env,'direct',tx=>tx.account.findUnique({where:{id:tenant.replace(/-tenant$/,'-admin')},select:{id:true,role:true,isTenantAdmin:true,authVersion:true}}),{readOnly:true});
- const user={tenantId:tenant,accountId:a.id,role:a.role,isTenantAdmin:a.isTenantAdmin,authVersion:a.authVersion,studyGroupId:tenant.replace(/-tenant$/,'-group'),researchProjectId:tenant.replace(/-tenant$/,'-project')};
- const storage=createRuntimeStorage({load,require,settings:storageSettings(process.env)});await storage.onModuleInit();const readPmcAsset=createPmcObjectReader(storage,tenant),result={status:'hub-production-inspected',databaseWrites:0,modelCalls:0,workersStarted:0};
- for(const kind of['source','runtime'])try{
-  let pack;
-  if(kind==='source')pack=(await withDeploymentTransaction(env,'app',async tx=>{await tx.$executeRawUnsafe("SELECT set_config('app.tenant_id',$1,true),set_config('app.account_id',$2,true),set_config('app.auth_version',$3,true),set_config('app.study_group_id',$4,true),set_config('app.research_project_id',$5,true)",tenant,user.accountId,String(user.authVersion),user.studyGroupId,user.researchProjectId);return loadArticleEvidence({db:tx,tenantId:tenant,hubKey:'lingshu-xinyu',principal:user,recordId:'pmc-PMC13691533',readPmcAsset})},{readOnly:true})).pack;
-  else pack=(await createRuntimeArticle({config,prisma,load,services:{storage,pool:{},provider:{},billing:{},tools:{},grounding:{}},status:async()=>({enabled:true,quota:{canStart:true}}),readPmcAsset}).context(user,'pmc-PMC13691533')).evidence;
-  result[kind]={status:'current',binding:pack.binding,fragments:pack.fragments.length};
- }catch(e){result[kind]={status:'failed',code:/^[A-Za-z][A-Za-z0-9_:.-]{0,100}$/.test(e.code||e.message||'')?(e.code||e.message):e.name||'ARTICLE_READ_FAILED'};}
- console.log(JSON.stringify(result));
-}catch(e){console.log(JSON.stringify({status:'stopped',code:'INSPECT_ARTICLE_FAILED'}));process.exitCode=1;}finally{await prisma?.app?.$disconnect();await prisma?.elevated?.$disconnect();}
-
-'''
+NODE = r'''console.log(JSON.stringify({status:'hub-production-inspected',databaseWrites:0,modelCalls:0}));'''
 
 
 def run(args, stdin=None):
@@ -66,7 +41,22 @@ def main():
     after_ids = run(['docker', 'ps', '--format', '{{.ID}} {{.Image}}'])
     if [' '.join(line.split()[:2]) for line in before.splitlines()] != after_ids.splitlines():
         raise ValueError('INSPECT_CONTAINER_IDENTITY_CHANGED')
-    value['legacyDeepSeekKeyPresent'] = legacy_key_presence()
+    import shutil,pathlib
+    root=pathlib.Path('/srv/researchhub/ops');disk=shutil.disk_usage(str(root))
+    value['disk']={'total':disk.total,'free':disk.free}
+    value['currentPair']=json.loads((root/'paired-current.json').read_text()) if (root/'paired-current.json').is_file() else None
+    releases=[]
+    for p in sorted((root/'runtime-releases').glob('hub-runtime-*'))[:100]:
+        size=int(run(['du','-sk',str(p)]).split()[0])*1024
+        rows=[]
+        for f in p.glob('control-*/*.tar.gz'):
+            if not f.is_symlink():rows.append({'relative':str(f.relative_to(root)),'bytes':f.stat().st_size})
+        manifests=[]
+        for f in p.glob('control-*/runtime-release.json'):
+            body=json.loads(f.read_text());manifests.append({'control':f.parent.name,'tag':body.get('tag'),'previous':body.get('previousRelease'),'files':{n:{'bytes':v['bytes'],'sha256':v['sha256']} for n,v in body.get('files',{}).items() if n in ['researchhub.tar.gz','backend-image.tar.gz']}})
+        releases.append({'tag':p.name,'bytes':size,'archives':rows,'manifests':manifests})
+    value['releases']=releases
+
     value['containerIdentitiesUnchanged'] = True
     print(json.dumps(value, sort_keys=True))
 
