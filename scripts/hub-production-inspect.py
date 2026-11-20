@@ -27,11 +27,36 @@ try {
   const counts=await tx.$queryRawUnsafe(`SELECT count(*)::int AS total,count(*) FILTER(WHERE asset_id LIKE 'rhab-%')::int AS business,count(*) FILTER(WHERE asset_id NOT LIKE 'rhab-%')::int AS legacy FROM rh_asset.asset_registry WHERE tenant_id=$1`,tenant);
   const jobs=await tx.$queryRawUnsafe(`SELECT status,count(*)::int AS count FROM public.knowledge_chat_job WHERE "tenantId"=$1 GROUP BY status ORDER BY status`,tenant);
   const [snapshot]=await tx.$queryRawUnsafe(`SELECT count(*)::int AS count,md5(coalesce(string_agg(md5(to_jsonb(t)::text),'' ORDER BY id),'')) AS hash FROM public.knowledge_chat_job t WHERE "tenantId"=$1`,tenant);
-  let historicalQueueSnapshot=null,chatBudget=null;const nativeReservations=[],knowledgeImports=[];
+  let historicalQueueSnapshot=null,chatBudget=null,historicalQueueClassification=null;const nativeReservations=[],knowledgeImports=[];
   if(process.env.HUB_CHAT_ADMISSION_SHA256){
    const raw=fs.readFileSync('/run/researchhub-admission/admission.json');if(createHash('sha256').update(raw).digest('hex')!==process.env.HUB_CHAT_ADMISSION_SHA256)throw Error('INSPECT_ADMISSION_CHANGED');
    const admission=JSON.parse(raw);if(admission.database!=='researchhub'||admission.tenantId!==tenant||admission.campaignId!=='prod-ai-assets-20261120'||!Array.isArray(admission.historicalChatIds)||admission.historicalChatIds.length!==623)throw Error('INSPECT_ADMISSION_REJECTED');
    [historicalQueueSnapshot]=await tx.$queryRawUnsafe(`SELECT count(*)::int AS count,md5(coalesce(string_agg(md5(to_jsonb(t)::text),'' ORDER BY id),'')) AS hash FROM public.knowledge_chat_job t WHERE "tenantId"=$1 AND id=ANY($2::text[])`,tenant,admission.historicalChatIds);
+   const classificationSql=`WITH queued AS (
+    SELECT j.*,s."contextKey",s.title AS session_title,s.status AS session_status,s."deletedAt" AS session_deleted,
+     a.status AS account_status,a.role,a."isTenantAdmin",g.status AS group_status,p.status AS project_status,
+     r.status AS reservation_status,r."actualTokens" IS NOT NULL AS has_actual_usage
+    FROM public.knowledge_chat_job j
+    LEFT JOIN public.session s ON s.id=j."sessionId" AND s."tenantId"=j."tenantId" AND s."accountId"=j."accountId" AND s."studyGroupId"=j."studyGroupId" AND s."researchProjectId"=j."researchProjectId"
+    LEFT JOIN public.account a ON a.id=j."accountId" AND a."tenantId"=j."tenantId"
+    LEFT JOIN public.study_group g ON g.id=j."studyGroupId" AND g."tenantId"=j."tenantId"
+    LEFT JOIN public.research_project p ON p.id=j."researchProjectId" AND p."tenantId"=j."tenantId" AND p."studyGroupId"=j."studyGroupId"
+    LEFT JOIN public.token_quota_reservation r ON r."tenantId"=j."tenantId" AND r."requestKey"='chat:'||j."sessionId"||':'||j."requestKey"
+    WHERE j."tenantId"=$1 AND j.id=ANY($2::text[]) AND j.status='queued'
+   ), classified AS (SELECT *,
+    CASE WHEN "contextKey" LIKE 'kb:%' THEN 'knowledge-base' WHEN "contextKey" LIKE 'hub:%' THEN 'hub' WHEN "contextKey" LIKE 'article:%' OR "contextKey" LIKE 'hub-article:v1:%' THEN 'article' WHEN "contextKey" LIKE 'rh-asset-applicability:%' THEN 'asset-applicability' WHEN "contextKey" LIKE 'asset:%' THEN 'asset' ELSE 'other-or-missing' END AS family,
+    coalesce(session_title ~* 'synthetic|合成|验收|演练|fixture|smoke',false) AS synthetic_signal,
+    (attempts<>0 OR "startedAt" IS NOT NULL OR "assistantMessageId" IS NOT NULL OR result IS NOT NULL) AS execution_evidence,
+    ("executionToken" IS NOT NULL OR "workerOwner" IS NOT NULL OR "leaseExpiresAt" IS NOT NULL) AS claim_evidence,
+    (account_status='active' AND group_status='active' AND project_status='active' AND session_status='active' AND session_deleted IS NULL) IS TRUE AS parents_active
+    FROM queued)
+   SELECT family,synthetic_signal AS "syntheticSignal",execution_evidence AS "executionEvidence",claim_evidence AS "claimEvidence",parents_active AS "parentsActive",coalesce(reservation_status,'none') AS "reservationStatus",coalesce(has_actual_usage,false) AS "hasActualUsage",count(*)::int AS count,
+    count(DISTINCT "accountId")::int AS accounts,count(DISTINCT "studyGroupId")::int AS "studyGroups",count(DISTINCT "researchProjectId")::int AS projects,count(DISTINCT "sessionId")::int AS sessions,
+    min("createdAt") AS "createdFrom",max("createdAt") AS "createdTo",min("updatedAt") AS "updatedFrom",max("updatedAt") AS "updatedTo"
+   FROM classified GROUP BY family,synthetic_signal,execution_evidence,claim_evidence,parents_active,reservation_status,has_actual_usage
+   ORDER BY count(*) DESC,family`;
+   const groups=await tx.$queryRawUnsafe(classificationSql,tenant,admission.historicalChatIds);
+   historicalQueueClassification={at:new Date().toISOString(),basis:'sealed-historical-ids-and-current-queued-state',total:groups.reduce((sum,g)=>sum+g.count,0),groups,classificationOnly:true,automaticDisposition:false};
    const ledgerRaw=fs.readFileSync('/run/researchhub-ai-ledger/budget.json'),ledger=JSON.parse(ledgerRaw);if(ledger.admissionSha!==process.env.HUB_CHAT_ADMISSION_SHA256)throw Error('INSPECT_LEDGER_CHANGED');
    chatBudget={sessions:ledger.sessions.map(x=>({accountId:x.accountId,id:x.sessionId})),jobs:ledger.jobs.map(x=>({id:x.id,accountId:x.accountId})),dispatches:ledger.dispatches.map(x=>({id:x.id,jobId:x.jobId,state:x.state,usage:x.usage??null,reservedMicros:x.reservedMicros,feeUpperMicros:x.feeUpperMicros??null})),ledgerSha256:createHash('sha256').update(ledgerRaw).digest('hex')};
    const checked=createChatBudget({admission,admissionSha:process.env.HUB_CHAT_ADMISSION_SHA256,directory:'/run/researchhub-ai-ledger'}).snapshot();
@@ -62,7 +87,7 @@ try {
    const required=load('billing/token-quota-policy','estimateRunTokenBudget')(Number(resolvedModel.maxTokens??4096));
    for(const a of accounts){const q=await billing.quotaSnapshotFrom(tx,tenant,a.id);tokenQuota.push({accountId:a.id,requiredTokens:required.toString(),tenantReady:q.tenantRemaining>=required,accountMode:q.accountAllocated===0n?'inherits-tenant':'account-limit',accountReady:q.accountAllocated===0n||q.accountRemaining>=required,effectiveReady:q.effectiveRemaining>=required,hasReservations:q.tenantReserved>0n||q.accountReserved>0n});}
   }
-  return {database:config.identity.database,tenant,accounts,access,tokenQuota,assetCounts:counts[0],assets,jobs,queueSnapshot:snapshot,historicalQueueSnapshot,chatBudget,nativeReservations,knowledgeImports,legacySnapshot,model:model?{id:model.id,version:model.version,hasKnowledgeSearch:Array.isArray(model.tools)&&model.tools.includes('knowledge.search'),route}:null};
+  return {database:config.identity.database,tenant,accounts,access,tokenQuota,assetCounts:counts[0],assets,jobs,queueSnapshot:snapshot,historicalQueueSnapshot,historicalQueueClassification,chatBudget,nativeReservations,knowledgeImports,legacySnapshot,model:model?{id:model.id,version:model.version,hasKnowledgeSearch:Array.isArray(model.tools)&&model.tools.includes('knowledge.search'),route}:null};
  },{readOnly:true});
  result.runtime={paidEnabled:process.env.HUB_PAID_AI_ENABLED==='true',workerKinds:config.scope.enabledWorkerKinds,coreDigest:process.env.HUB_CORE_MANIFEST_SHA256};
  // HeadBucket only: never enumerate or read stored objects, never create a bucket.
