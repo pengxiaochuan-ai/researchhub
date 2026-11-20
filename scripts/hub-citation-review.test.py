@@ -16,9 +16,14 @@ class CitationOperator(unittest.TestCase):
   live={'Config':{'Image':'backend:tag'},'Id':'own'};front={'Config':{'Image':'frontend:tag'}};release={'backendImage':'backend:tag','frontendImage':'frontend:tag','supportedBudgetExtensions':['citation-review-v1'],'hubDigest':'own-hub'}
   x={'status':'citation-extension-prepared','issuedAt':'2026-11-20T08:00:00.000Z','previousLedgerSha':original_sha(b'original-ledger'),'admissionRaw':'{"new":"admission"}\n','admissionSha':original_sha(b'{"new":"admission"}\n'),'ledgerRaw':'{"new":"ledger"}\n','prefixHash':'a'*64}
   db=MagicMock();db.read_config.return_value=settings
-  patches=[patch.object(m,'H',h),patch.object(h,'OPS',ops),patch.object(h,'ROOT',root),patch.object(h.os,'geteuid',return_value=0),patch.object(h.os,'chown'),patch.object(h,'sha',side_effect=fake_sha),patch.object(h,'private',side_effect=lambda p,uid=0:pathlib.Path(p).read_bytes()),patch.object(h,'controls',return_value=(ops,{'imageManifestSha256':'manifest'},release)),patch.object(h,'load',return_value=db),patch.object(h,'old_services',return_value='unchanged'),patch.object(m,'current_pair',return_value=(live,front,'tag')),patch.object(m,'prepare',return_value=x)]
+  patches=[patch.object(m,'H',h),patch.object(h,'OPS',ops),patch.object(h,'ROOT',root),patch.object(h.os,'geteuid',return_value=0),patch.object(h.os,'chown'),patch.object(h,'sha',side_effect=fake_sha),patch.object(h,'private',side_effect=lambda p,uid=0:pathlib.Path(p).read_bytes()),patch.object(h,'controls',return_value=(ops,{'imageManifestSha256':'manifest'},release)),patch.object(h,'load',return_value=db),patch.object(m,'legacy_services',return_value='unchanged'),patch.object(m,'current_pair',return_value=(live,front,'tag')),patch.object(m,'prepare',return_value=x)]
   for p in patches:p.start();self.addCleanup(p.stop)
   return root,settings,x,release
+ def test_old_service_filters_are_separate_and_union_cannot_succeed_empty(self):
+  with patch.object(m,'H',h),patch.object(h,'run',side_effect=['old-api image running','old-site image running']) as run:
+   actual=m.legacy_services();self.assertIn('old-api',actual);self.assertIn('old-site',actual);self.assertEqual(len(run.call_args_list),2);self.assertEqual(sum(x.startswith('label=') for x in run.call_args_list[0].args[0]),1)
+  with patch.object(m,'H',h),patch.object(h,'run',return_value=''):
+   with self.assertRaisesRegex(ValueError,'BASELINE_REQUIRED'):m.legacy_services()
  def test_same_image_with_old_sha_missing_flag_or_wrong_mount_is_not_activated(self):
   root,_,_,_=self.fixture();sha='f'*64;env={'HUB_CHAT_ADMISSION_SHA256':sha,'HUB_CHAT_BUDGET_EXTENSION':'citation-review-v1','HUB_EXECUTION_PROFILE':'bounded-hub-knowledge-v2','HUB_PAID_AI_ENABLED':'true','ENABLED_WORKER_KINDS':'knowledge-chat,knowledge-import','HUB_CORE_MANIFEST_SHA256':h.CORE};mounts=[{'Type':'bind','Source':str(root/n),'Destination':dst,'RW':rw} for n,dst,rw in [('admission','/run/researchhub-admission',False),('ledger','/run/researchhub-ai-ledger',True)]]
   def live(values):return {'Config':{'Image':'same-image','Env':[k+'='+v for k,v in values.items()]},'Mounts':mounts}

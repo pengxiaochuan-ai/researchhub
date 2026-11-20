@@ -31,6 +31,12 @@ def assert_live_configuration(live,sha):
  for name,destination,rw in [('admission','/run/researchhub-admission',False),('ledger','/run/researchhub-ai-ledger',True)]:
   row=mounts.get(destination,{});H.need(row.get('Type')=='bind' and row.get('Source')==str(H.ROOT/name) and row.get('RW') is rw,'K01_CITATION_LIVE_MOUNT_MISMATCH')
 
+def legacy_services():
+ rows=set()
+ for project in ('ops','official-site'):
+  rows.update(H.run(['docker','ps','-a','--filter','label=com.docker.compose.project='+project,'--format','{{.ID}} {{.Image}} {{.State}}']).splitlines())
+ H.need(bool(rows),'K01_OLD_SERVICES_BASELINE_REQUIRED');return '\n'.join(sorted(rows))
+
 def current_pair():
  live=H.current();front_ids=H.run(['docker','ps','-q','--filter','label=com.docker.compose.project=researchhub']).splitlines();H.need(len(front_ids)==1,'K01_CITATION_FRONTEND_REQUIRED');front=json.loads(H.run(['docker','inspect',front_ids[0]]))[0];tag=front['Config']['Image'].partition(':')[2];return live,front,tag
 
@@ -42,11 +48,11 @@ def prepare(live,issued_at=None):
 def main(action):
  H.need(os.geteuid()==0 and H.OPS.resolve()==H.OPS,'K01_ROOT_REQUIRED');os.umask(0o077);live,front,tag=current_pair();p,c,r=H.controls(tag);db=H.load('citation_config',p/'database-config.py');saved=db.read_config(H.OPS/'.env.prod');H.need(saved.get('HUB_DATABASE_NAME')=='researchhub' and saved.get('DEFAULT_TENANT_ID')=='rh-kb-local-b0e2af9d-tenant' and saved.get('HUB_CORE_MANIFEST_SHA256')==H.CORE and saved.get('HUB_BACKEND_IMAGE')==live['Config']['Image'] and r['backendImage']==live['Config']['Image'] and r['frontendImage']==front['Config']['Image'] and 'citation-review-v1' in r.get('supportedBudgetExtensions',[]),'K01_CITATION_TARGET_REJECTED')
  H.need(saved.get('HUB_CHAT_ADMISSION_SHA256')==OLD and saved.get('HUB_EXECUTION_PROFILE')=='bounded-hub-knowledge-v2' and saved.get('HUB_PAID_AI_ENABLED')=='true' and saved.get('ENABLED_WORKER_KINDS')=='knowledge-chat,knowledge-import' and not saved.get('HUB_CHAT_BUDGET_EXTENSION'),'K01_CITATION_OLD_STATE_REQUIRED')
- stage=H.ROOT/'citation-review-20261120';services=H.old_services()
+ stage=H.ROOT/'citation-review-20261120';services=legacy_services()
  if action=='advice-stage':
   H.need(not stage.exists(),'K01_CITATION_ALREADY_STAGED');x=prepare(live);olda=(H.ROOT/'admission/admission.json').read_bytes();oldl=H.private(H.ROOT/'ledger/budget.json',1000);H.need(H.sha(olda)==OLD and H.sha(oldl)==x['previousLedgerSha'],'K01_CITATION_BASELINE_CHANGED');stage.mkdir(mode=0o700)
   for name,data in [('original-admission.json',olda),('original-budget.json',oldl),('admission.json',x['admissionRaw'].encode()),('budget.json',x['ledgerRaw'].encode())]:H.exclusive(stage/name,data)
-  receipt={k:x[k] for k in ('issuedAt','previousLedgerSha','admissionSha','prefixHash')};receipt.update(tag=tag,manifestSha256=c['imageManifestSha256'],backendImage=live['Config']['Image'],hubDigest=r['hubDigest'],oldServices=services);H.exclusive(stage/'stage.json',(json.dumps(receipt)+'\n').encode());H.need(H.old_services()==services,'K01_OLD_SERVICES_CHANGED');print(json.dumps({'status':'citation-extension-staged',**receipt,'databaseWrites':0,'modelCalls':0}));return
+  receipt={k:x[k] for k in ('issuedAt','previousLedgerSha','admissionSha','prefixHash')};receipt.update(tag=tag,manifestSha256=c['imageManifestSha256'],backendImage=live['Config']['Image'],hubDigest=r['hubDigest'],oldServices=services);H.exclusive(stage/'stage.json',(json.dumps(receipt)+'\n').encode());H.need(legacy_services()==services,'K01_OLD_SERVICES_CHANGED');print(json.dumps({'status':'citation-extension-staged',**receipt,'databaseWrites':0,'modelCalls':0}));return
  H.need(action=='advice-activate','K01_ACTION_REJECTED');receipt=json.loads(H.private(stage/'stage.json'));newa=H.private(stage/'admission.json');newl=H.private(stage/'budget.json');H.need(H.sha(newa)==receipt['admissionSha'] and receipt['backendImage']==live['Config']['Image'] and receipt['hubDigest']==r['hubDigest'],'K01_CITATION_STAGE_CHANGED');H.need(not(stage/'activation-started.json').exists(),'K01_CITATION_ACTIVATION_ALREADY_STARTED')
  p,c,r=H.controls(tag,os.environ.get('HUB_K01_CHECKPOINT_SHA'));H.need(c.get('executionPolicy')=={'profile':'bounded-hub-knowledge-v2','admissionSha256':receipt['admissionSha']} and c.get('paired') is True and (p/'previous-release.json').read_bytes()==(p/'runtime-release.json').read_bytes() and r['backendImage']==live['Config']['Image'] and r['frontendImage']==front['Config']['Image'] and 'citation-review-v1' in r.get('supportedBudgetExtensions',[]),'K01_CITATION_CHECKPOINT_REJECTED')
  x=prepare(live,receipt['issuedAt']);H.need(x['admissionRaw'].encode()==newa and x['ledgerRaw'].encode()==newl and x['previousLedgerSha']==receipt['previousLedgerSha'] and H.sha(H.private(H.ROOT/'ledger/budget.json',1000))==receipt['previousLedgerSha'],'K01_CITATION_BASELINE_CHANGED')
@@ -58,7 +64,7 @@ def main(action):
   time.sleep(2)
  else:raise ValueError('K01_CITATION_API_NOT_READY')
  live=H.current();assert_live_configuration(live,receipt['admissionSha']);verified=json.loads(H.run(['docker','exec','-i',live['Id'],'node','--input-type=module','-'],VERIFY).splitlines()[-1]);H.need(verified.get('status')=='citation-live-budget-verified','K01_CITATION_LIVE_BUDGET_REJECTED')
- H.need(H.old_services()==services and live['Config']['Image']==receipt['backendImage'],'K01_CITATION_SERVICES_CHANGED');after=server.task_snapshot(db,db.read_config(H.OPS/'.env.prod'));H.need(before==after,'K01_CITATION_TASKS_CHANGED');H.exclusive(stage/'activated.json',(json.dumps({'status':'activated','admissionSha':receipt['admissionSha'],'tag':tag})+'\n').encode());print(json.dumps({'status':'citation-extension-activated','tag':tag,'admissionSha256':receipt['admissionSha'],'limits':{'sessions':4,'jobs':8,'dispatches':6,'feeMicros':1000000},'oldServicesUnchanged':True,'historicalTasksUnchanged':True,'databaseWrites':0,'modelCalls':0}))
+ H.need(legacy_services()==services and live['Config']['Image']==receipt['backendImage'],'K01_CITATION_SERVICES_CHANGED');after=server.task_snapshot(db,db.read_config(H.OPS/'.env.prod'));H.need(before==after,'K01_CITATION_TASKS_CHANGED');H.exclusive(stage/'activated.json',(json.dumps({'status':'activated','admissionSha':receipt['admissionSha'],'tag':tag})+'\n').encode());print(json.dumps({'status':'citation-extension-activated','tag':tag,'admissionSha256':receipt['admissionSha'],'limits':{'sessions':4,'jobs':8,'dispatches':6,'feeMicros':1000000},'oldServicesUnchanged':True,'historicalTasksUnchanged':True,'databaseWrites':0,'modelCalls':0}))
 
 def execute(action):
  H.need(H is not None and action in ('advice-stage','advice-activate'),'K01_ACTION_REJECTED');fds=[]
