@@ -1,3 +1,7 @@
+## 2026-11-20 · 公开页401请求修复已上线
+
+[规格](product/public-auth-401-2026-11-20.md) · [生产验收](testing/public-auth-401-2026-11-20.md)：公开页零认证请求，保护页校验保留。
+
 ## 2026-11-20 · 生产首页已统一P002
 
 https://hub.pengxc.com/默认进入P002，账号图片/演示入口清理同批上线。[上线验收](testing/portal-home-production-2026-11-20.md) · [规格](product/portal-home-production-2026-11-20.md)。
