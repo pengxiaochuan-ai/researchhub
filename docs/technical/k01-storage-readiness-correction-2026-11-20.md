@@ -42,3 +42,11 @@ Nest在同模块中并发执行provider的onModuleInit。原RuntimeStorage在异
 仅调整server/api-proxy.test.mjs中这一个测试：先绑定前端，再占用不同的临时后端端口，核验不等后释放后端，保留原真实502/不重试断言，并将该负向测试的代理超时限定100ms。生产代理代码/端口/配置、业务行为、权限、数据库均不变；不跳过测试。
 
 复验：Node25本机7项通过；独立Linux Node22.23.5容器在无外网、无DB/模型环境连续20轮，每轮7项均通过。证据proxy-port-fix-unit.log、proxy-port-fix-linux.log。
+
+## 生产复验与状态接口修补
+
+5f0161b经44678326149成功配对发布为hub-runtime-5f0161b0-44678326149001；升级/回滚演练、真实浏览器冒烟和健康检查通过，旧服务、历史任务未变，数据库迁移0。只读44678685955在生产读取两份原PDF，验证SHA一致、中文标题/正文可读、真实1页、Node本地解析、非OCR；原两任务失败状态未变，对象写/数据库写/模型调用/导入执行均0。证据pdf-preflight-production.log。
+
+Chrome只读复测发现GET /knowledge/ai-status?kbId在正确headers下仍400“请选择当前课题组”：该路由为兼容Hub全局状态未启用Study metadata，JWT principal因此没有研究字段。首次脚本怀疑所选库范围，原记录保留；补精确范围后仍400，确认接线缺陷。没有创建会话/任务或模型调用。
+
+最小修补仅在Hub自有controller.status：有kbId时用原生header解析器取group/project，复制principal传给原status/evidence；原生withCurrentKnowledgeRead仍核当前账号/成员/研究/KB可见性，再核AI用途。不改原principal、角色、authVersion、无scope Hub状态、写路由、权限或core。5项Controller先红后绿；精确源72项回归通过；专用合成PG＋真实Nest HTTP＋原生StudyGroupGuard，两账号正向、伪造project403、缺header400、global200均通过，持久写/Provider0。证据status-scope-red.log、status-scope-green.log、status-scope-exact-regression.log、status-scope-http-native-pg.log。状态修补仍待复核/发布/真实浏览器复验。

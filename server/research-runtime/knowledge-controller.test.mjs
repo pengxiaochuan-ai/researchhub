@@ -20,3 +20,12 @@ test('KB submit preserves exactly its persisted KB and refuses Hub-style or cros
  assert.equal(h.calls.length,1);await assert.rejects(h.controller.send(h.req,'other-session',body),e=>e.getStatus()===404);
 });
 test('KB citation lookup reads only server-persisted snapshots and refuses a withdrawn source',async()=>{const h=harness();const source=await h.controller.source(h.req,'session','message','1');assert.equal(source.kbId,'private');assert.equal(source.status,'current');h.setRestricted();await assert.rejects(h.controller.source(h.req,'session','message','1'),e=>e.getStatus()===403);});
+
+test('KB status carries explicit request scope into native authorization without changing the login principal',async()=>{
+ const original={tenantId:'tenant',accountId:'owner',role:'researcher',authVersion:7};let received;
+ const Controller=createRuntimeChatController({require,load,getQueue:()=>({}),getChat:()=>({status:async(u,q)=>{received=u;if(q.kbId&&(!u.studyGroupId||!u.researchProjectId))throw Object.assign(Error('missing scope'),{status:400});return{enabled:true};}})}),controller=new Controller();
+ assert.deepEqual(await controller.status({user:original,headers:{'x-study-group-id':'group','x-research-project-id':'project'}},{kbId:'private'}),{enabled:true});
+ assert.equal(received.studyGroupId,'group');assert.equal(received.researchProjectId,'project');assert.equal(received.role,'researcher');assert.equal(received.authVersion,7);assert.equal(original.studyGroupId,undefined);assert.equal(original.researchProjectId,undefined);
+ for(const headers of[{}, {'x-study-group-id':'group'}, {'x-study-group-id':['group'],'x-research-project-id':'project'}])await assert.rejects(controller.status({user:original,headers},{kbId:'private'}),e=>e.getStatus()===400);
+ await controller.status({user:original,headers:{}},{});assert.equal(received,original);
+});

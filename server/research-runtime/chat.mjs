@@ -116,7 +116,16 @@ export function createRuntimeChatController({require,load,getChat,getQueue}){
  async function own(chat,user,id){const s=await chat.sessions.assertKnowledgeSession(user,id);if(s.agentId!==chat.agentId)invalid();if(!isHubConversation(s.contextKey)){if(!chat.knowledge)unavailable();await chat.knowledge.evidence.authorize(user,knowledgeContextId(s.contextKey));}return s;}
  class HubChatController{
   async agents(req){const chat=getChat();return(await chat.status(req.user)).enabled?[{id:chat.agentId,type:'research',name:'岐研科研 Agent'}]:[];}
-  async status(req,q){return getChat().status(req.user,q);}
+  async status(req,q){
+   // This status route also serves the global Hub, so its global request stays
+   // unscoped. KB readiness uses explicit headers and the native current-read
+   // fence still verifies the real account, membership, parents and visibility.
+   const user=q?.kbId?{...req.user,
+    studyGroupId:load('common/study-group-context','requireStudyGroupHeader')(req.headers?.['x-study-group-id']),
+    researchProjectId:load('common/research-project-context','requireResearchProjectHeader')(req.headers?.['x-research-project-id']),
+   }:req.user;
+   return getChat().status(user,q);
+  }
   async ensureKnowledge(req,input){const chat=getChat();body(input,['agentId','kbId','kbName']);await chat.requireReady(req.user);if(input.agentId!==chat.agentId||typeof input.kbId!=='string')invalid();if(!chat.knowledge)unavailable();return chat.knowledge.ensure(req.user,input.kbId);}
    async ensureHub(req,input){const chat=getChat();body(input,['agentId','hubKey','conversationKey']);await chat.requireReady(req.user);if(input.agentId!==chat.agentId||input.hubKey!=='lingshu-xinyu')invalid();return chat.withSessionAdmission(req.user,input.conversationKey,()=>ensureHubConversation({sessions:chat.sessions,authorize:chat.requireReady,user:req.user,agentId:chat.agentId,conversationKey:input.conversationKey}));}
   async history(req,q){const chat=getChat();await chat.requireReady(req.user);const args=hubHistoryQuery(req.user,chat.agentId,q);return chat.read(req.user,async db=>{const rows=await db.session.findMany(args);return{items:await projectHubHistoryPage(rows,req.user,db,Number(q.limit??20)),hasMore:rows.length>Number(q.limit??20),page:Number(q.page??1)};});}
