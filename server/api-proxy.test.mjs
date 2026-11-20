@@ -20,7 +20,10 @@ test('never selects an upstream from the request URL and leaves non API routes a
 });
 
 test('unavailable backend produces a truthful 502 and does not retry the operation',async()=>{
- const unused=createServer();const up=await listen(unused);await close(unused);const proxy=createApiProxy({upstream:`http://127.0.0.1:${up}`,authority:'hub.pengxc.com'});const front=createServer(proxy);const port=await listen(front);
+ // Bind the frontend first: closing a reserved backend port before binding the
+ // frontend can let port 0 reuse that exact port and proxy recursively to itself.
+ let proxy;const front=createServer((req,res)=>proxy(req,res));const port=await listen(front);
+ const unused=createServer();const up=await listen(unused);assert.notEqual(up,port);await close(unused);proxy=createApiProxy({upstream:`http://127.0.0.1:${up}`,authority:'hub.pengxc.com',timeoutMs:100});
  try{const out=await call(port,'/api/asset',{method:'POST',body:Buffer.from('{}')});assert.equal(out.status,502);assert.equal(JSON.parse(out.body).code,'HUB_BACKEND_UNAVAILABLE');}finally{await close(front);}
 });
 
