@@ -4,16 +4,19 @@ import {randomUUID} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {loadFixtureInput} from '../../../app/server/scripts/wp01/local-config.mjs';
 import {assertFixtureTarget,fixtureClient} from '../../../app/server/scripts/wp01/fixture-guard.mjs';
+import {cleanupCommittedTestSessions} from '../../tests/fixtures/committed-session-cleanup.mjs';
 const api=await import('./conversation-commands.mjs').catch(()=>({}));
 const {env}=loadFixtureInput('/Users/mac/aisciencesys/.superpowers/sdd/implementation-plan/wp01-full-baseline-target.json');
-await assertFixtureTarget(env);const db=fixtureClient(env.WP01_TEST_DIRECT_URL);after(()=>db.$disconnect());
+await assertFixtureTarget(env);const db=fixtureClient(env.WP01_TEST_DIRECT_URL),createdSessions=new Set();
 const {ids}=JSON.parse(readFileSync('/Users/mac/aisciencesys/.tmp/researchhub-knowledge-local/runtime.json'));
 const user={tenantId:ids.tenant,studyGroupId:ids.group,researchProjectId:ids.project,accountId:ids.owner,role:'researcher',authVersion:1};
 const accountScope=u=>({tenantId:u.tenantId,studyGroupId:u.studyGroupId,researchProjectId:u.researchProjectId,accountId:u.accountId});
+after(async()=>{try{await cleanupCommittedTestSessions({db,scope:accountScope(user),sessionIds:createdSessions});}finally{await db.$disconnect();}});
 async function setup(){
  assert.equal(typeof api.createConversationCommands,'function','persistent conversation commands are not implemented');
  const sid='rh-aiq-'+randomUUID(),scheduled=[];let revoked=false;
  await db.session.create({data:{id:sid,...accountScope(user),agentId:ids.tenant+'-kb-research',contextKey:'hub:lingshu-xinyu:conversation:'+randomUUID(),channel:'knowledge'}});
+ createdSessions.add(sid);
  const options={tenantId:ids.tenant,transaction:(fn)=>db.$transaction(fn),authorize:async(tx,u,id)=>{
   const row=await tx.session.findFirst({where:{...accountScope(u),id}});if(!row||revoked)throw Object.assign(Error('denied'),{status:403});return u;
  },stage:async(_tx,_u,job)=>({...job.payload,testStage:true}),schedule:async(u,sid,input)=>scheduled.push({u,sid,input})};
@@ -87,7 +90,7 @@ test('scanner advances beyond a full page of blocked sessions instead of starvin
 });
 test('actual PG cursor query reaches the third session after 200 paused command records',async()=>{
  assert.equal(typeof api.commandScanQuery,'function');const consumer='isolated-fairness-'+randomUUID(),prefix='rh-aiq-scan-'+randomUUID(),sessions=[];
- for(let n=0;n<3;n++){const sid=prefix+'-session-'+n;sessions.push(sid);await db.session.create({data:{id:sid,...accountScope(user),agentId:ids.tenant+'-kb-research',contextKey:'hub:lingshu-xinyu:conversation:'+randomUUID(),channel:'knowledge',title:'合成队列公平扫描验证'}});}
+ for(let n=0;n<3;n++){const sid=prefix+'-session-'+n;sessions.push(sid);await db.session.create({data:{id:sid,...accountScope(user),agentId:ids.tenant+'-kb-research',contextKey:'hub:lingshu-xinyu:conversation:'+randomUUID(),channel:'knowledge',title:'合成队列公平扫描验证'}});createdSessions.add(sid);}
  await db.message.createMany({data:Array.from({length:201},(_,n)=>({id:prefix+'-'+String(n).padStart(3,'0'),tenantId:ids.tenant,sessionId:sessions[n<100?0:n<200?1:2],role:'user',content:'合成公平扫描夹具，不是科研任务',meta:{hubCommand:{schema:api.COMMAND_SCHEMA,consumerKey:consumer,status:'paused'}}}))});
  const visited=[];const scan=api.createCommandScanner({readPage:cursor=>db.message.findMany(api.commandScanQuery(ids.tenant,consumer,cursor)),processSession:async m=>{visited.push(m.sessionId);throw Error('synthetic paused');}});
  await scan();await scan();assert(visited.includes(sessions[2]));
