@@ -10,12 +10,13 @@ import {createHash} from 'node:crypto';
 import {readResearchRuntimeConfig} from './server/research-runtime/config.mjs';
 import {runtimeDependencies} from './server/research-runtime/dependencies.mjs';
 import {bindRuntimeTransactions,withDeploymentTransaction} from './server/database/transactions.mjs';
+import {storageSettings,createRuntimeStorage} from './server/research-runtime/storage.mjs';
 const expectedTenant='rh-kb-local-b0e2af9d-tenant';
 let prisma;
 try {
  const config=readResearchRuntimeConfig(process.env);
  if(config.identity.database!=='researchhub'||config.identity.tenantId!==expectedTenant)throw Error('INSPECT_TARGET_REJECTED');
- const {load}=runtimeDependencies(config.core);prisma=new(load('prisma/prisma.service','PrismaService'))();
+ const {load,require}=runtimeDependencies(config.core);prisma=new(load('prisma/prisma.service','PrismaService'))();
  await prisma.app.$connect();await prisma.elevated.$connect();
  const env=bindRuntimeTransactions({prisma,expected:config.identity});
  const result=await withDeploymentTransaction(env,'direct',async tx=>{
@@ -56,6 +57,9 @@ try {
   return {database:config.identity.database,tenant,accounts,access,tokenQuota,assetCounts:counts[0],assets,jobs,queueSnapshot:snapshot,historicalQueueSnapshot,chatBudget,nativeReservations,legacySnapshot,model:model?{id:model.id,version:model.version,hasKnowledgeSearch:Array.isArray(model.tools)&&model.tools.includes('knowledge.search'),route}:null};
  },{readOnly:true});
  result.runtime={paidEnabled:process.env.HUB_PAID_AI_ENABLED==='true',workerKinds:config.scope.enabledWorkerKinds,coreDigest:process.env.HUB_CORE_MANIFEST_SHA256};
+ // HeadBucket only: never enumerate or read stored objects, never create a bucket.
+ let available=false;try{const storage=createRuntimeStorage({load,require,settings:storageSettings(process.env)});await storage.onModuleInit();available=storage.available;}catch{}
+ result.storage={available,probe:'HeadBucket',objectReads:0,objectWrites:0};
  console.log(JSON.stringify({status:'hub-production-inspected',databaseWrites:0,modelCalls:0,workersStarted:0,...result}));
 }catch(error){console.log(JSON.stringify({status:'stopped',code:/^(INSPECT_|RUNTIME_)/.test(error?.message||'')?error.message:'INSPECT_DATABASE_READ_FAILED'}));process.exitCode=1;}
 finally{if(prisma)await prisma.onModuleDestroy();}
