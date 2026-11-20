@@ -33,6 +33,17 @@ class Artifacts(unittest.TestCase):
    names=[line.split('  ',1)[1] for line in (out/'ARTIFACTS.sha256').read_text().splitlines()]
    self.assertEqual(names,['researchhub.tar.gz','docker-compose.ecs.yml'])
    release=json.loads((out/'runtime-release.json').read_text());self.assertIn('researchhub.tar.gz',release['files']);self.assertFalse(release['workersEnabled'])
+ def test_reused_backend_keeps_its_actual_reference_without_needing_a_rebuilt_context(self):
+  from unittest.mock import patch
+  import types,os,json
+  with tempfile.TemporaryDirectory() as d:
+   root=pathlib.Path(d)
+   for name in ('researchhub.tar.gz','backend-image.tar.gz'):(root/name).write_bytes(b'original artifact bytes')
+   previous={'coreDigest':'a'*64,'hubDigest':'b'*64}
+   args=types.SimpleNamespace(directory=d,context=str(root/'absent'),tag='hub-runtime-12345678-1',source_sha='c'*64,backend_image='researchhub-backend:original-tag',backend_release=previous)
+   with patch.dict(os.environ,{'GITHUB_SHA':'d'*40,'HUB_TENANT_SLUG':'synthetic-hub'}),patch.object(m,'image_info',return_value={'id':'sha256:'+'f'*64,'architecture':'amd64'}) as inspect:m.collect(args)
+   release=json.loads((root/'runtime-release.json').read_text())
+   self.assertEqual(release['backendImage'],args.backend_image);self.assertEqual(release['coreDigest'],previous['coreDigest']);self.assertEqual(release['hubDigest'],previous['hubDigest']);inspect.assert_any_call(args.backend_image)
  def test_private_backend_never_exports_an_actions_cache_or_build_record(self):
   text=pathlib.Path('.github/workflows/deploy.yml').read_text()
   backend=text.split('      - name: Build changed backend',1)[1].split('      - name: Reuse unchanged backend',1)[0]

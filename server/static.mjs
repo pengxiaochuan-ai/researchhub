@@ -1,5 +1,6 @@
 import { createReadStream } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 import { createApiProxy } from './api-proxy.mjs';
@@ -26,6 +27,24 @@ const contentTypes = {
   '.woff2': 'font/woff2',
 };
 
+// Only P002's content-addressed derivatives are immutable. A hash-shaped name
+// alone is insufficient: validate its bytes once per file version.
+const contentHashChecks = new Map();
+async function p002AssetCacheControl(pathname, filePath, fileStat) {
+  const match = /^\/pages\/p002\/assets\/(?:crops|optimized)\/[^/]+[.-]([a-f0-9]{12,64})\.webp$/.exec(pathname);
+  if (!match || !fileStat.isFile()) return undefined;
+  const fingerprint = `${fileStat.dev}:${fileStat.ino}:${fileStat.size}:${fileStat.mtimeMs}:${fileStat.ctimeMs}`;
+  const previous = contentHashChecks.get(filePath);
+  if (previous?.fingerprint === fingerprint) return previous.result;
+  const result = readFile(filePath).then(bytes => {
+    const digest = createHash('sha256').update(bytes).digest('hex');
+    return digest.startsWith(match[1]) ? 'public, max-age=31536000, immutable' : undefined;
+  });
+  contentHashChecks.set(filePath, { fingerprint, result });
+  try { return await result; }
+  catch (error) { contentHashChecks.delete(filePath); throw error; }
+}
+
 const server = createServer(async (request, response) => {
   try {
     const pathname = decodeURIComponent(new URL(request.url ?? '/', `http://127.0.0.1:${port}`).pathname);
@@ -47,8 +66,10 @@ const server = createServer(async (request, response) => {
 
     const fileStat = await stat(filePath);
     if (fileStat.isDirectory()) filePath = resolve(filePath, 'index.html');
+    const cacheControl = await p002AssetCacheControl(pathname, filePath, fileStat);
     response.writeHead(200, {
       'Content-Type': contentTypes[extname(filePath)] ?? 'application/octet-stream',
+      ...(cacheControl ? { 'Cache-Control': cacheControl } : {}),
     });
     createReadStream(filePath).pipe(response);
   } catch {

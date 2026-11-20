@@ -1,3 +1,5 @@
+import imageAssets from './crop-assets.json';
+import {whenSectionNear} from './section-images.js';
 import {goToPage} from '../../src/platform-navigation.js';
 import {mountAcademicActivities} from '../../src/portal-academic-activities.js';
 import './academic-activities.css';
@@ -6,6 +8,7 @@ import {stages,roles,wheel,network,assets,engines} from './content.js?v=2.1';
 import {setupDiagramMotion} from './diagram-motion.js?v=1.8.1';
 import {loadCropImage} from './crop-image.js';
 const $=selector=>document.querySelector(selector);
+document.querySelector('[data-portal-wheel]').src=imageAssets.optimized['hero-wheel-transparent.png'].src;
 // Precision windows reuse the actual supplied illustration assets; no page rasterization.
 function crop(source,x,y,width,height,alt='',className='') {
   const box=document.createElement('span');
@@ -15,7 +18,9 @@ function crop(source,x,y,width,height,alt='',className='') {
   box.style.setProperty('--photo-ratio',width+'/'+height);
   const image=new Image();
   image.alt=alt;
-  image.style.cssText='width:'+1586/width*100+'%;left:'+(-x/width*100)+'%;top:'+(-y/height*100)+'%';
+  const asset=imageAssets.crops[[source,x,y,width,height].join(',')];
+  if(!asset)throw Error('Missing portal image crop');
+  image.style.cssText='width:100%;left:0;top:0';
   box.append(image);
   let status;
   if(className==='audience-photo') {
@@ -24,7 +29,7 @@ function crop(source,x,y,width,height,alt='',className='') {
     status.setAttribute('aria-hidden','true');
     box.append(status);
   }
-  loadCropImage(image,box,'assets/reference-'+source+'.png',status);
+  loadCropImage(image,box,asset.src,status,asset);
   return box;
 }
 document.querySelectorAll('[data-crop]').forEach(element=>{const values=element.dataset.crop.split(',').map(Number);element.append(crop(...values,element.dataset.alt||''));});
@@ -100,3 +105,5 @@ if('IntersectionObserver' in window){
 }
 document.querySelectorAll('[data-join]').forEach(button=>button.addEventListener('click',()=>goToPage('p004')));
 $('[data-info="login"]').addEventListener('click',()=>goToPage('p003'));
+
+for(const section of document.querySelectorAll('section.section')){const name=section.id==='home'?'hero-background.png':section.id==='join'?'join-background.png':section.id==='process'?null:'section-background.png';if(name)whenSectionNear(section,()=>section.style.setProperty('--portal-section-image',`url("${new URL(imageAssets.optimized[name].src,document.baseURI).href}")`));}

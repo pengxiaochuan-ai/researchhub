@@ -28,6 +28,25 @@ def pair_matches(items,release,target):
  need(api['Config']['Image']==release['backendImage'] and front['Config']['Image']==release['frontendImage'],'HUB_PAIR_IMAGE_TAG_MISMATCH')
  return api,front
 
+def backend_unchanged(previous,release):
+ def field(value,*path):
+  for key in path:
+   if not isinstance(value,dict):return None
+   value=value.get(key)
+  return value
+ paths=[('backendImage',),('coreDigest',),('hubDigest',),('images','backend','configId'),('files','backend-image.tar.gz'),('files','backend-compose.yml')]
+ same=all(field(previous,*path) is not None and field(previous,*path)==field(release,*path) for path in paths)
+ same=same and (field(previous,'components','backend','sourceGit') or previous.get('controlGit'))==(field(release,'components','backend','sourceGit') or release.get('controlGit'))
+ same=same and previous.get('supportedExecutionProfiles',['disabled'])==release.get('supportedExecutionProfiles',['disabled'])
+ need(field(release,'components','backend','built') is not False or same,'HUB_PAIR_REUSED_BACKEND_IDENTITY_CHANGED')
+ return bool(same)
+
+def backend_snapshot(items,release,target):
+ api=m.live_api(items,release,target)
+ return {'containerId':api['Id'],'imageId':api['Image'],'imageRef':api['Config']['Image'],
+  'configSha256':hashlib.sha256(json.dumps(api['Config'],sort_keys=True,separators=(',',':')).encode()).hexdigest(),
+  'startedAt':api['State']['StartedAt'],'restartCount':api.get('RestartCount',0),'envProdSha256':m.file_sha(m.OPS/'.env.prod')}
+
 FRONT_TEMPLATE=HERE/'frontend-compose.yml';BACK_TEMPLATE=HERE/'backend-compose.yml'
 
 def owned_pair(items,release):
@@ -82,14 +101,15 @@ def load_image(path,reference,expected,architecture='amd64'):
  image=json.loads(m.command(['docker','image','inspect',reference]))[0];need(image['Architecture']==architecture and image['Id']==expected,'HUB_PAIR_LOADED_IMAGE_MISMATCH')
  return image
 
-def apply_images(helper,release,template=None,backend_template=None):
+def apply_images(helper,release,template=None,backend_template=None,keep_backend=False):
  global FRONT_TEMPLATE,BACK_TEMPLATE
  FRONT_TEMPLATE=template or HERE/'frontend-compose.yml';BACK_TEMPLATE=backend_template or HERE/'backend-compose.yml'
  m.command(front_args()+['stop','researchhub'],60)
- m.command(back_args()+['stop','researchhub-api'],60)
- helper.save_config(m.OPS/'.env.prod',{'HUB_BACKEND_IMAGE':release['backendImage'],'HUB_CORE_MANIFEST_SHA256':release['coreDigest']})
+ if not keep_backend:
+  m.command(back_args()+['stop','researchhub-api'],60)
+  helper.save_config(m.OPS/'.env.prod',{'HUB_BACKEND_IMAGE':release['backendImage'],'HUB_CORE_MANIFEST_SHA256':release['coreDigest']})
  helper.save_config(m.OPS/'current.env',{'RESEARCHHUB_IMAGE':release['frontendImage'],'RESEARCHHUB_PORT':'8083'})
- m.command(back_args()+['up','-d','--no-deps','researchhub-api'],120);wait_api()
+ if not keep_backend:m.command(back_args()+['up','-d','--no-deps','researchhub-api'],120);wait_api()
  m.command(front_args()+['up','-d','--no-deps','researchhub'],120);healthy()
 
 
@@ -137,6 +157,7 @@ def run(action,sha):
  need(os.geteuid()==0,'HUB_PAIR_ROOT_REQUIRED');control,release=m.load_release(sha)
  need(control.get('paired') is True,'HUB_PAIR_CONTROL_REQUIRED')
  raw=(HERE/'previous-release.json').read_bytes();need(hashlib.sha256(raw).hexdigest()==control.get('previousManifestSha256'),'HUB_PAIR_BASELINE_DIGEST_MISMATCH');previous=identities(json.loads(raw))
+ keep_backend=backend_unchanged(previous,release)
  release['images']['frontend']['id']=m.canonical_image_id(HERE/'researchhub.tar.gz',release['frontendImage'],release['files']['researchhub.tar.gz']['sha256'])
  for kind in ('frontend','backend'):
   if release['images'][kind].get('configId'):need(release['images'][kind]['configId']==release['images'][kind]['id'],'HUB_PAIR_MANIFEST_CANONICAL_MISMATCH')
@@ -152,15 +173,23 @@ def run(action,sha):
  need(m.command(front_args()+['config','--services']).split()==['researchhub'],'HUB_PAIR_FRONTEND_SCOPE_REJECTED');need(m.command(back_args()+['config','--services']).split()==['researchhub-api'],'HUB_PAIR_BACKEND_SCOPE_REJECTED')
  validate_templates(saved)
  target=control['target'];journal=HERE/'pair-receipt.json';baseline_file=HERE/'pair-baseline.json';previous_template=HERE/'previous-frontend-compose.yml';previous_backend=HERE/'previous-backend-compose.yml'
+ preserved=backend_snapshot(items,release,target) if keep_backend else None
+ def check_backend():
+  if keep_backend:need(backend_snapshot(m.containers(),release,target)==preserved,'HUB_PAIR_REUSED_BACKEND_CHANGED')
+ def replace(replacement,template=None,backend_template=None):
+  if keep_backend:apply_images(helper,replacement,template,backend_template,keep_backend=True)
+  else:apply_images(helper,replacement,template,backend_template)
+  check_backend()
+ if keep_backend and baseline_file.exists():need(json.loads(baseline_file.read_text()).get('backendPreserved')==preserved,'HUB_PAIR_REUSED_BACKEND_BASELINE_CHANGED')
  if action=='pair-finalize':
-  pair_matches(items,release,target);healthy();need(baseline_file.is_file(),'HUB_PAIR_BASELINE_RECEIPT_REQUIRED');baseline=json.loads(baseline_file.read_text());need(m.baseline(m.containers())==baseline['services'],'HUB_OTHER_SERVICES_CHANGED');m.assert_task_snapshot(baseline['tasks'],m.task_snapshot(helper,saved));need(journal.is_file() and json.loads(journal.read_text()).get('status') in ('applied','promoted'),'HUB_PAIR_APPLIED_RECEIPT_REQUIRED');publish_pointer(control,release,previous);save(journal,{'status':'promoted','tag':release['tag']});print(json.dumps({'status':'paired-release-complete','tag':release['tag'],'databaseMigrationExecuted':False}));return
- if action=='pair-verify':pair_matches(items,release,target);healthy();print(json.dumps({'status':'paired-release-verified','tag':release['tag']}));return
+  pair_matches(items,release,target);healthy();need(baseline_file.is_file(),'HUB_PAIR_BASELINE_RECEIPT_REQUIRED');baseline=json.loads(baseline_file.read_text());need(m.baseline(m.containers())==baseline['services'],'HUB_OTHER_SERVICES_CHANGED');m.assert_task_snapshot(baseline['tasks'],m.task_snapshot(helper,saved));need(journal.is_file() and json.loads(journal.read_text()).get('status') in ('applied','promoted'),'HUB_PAIR_APPLIED_RECEIPT_REQUIRED');check_backend();publish_pointer(control,release,previous);save(journal,{'status':'promoted','tag':release['tag'],**({'backendPreserved':preserved} if keep_backend else {})});print(json.dumps({'status':'paired-release-complete','tag':release['tag'],'databaseMigrationExecuted':False}));return
+ if action=='pair-verify':pair_matches(items,release,target);healthy();check_backend();print(json.dumps({'status':'paired-release-verified','tag':release['tag']}));return
  need(previous_backend.is_file() and m.file_sha(previous_backend)==control['previousBackendComposeSha256'],'HUB_PAIR_PREVIOUS_BACKEND_TEMPLATE_MISMATCH')
  if action=='pair-rollback':
   try:pair_matches(items,previous,target);healthy();print(json.dumps({'status':'paired-rollback-complete','tag':previous['tag'],'alreadyRestored':True}));return
   except m.Stop:pass
-  owned_pair(items,release);need(previous_template.is_file() and m.file_sha(previous_template)==previous['files']['docker-compose.ecs.yml']['sha256'],'HUB_PAIR_ROLLBACK_TEMPLATE_REQUIRED');apply_images(helper,previous,previous_template,previous_backend);(m.OPS/'docker-compose.ecs.yml').write_bytes(previous_template.read_bytes());pair_matches(m.containers(),previous,target)
-  need(m.baseline(m.containers())==old_services,'HUB_OTHER_SERVICES_CHANGED');m.assert_task_snapshot(states,m.task_snapshot(helper,saved));save(journal,{'status':'rolled-back','tag':previous['tag']});print(json.dumps({'status':'paired-rollback-complete','tag':previous['tag']}));return
+  owned_pair(items,release);need(previous_template.is_file() and m.file_sha(previous_template)==previous['files']['docker-compose.ecs.yml']['sha256'],'HUB_PAIR_ROLLBACK_TEMPLATE_REQUIRED');replace(previous,previous_template,previous_backend);(m.OPS/'docker-compose.ecs.yml').write_bytes(previous_template.read_bytes());pair_matches(m.containers(),previous,target)
+  need(m.baseline(m.containers())==old_services,'HUB_OTHER_SERVICES_CHANGED');m.assert_task_snapshot(states,m.task_snapshot(helper,saved));save(journal,{'status':'rolled-back','tag':previous['tag'],**({'backendPreserved':preserved} if keep_backend else {})});print(json.dumps({'status':'paired-rollback-complete','tag':previous['tag']}));return
  pair_matches(items,previous,target)
  preflight_pointer(control,release,previous)
  recorded=helper.read_config(m.OPS/'current.env');need(recorded.get('RESEARCHHUB_IMAGE')==previous['frontendImage'] and saved.get('HUB_BACKEND_IMAGE')==previous['backendImage'],'HUB_PAIR_CURRENT_REFERENCE_MISMATCH')
@@ -168,24 +197,25 @@ def run(action,sha):
  need(previous_template.is_file() and m.file_sha(previous_template)==previous['files']['docker-compose.ecs.yml']['sha256'],'HUB_PAIR_PREVIOUS_FRONTEND_TEMPLATE_MISMATCH')
  need(m.file_sha(HERE/'frontend-compose.yml')==release['files']['docker-compose.ecs.yml']['sha256'],'HUB_PAIR_FRONTEND_TEMPLATE_DIGEST_MISMATCH')
  for kind,name in [('backend','backend-image.tar.gz'),('frontend','researchhub.tar.gz')]:
+  if kind=='backend' and keep_backend:continue
   image=load_image(HERE/name,release[kind+'Image'],release['images'][kind]['id'])
   if kind=='frontend':m.assert_frontend_environment(image)
  if baseline_file.exists():
   baseline=json.loads(baseline_file.read_text());need(baseline['services']==old_services,'HUB_OTHER_SERVICES_CHANGED');m.assert_task_snapshot(baseline['tasks'],states)
- else:save(baseline_file,{'services':old_services,'tasks':states})
+ else:save(baseline_file,{'services':old_services,'tasks':states,**({'backendPreserved':preserved} if keep_backend else {})})
  save(journal,{'status':'prepared','tag':release['tag'],'previousTag':previous['tag'],'manifestSha256':control['imageManifestSha256']})
  accepted=False
  try:
-  apply_images(helper,release);pair_matches(m.containers(),release,target)
+  replace(release);pair_matches(m.containers(),release,target)
   need(m.baseline(m.containers())==old_services,'HUB_OTHER_SERVICES_CHANGED');m.assert_task_snapshot(states,m.task_snapshot(helper,saved))
   # Keep the established operator-facing Compose path aligned without secrets.
   with tempfile.NamedTemporaryFile(dir=str(m.OPS),prefix='.front-compose-',delete=False) as f:f.write((HERE/'frontend-compose.yml').read_bytes());temporary=pathlib.Path(f.name)
-  os.replace(str(temporary),str(compose));save(journal,{'status':'applied','tag':release['tag'],'previousTag':previous['tag'],'oldServicesUnchanged':True,'historicalTasksUnchanged':True,'databaseMigrationExecuted':False})
-  accepted=True;print(json.dumps({'status':'paired-release-applied','tag':release['tag'],'frontendStatus':200,'apiStatus':401,'publicDataStatus':200,'oldServicesUnchanged':True,'historicalTasksUnchanged':True,'databaseMigrationExecuted':False}))
+  os.replace(str(temporary),str(compose));save(journal,{'status':'applied','tag':release['tag'],'previousTag':previous['tag'],'oldServicesUnchanged':True,'historicalTasksUnchanged':True,'databaseMigrationExecuted':False,**({'backendPreserved':preserved} if keep_backend else {})})
+  accepted=True;print(json.dumps({'status':'paired-release-applied','tag':release['tag'],'frontendStatus':200,'apiStatus':401,'publicDataStatus':200,'oldServicesUnchanged':True,'historicalTasksUnchanged':True,'databaseMigrationExecuted':False,**({'backendPreserved':preserved} if keep_backend else {})}))
  finally:
   if not accepted:
    try:
-    apply_images(helper,previous,previous_template,previous_backend);compose.write_bytes(previous_template.read_bytes());pair_matches(m.containers(),previous,target);need(m.baseline(m.containers())==old_services,'HUB_OTHER_SERVICES_CHANGED');m.assert_task_snapshot(states,m.task_snapshot(helper,saved));save(journal,{'status':'rolled-back','tag':previous['tag']});print(json.dumps({'status':'paired-rollback-complete','tag':previous['tag']}))
+    replace(previous,previous_template,previous_backend);compose.write_bytes(previous_template.read_bytes());pair_matches(m.containers(),previous,target);need(m.baseline(m.containers())==old_services,'HUB_OTHER_SERVICES_CHANGED');m.assert_task_snapshot(states,m.task_snapshot(helper,saved));save(journal,{'status':'rolled-back','tag':previous['tag'],**({'backendPreserved':preserved} if keep_backend else {})});print(json.dumps({'status':'paired-rollback-complete','tag':previous['tag']}))
    except BaseException:save(journal,{'status':'unknown','tag':release['tag'],'previousTag':previous['tag']});raise m.Stop('HUB_PAIR_ROLLBACK_STATE_UNKNOWN_RECHECK_REQUIRED')
 
 def main():

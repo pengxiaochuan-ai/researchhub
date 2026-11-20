@@ -10,9 +10,12 @@ def database_path(path):
  p=pathlib.PurePosixPath(path)
  return p.suffix in ('.sql','.prisma') or 'migrations' in p.parts or bool(re.search(r'(?:^|[-_])(ddl|schema|migration|guard)(?:[-_.]|$)',p.name)) and p.suffix in ('.sql','.mjs','.py','.json')
 
+RELEASE_CONTROL_PATHS={'scripts/hub-release.py','scripts/hub-release-pair.py','scripts/hub-release-plan.py','scripts/hub-runtime-artifacts.py','scripts/hub-release-reuse-rehearsal.py','scripts/hub-production-inspect.py','.github/workflows/deploy.yml'}
+
 def classify(paths):
  result={'frontend':False,'backend':False,'database':False}
  for path in paths:
+  if path in RELEASE_CONTROL_PATHS:continue
   p=pathlib.PurePosixPath(path)
   if path.startswith(('tests/','docs/test/','docs/testing/')) or re.search(r'\.(?:test|spec)\.[^.]+$',p.name):continue
   if database_path(path):result.update(frontend=True,backend=True,database=True);continue

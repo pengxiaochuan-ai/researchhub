@@ -1,0 +1,7 @@
+# P002图片优化线上发布
+
+用户明确授权发布并复测真实域名。仅携带已验收P002图片加载、50份派生素材及静态缓存，不携共享工作区其他未提交功能。
+
+现行pair流程即使backend=false仍重标记后端并stop/up API，不能满足本次前端独立切换。发布控制最小适配：backend未变时保留原backend镜像引用、Config ID、源Git和原镜像归档字节；只替换frontend，配置.env.prod、后台容器ID/镜像/core保持；正常成功指针和失败回退仍沿统一pair流程维护，不绕开指针。精确控制文件与CI辅助调整不当作后台运行代码变更，未知路径仍保守双端；数据库检查不豁免。
+
+先隔离快照/分类plan与本地测试，再远端plan验证frontend=true/backend=false/databaseChanged=false，再release。失败仅回退本次前端。真实HTTPS首访/整页/缓存/图片200、旧API健康和无新业务写留证；发布未成功前不宣称上线。

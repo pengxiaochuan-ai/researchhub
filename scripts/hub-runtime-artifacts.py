@@ -58,7 +58,7 @@ def image_info(reference):
 
 def collect(args):
  target=pathlib.Path(args.directory);tag=args.tag;need(re.fullmatch(r'hub-runtime-[a-f0-9]{8}-[0-9]+',tag),'HUB_RELEASE_TAG_REJECTED')
- frontend='ghcr.io/pengxiaochuan-ai/pengxc-researchhub:'+tag;backend='researchhub-backend:'+tag
+ frontend='ghcr.io/pengxiaochuan-ai/pengxc-researchhub:'+tag;backend=getattr(args,'backend_image',None) or 'researchhub-backend:'+tag
  files={}
  for name in ('researchhub.tar.gz','backend-image.tar.gz'):
   p=target/name;need(p.is_file() and not p.is_symlink(),'HUB_IMAGE_ARCHIVE_MISSING');files[name]=file_info(p)
@@ -69,7 +69,7 @@ def collect(args):
  (target/'ARTIFACTS.sha256').write_text(''.join(files[n]['sha256']+'  '+n+'\n' for n in ('researchhub.tar.gz','docker-compose.ecs.yml')))
  (target/'TAG.txt').write_text(tag+'\n')
  (target/'SHA256SUMS').write_text(''.join(files[n]['sha256']+'  '+n+'\n' for n in ('cloud-assistant-bootstrap.sh','ecs-release.sh','oss-release-transfer.py')))
- context=json.loads((pathlib.Path(args.context)/'release.json').read_text())
+ context=getattr(args,'backend_release',None) or json.loads((pathlib.Path(args.context)/'release.json').read_text())
  manifest={'schema':'researchhub-runtime-images.v1','tag':tag,'architecture':'amd64','frontendImage':frontend,'backendImage':backend,'coreDigest':context['coreDigest'],'hubDigest':context['hubDigest'],'contextSha256':args.source_sha,'controlGit':os.environ['GITHUB_SHA'],'tenantSlug':os.environ['HUB_TENANT_SLUG'],'files':files,'images':{'frontend':image_info(frontend),'backend':image_info(backend)},'workersEnabled':False,'modelsEnabled':False,'mailEnabled':False}
  # Capability is distinct from the operator's persistent activation state.
  manifest['supportedExecutionProfiles']=['disabled','bounded-hub-chat-v1']+(['bounded-hub-knowledge-v2'] if context['coreDigest']=='55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669' else [])

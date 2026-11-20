@@ -61,6 +61,7 @@ jobs:
           python3 scripts/hub-release-plan.test.py
           python3 scripts/hub-release.test.py
           python3 scripts/hub-release-pair.test.py
+          python3 tests/p002-frontend-release.test.py
           python3 scripts/hub-runtime-command.test.py
           python3 scripts/hub-release-workflow.test.py
           python3 scripts/hub-runtime-bootstrap.test.py
@@ -131,12 +132,16 @@ jobs:
         id: artifacts
         if: steps.prepare.outputs.release_required == 'true' && env.MODE != 'plan' && env.MODE != 'rollback'
         run: |
-          docker run --rm --network none --entrypoint node "researchhub-backend:$HUB_RELEASE_TAG" -e "if(process.arch!=='x64')process.exit(1)"
+          docker run --rm --network none --entrypoint node "${{ steps.prepare.outputs.backend_image }}" -e "if(process.arch!=='x64')process.exit(1)"
           if test "${{ steps.prepare.outputs.backend }}" = true; then
-            docker run --rm --network none --entrypoint node "researchhub-backend:$HUB_RELEASE_TAG" -e "const r=require('/opt/researchhub/release.json');if(r.sourceGit!==process.argv[1])process.exit(1)" "$GITHUB_SHA"
+            docker run --rm --network none --entrypoint node "${{ steps.prepare.outputs.backend_image }}" -e "const r=require('/opt/researchhub/release.json');if(r.sourceGit!==process.argv[1])process.exit(1)" "$GITHUB_SHA"
           fi
           docker run --rm --network none --entrypoint node "ghcr.io/pengxiaochuan-ai/pengxc-researchhub:$HUB_RELEASE_TAG" -e "const fs=require('fs');if(!fs.readdirSync('/app/dist/assets').filter(n=>n.endsWith('.js')).some(n=>fs.readFileSync('/app/dist/assets/'+n,'utf8').includes(process.argv[1])))process.exit(1)" "$HUB_TENANT_SLUG"
-          docker save "researchhub-backend:$HUB_RELEASE_TAG" | gzip > "$RUNNER_TEMP/hub-release/backend-image.tar.gz"
+          if test "${{ steps.prepare.outputs.backend }}" = true; then
+            docker save "${{ steps.prepare.outputs.backend_image }}" | gzip > "$RUNNER_TEMP/hub-release/backend-image.tar.gz"
+          else
+            cp "$RUNNER_TEMP/hub-release/previous-backend-image.tar.gz" "$RUNNER_TEMP/hub-release/backend-image.tar.gz"
+          fi
           docker save "ghcr.io/pengxiaochuan-ai/pengxc-researchhub:$HUB_RELEASE_TAG" | gzip > "$RUNNER_TEMP/hub-release/researchhub.tar.gz"
           python3 scripts/hub-release.py collect --directory "$RUNNER_TEMP/hub-release"
           python3 scripts/hub-runtime-artifacts.py upload --directory "$RUNNER_TEMP/hub-release" --tag "$HUB_RELEASE_TAG"

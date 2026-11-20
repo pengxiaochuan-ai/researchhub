@@ -9,7 +9,7 @@ with tempfile.TemporaryDirectory(prefix='hub-reuse-',dir=os.environ['RUNNER_TEMP
  try:
   for kind,name in [('backend','backend-image.tar.gz'),('frontend','researchhub.tar.gz')]:
    env=dict(os.environ,HUB_RELEASE_TAG=alias);subprocess.run(['python3',str(HERE/'hub-release.py'),'reuse','--directory',d,'--component',kind],env=env,check=True)
-   old=directory/('previous-'+name);expected=m.runtime.canonical_image_id(old,previous[kind+'Image'],previous['files'][name]['sha256']);new_ref=('researchhub-backend:' if kind=='backend' else 'ghcr.io/pengxiaochuan-ai/pengxc-researchhub:')+alias;new=directory/name
+   old=directory/('previous-'+name);expected=m.runtime.canonical_image_id(old,previous[kind+'Image'],previous['files'][name]['sha256']);new_ref=previous['backendImage'] if kind=='backend' else 'ghcr.io/pengxiaochuan-ai/pengxc-researchhub:'+alias;new=directory/name
    with new.open('wb') as f:
     producer=subprocess.Popen(['docker','save',new_ref],stdout=subprocess.PIPE)
     try:subprocess.run(['gzip','-1'],stdin=producer.stdout,stdout=f,check=True)
@@ -18,5 +18,5 @@ with tempfile.TemporaryDirectory(prefix='hub-reuse-',dir=os.environ['RUNNER_TEMP
    actual=m.runtime.canonical_image_id(new,new_ref,m.artifacts.file_info(new)['sha256']);assert actual==expected
    provenance=m.provenance(previous,kind,False,os.environ['GITHUB_SHA']);assert provenance['sourceGit']==previous['controlGit'] and provenance['sourceGit']!=os.environ['GITHUB_SHA'];results.append({'component':kind,'canonicalIdUnchanged':True,'sourceGit':provenance['sourceGit'],'reusedFrom':provenance['reusedFrom']})
  finally:
-  for ref in ('researchhub-backend:'+alias,'ghcr.io/pengxiaochuan-ai/pengxc-researchhub:'+alias):subprocess.run(['docker','image','rm',ref],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+  for ref in ('ghcr.io/pengxiaochuan-ai/pengxc-researchhub:'+alias,):subprocess.run(['docker','image','rm',ref],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 print(json.dumps({'unchangedComponentsActuallyReused':results,'buildPerformed':False,'serverActivated':False,'privateArtifactsOnly':True}))
