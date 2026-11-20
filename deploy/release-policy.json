@@ -4,7 +4,7 @@
   "seedManifestSha256": "56b37e68bdb8c04ae343596dea24f1881f7a00d3661819cf4c1ba73e0a2adb9b",
   "coreSourceKey": "releases/researchhub/backend-demo-20261119-45651761fc8b/context.tar.gz",
   "coreSourceSha256": "45651761fc8b3513e884554c0ecc9c79249a5e7d21766f259c8ea04cad3d1745",
-  "coreDigest": "55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669",
+  "coreDigest": "c5a27d1cdb85681bf21821e7b8c8eabd482469fb7c87031dabb5faa69cf9e087",
   "tenantSlug": "rh-kb-local-b0e2af9d-tenant",
   "target": {
     "database": "researchhub",
@@ -27,5 +27,14 @@
   "coreUpgradeGuards": {
     "deploy/knowledge-chat-kb-upgrade.mjs": "feba71439819e889dce656270626472e98ece0b57fd6d61afee6b2f13141859e",
     "deploy/runtime-adaptations/hub-knowledge-admin.ts": "38084013d85f37da2c0f97f826e1c0435d17ee346b3eeac67ca56075cf9efa60"
+  },
+  "articleCoreUpgrade": {
+    "sourceCoreDigest": "55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669",
+    "targetCoreDigest": "c5a27d1cdb85681bf21821e7b8c8eabd482469fb7c87031dabb5faa69cf9e087"
+  },
+  "articleCoreUpgradeGuards": {
+    "deploy/article-chat-core-upgrade.mjs": "bf38524127778323d08d2bf3d7b1760ae9e250332c08171bd75f116ba610a4ee",
+    "deploy/runtime-adaptations/article-task-context.ts": "a63937635a998382643b2ff0c027c377b863185f91692a67af37eddcc65834f9",
+    "deploy/runtime-adaptations/article-admin.json": "a5ee545536960574a9fa4fe780f9c47a4413db54c6122bd10ae95c2e1d596773"
   }
 }

@@ -57,6 +57,12 @@ class ProfileTests(unittest.TestCase):
   m.core_transition(old,new,self.enabled(),upgrade);m.core_transition(new,old,self.enabled(),upgrade)
   for state,guard in [(self.enabled(),None),(self.enabled(),dict(upgrade,targetCoreDigest='f'*64)),(dict(self.enabled(),HUB_EXECUTION_PROFILE=m.KNOWLEDGE_PROFILE),upgrade)]:
    with self.assertRaises(ValueError):m.core_transition(old,new,state,guard)
+ def test_article_core_transition_is_exact_and_reversible_only_in_standard(self):
+  old={'coreDigest':m.KNOWLEDGE_CORE};new={'coreDigest':m.ARTICLE_CORE};upgrade={'sourceCoreDigest':m.KNOWLEDGE_CORE,'targetCoreDigest':m.ARTICLE_CORE}
+  state={'HUB_EXECUTION_PROFILE':'standard'}
+  m.core_transition(old,new,state,upgrade);m.core_transition(new,old,state,upgrade)
+  for previous,target,saved,guard in [(old,new,state,None),(old,new,self.enabled(),upgrade),(old,{'coreDigest':'f'*64},state,upgrade),(old,new,state,dict(upgrade,targetCoreDigest='f'*64))]:
+   with self.assertRaises(ValueError):m.core_transition(previous,target,saved,guard)
  def test_only_tiny_fixed_private_bind_mounts_are_accepted(self):
   rows=[{'type':'bind','source':str(m.ROOT/name),'target':target,'read_only':ro,'bind':{'create_host_path':False}} for name,target,ro in [('admission','/run/researchhub-admission',True),('ledger','/run/researchhub-ai-ledger',False)]]
   m.mounts({'volumes':rows},self.enabled());rows[1]['source']='/srv/researchhub/ops'

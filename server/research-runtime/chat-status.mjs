@@ -1,9 +1,9 @@
 import {assertApprovedInTransaction} from '../admission/service.mjs';
 
 export function createRuntimeChatStatus({read,load,services,tenantId,agentId,env,config,chatBudget,invalid}){
- async function status(user){
+ async function status(user,{tx:existingTx}={}){
   let businessQuota={businessReady:false,requiredTokens:'0',effectiveRemainingTokens:'0'};
-  const reasons=await read(user,async tx=>{
+  const inspect=async tx=>{
    const account=await tx.account.findFirst({where:{id:user.accountId,tenantId,status:'active',authVersion:user.authVersion,tenant:{status:'active'}},select:{id:true}});
    if(!account)invalid();await assertApprovedInTransaction(tx,user,'lingshu-xinyu');
    const agent=await tx.agent.findFirst({where:{id:agentId,tenantId,status:'active',type:'research'},select:{id:true}});
@@ -25,7 +25,8 @@ export function createRuntimeChatStatus({read,load,services,tenantId,agentId,env
    if(env.HUB_PAID_AI_ENABLED!=='true')result.push('HUB_CHAT_MODEL_DISABLED');
    if(!config.scope.enabledWorkerKinds.includes('knowledge-chat'))result.push('HUB_CHAT_CONSUMER_DISABLED');
    return result;
-  });
+  };
+  const reasons=existingTx?await inspect(existingTx):await read(user,inspect);
   if(chatBudget&&!chatBudget.admission.accounts.includes(user.accountId)&&!reasons.includes('HUB_CHAT_ACCESS_NOT_GRANTED'))reasons.push('HUB_CHAT_ACCESS_NOT_GRANTED');
   const campaign=chatBudget?.quota(user.accountId)??{blocked:false},canStart=businessQuota.businessReady&&!campaign.blocked&&reasons.length===0;
   return{enabled:reasons.length===0,readOnly:true,code:reasons.length?'HUB_CHAT_NOT_CONFIGURED':null,reasons,quota:{...businessQuota,...campaign,canStart,blocked:!canStart,message:!businessQuota.businessReady?'当前AI可用额度不足，请联系管理员。':campaign.message??'当前可用额度充足。'},materialUpload:{enabled:false,analysisReady:false}};

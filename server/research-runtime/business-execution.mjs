@@ -25,7 +25,7 @@ export function createBusinessExecution({raw,unknownError=(detail,route)=>Object
  }});
  return{provider,get active(){return Boolean(context.getStore());},guardFetch:fetch=>async(...args)=>{
   const proof=context.getStore();if(proof)await proof.assertExecution();
-  if(proof?.dispatch){const body=JSON.parse(args[1]?.body??'null');return proof.dispatch(()=>fetch(...args),body?.model);}
+  if(proof?.dispatch||proof?.validateRequest){const body=JSON.parse(args[1]?.body??'null');await proof.validateRequest?.(args[0],body);const response=proof.dispatch?await proof.dispatch(()=>fetch(...args),body?.model):await fetch(...args);await proof.observeResponse?.(response);return response;}
   return fetch(...args);
  },withExecution:async(proof,operation)=>{
   if(typeof proof?.assertExecution!=='function')throw Error('HUB_CURRENT_EXECUTION_REQUIRED');
