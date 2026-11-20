@@ -96,6 +96,22 @@ try {
  // HeadBucket only: never enumerate or read stored objects, never create a bucket.
  let available=false;try{const storage=createRuntimeStorage({load,require,settings:storageSettings(process.env)});await storage.onModuleInit();available=storage.available;}catch{}
  result.storage={available,probe:'HeadBucket',objectReads:0,objectWrites:0};
+ // Bounded article diagnostic: current original admin/current Study, existing
+ // approved source only; no sessions, queue, providers or database writes.
+ try {
+  const {loadArticleEvidence}=await import('./server/hub-sources/article-evidence.mjs');
+  const {createPmcObjectReader}=await import('./server/research-runtime/pmc-storage.mjs');
+  const storage=createRuntimeStorage({load,require,settings:storageSettings(process.env)});await storage.onModuleInit();
+  result.articleRead=await withDeploymentTransaction(env,'app',async tx=>{
+   const a=await tx.account.findUnique({where:{id:expectedTenant.replace(/-tenant$/,'-admin')}});
+   if(!a)throw Error('ARTICLE_DIAGNOSTIC_ACCOUNT_MISSING');
+   const user={tenantId:expectedTenant,accountId:a.id,role:a.role,isTenantAdmin:a.isTenantAdmin,authVersion:a.authVersion,studyGroupId:expectedTenant.replace(/-tenant$/,'-group'),researchProjectId:expectedTenant.replace(/-tenant$/,'-project')};
+   await tx.$executeRawUnsafe("SELECT set_config('app.tenant_id',$1,true),set_config('app.account_id',$2,true),set_config('app.auth_version',$3,true),set_config('app.study_group_id',$4,true),set_config('app.research_project_id',$5,true)",user.tenantId,user.accountId,String(user.authVersion),user.studyGroupId,user.researchProjectId);
+   const {pack}=await loadArticleEvidence({db:tx,tenantId:expectedTenant,hubKey:'lingshu-xinyu',principal:user,recordId:'pmc-PMC13691533',readPmcAsset:createPmcObjectReader(storage,expectedTenant)});
+   return{status:'current',binding:pack.binding,fragments:pack.fragments.length};
+  },{readOnly:true});
+ } catch(e){result.articleRead={status:'failed',code:/^[A-Z][A-Z0-9_:.-]{0,100}$/.test(e.code||e.message||'')?(e.code||e.message):e.name||'ARTICLE_READ_FAILED'};}
+
  console.log(JSON.stringify({status:'hub-production-inspected',databaseWrites:0,modelCalls:0,workersStarted:0,...result}));
 }catch(error){console.log(JSON.stringify({status:'stopped',code:/^(INSPECT_|RUNTIME_)/.test(error?.message||'')?error.message:'INSPECT_DATABASE_READ_FAILED'}));process.exitCode=1;}
 finally{if(prisma)await prisma.onModuleDestroy();}
