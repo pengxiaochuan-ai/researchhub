@@ -11,6 +11,7 @@ import {readResearchRuntimeConfig} from './server/research-runtime/config.mjs';
 import {runtimeDependencies} from './server/research-runtime/dependencies.mjs';
 import {bindRuntimeTransactions,withDeploymentTransaction} from './server/database/transactions.mjs';
 import {storageSettings,createRuntimeStorage} from './server/research-runtime/storage.mjs';
+import {createChatBudget} from './server/research-runtime/chat-budget.mjs';
 const expectedTenant='rh-kb-local-b0e2af9d-tenant';
 let prisma;
 try {
@@ -26,14 +27,21 @@ try {
   const counts=await tx.$queryRawUnsafe(`SELECT count(*)::int AS total,count(*) FILTER(WHERE asset_id LIKE 'rhab-%')::int AS business,count(*) FILTER(WHERE asset_id NOT LIKE 'rhab-%')::int AS legacy FROM rh_asset.asset_registry WHERE tenant_id=$1`,tenant);
   const jobs=await tx.$queryRawUnsafe(`SELECT status,count(*)::int AS count FROM public.knowledge_chat_job WHERE "tenantId"=$1 GROUP BY status ORDER BY status`,tenant);
   const [snapshot]=await tx.$queryRawUnsafe(`SELECT count(*)::int AS count,md5(coalesce(string_agg(md5(to_jsonb(t)::text),'' ORDER BY id),'')) AS hash FROM public.knowledge_chat_job t WHERE "tenantId"=$1`,tenant);
-  let historicalQueueSnapshot=null,chatBudget=null;const nativeReservations=[];
+  let historicalQueueSnapshot=null,chatBudget=null;const nativeReservations=[],knowledgeImports=[];
   if(process.env.HUB_CHAT_ADMISSION_SHA256){
    const raw=fs.readFileSync('/run/researchhub-admission/admission.json');if(createHash('sha256').update(raw).digest('hex')!==process.env.HUB_CHAT_ADMISSION_SHA256)throw Error('INSPECT_ADMISSION_CHANGED');
    const admission=JSON.parse(raw);if(admission.database!=='researchhub'||admission.tenantId!==tenant||admission.campaignId!=='prod-ai-assets-20261120'||!Array.isArray(admission.historicalChatIds)||admission.historicalChatIds.length!==623)throw Error('INSPECT_ADMISSION_REJECTED');
    [historicalQueueSnapshot]=await tx.$queryRawUnsafe(`SELECT count(*)::int AS count,md5(coalesce(string_agg(md5(to_jsonb(t)::text),'' ORDER BY id),'')) AS hash FROM public.knowledge_chat_job t WHERE "tenantId"=$1 AND id=ANY($2::text[])`,tenant,admission.historicalChatIds);
    const ledgerRaw=fs.readFileSync('/run/researchhub-ai-ledger/budget.json'),ledger=JSON.parse(ledgerRaw);if(ledger.admissionSha!==process.env.HUB_CHAT_ADMISSION_SHA256)throw Error('INSPECT_LEDGER_CHANGED');
    chatBudget={sessions:ledger.sessions.map(x=>({accountId:x.accountId,id:x.sessionId})),jobs:ledger.jobs.map(x=>({id:x.id,accountId:x.accountId})),dispatches:ledger.dispatches.map(x=>({id:x.id,jobId:x.jobId,state:x.state,usage:x.usage??null,reservedMicros:x.reservedMicros,feeUpperMicros:x.feeUpperMicros??null})),ledgerSha256:createHash('sha256').update(ledgerRaw).digest('hex')};
-   if(ledger.jobs.length>2)throw Error('INSPECT_JOB_LIMIT_REACHED');
+   const checked=createChatBudget({admission,admissionSha:process.env.HUB_CHAT_ADMISSION_SHA256,directory:'/run/researchhub-ai-ledger'}).snapshot();
+   if(JSON.stringify(checked)!==JSON.stringify(ledger))throw Error('INSPECT_LEDGER_SNAPSHOT_MOVED');
+   if(ledger.jobs.length>admission.limits.jobs)throw Error('INSPECT_JOB_LIMIT_REACHED');
+   if(admission.schema==='hub-chat-admission.v2')for(const b of admission.k01.bindings){
+    const task=await tx.knowledgeImportTask.findFirst({where:{id:b.importTaskId,tenantId:tenant,kbId:b.kbId,createdBy:b.accountId},select:{id:true,status:true,stage:true,progress:true,docId:true,errorCode:true,sourceFile:{select:{sha256:true}}}});
+    const doc=task?.docId?await tx.knowledgeDoc.findFirst({where:{id:task.docId,kbId:b.kbId},select:{id:true,title:true,version:true,status:true,reviewed:true}}):null;
+    knowledgeImports.push({accountId:b.accountId,kbId:b.kbId,task,doc});
+   }
    for(const j of ledger.jobs){
     if(!admission.accounts.includes(j.accountId)||!['id','sessionId','requestKey'].every(k=>typeof j[k]==='string'&&/^[A-Za-z0-9_-]{1,160}$/.test(j[k])))throw Error('INSPECT_JOB_SCOPE_REJECTED');
     const job=await tx.knowledgeChatJob.findFirst({where:{id:j.id,tenantId:tenant,accountId:j.accountId,sessionId:j.sessionId,requestKey:j.requestKey},select:{id:true}});if(!job)throw Error('INSPECT_JOB_BINDING_CHANGED');
@@ -54,7 +62,7 @@ try {
    const required=load('billing/token-quota-policy','estimateRunTokenBudget')(Number(resolvedModel.maxTokens??4096));
    for(const a of accounts){const q=await billing.quotaSnapshotFrom(tx,tenant,a.id);tokenQuota.push({accountId:a.id,requiredTokens:required.toString(),tenantReady:q.tenantRemaining>=required,accountMode:q.accountAllocated===0n?'inherits-tenant':'account-limit',accountReady:q.accountAllocated===0n||q.accountRemaining>=required,effectiveReady:q.effectiveRemaining>=required,hasReservations:q.tenantReserved>0n||q.accountReserved>0n});}
   }
-  return {database:config.identity.database,tenant,accounts,access,tokenQuota,assetCounts:counts[0],assets,jobs,queueSnapshot:snapshot,historicalQueueSnapshot,chatBudget,nativeReservations,legacySnapshot,model:model?{id:model.id,version:model.version,hasKnowledgeSearch:Array.isArray(model.tools)&&model.tools.includes('knowledge.search'),route}:null};
+  return {database:config.identity.database,tenant,accounts,access,tokenQuota,assetCounts:counts[0],assets,jobs,queueSnapshot:snapshot,historicalQueueSnapshot,chatBudget,nativeReservations,knowledgeImports,legacySnapshot,model:model?{id:model.id,version:model.version,hasKnowledgeSearch:Array.isArray(model.tools)&&model.tools.includes('knowledge.search'),route}:null};
  },{readOnly:true});
  result.runtime={paidEnabled:process.env.HUB_PAID_AI_ENABLED==='true',workerKinds:config.scope.enabledWorkerKinds,coreDigest:process.env.HUB_CORE_MANIFEST_SHA256};
  // HeadBucket only: never enumerate or read stored objects, never create a bucket.
