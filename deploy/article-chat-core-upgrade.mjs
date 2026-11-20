@@ -1,0 +1,31 @@
+import{readFileSync,writeFileSync,realpathSync,existsSync,mkdirSync}from'node:fs';
+import{join,resolve,dirname,basename}from'node:path';
+import{createHash}from'node:crypto';
+import{verifyCoreBundle,sealCoreBundle}from'./core-bundle.mjs';
+import{verifyBackendPackage}from'./backend-package.mjs';
+export const ARTICLE_UPGRADE_SOURCE='55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669';
+export const ARTICLE_UPGRADE_TARGET='c5a27d1cdb85681bf21821e7b8c8eabd482469fb7c87031dabb5faa69cf9e087';
+const sha=b=>createHash('sha256').update(b).digest('hex');
+export function upgradeFrozenArticleCore({source,output}){
+ source=realpathSync(resolve(source));output=join(realpathSync(dirname(resolve(output))),basename(resolve(output)));
+ if(existsSync(output)||output===source||output.startsWith(source+'/')||source.startsWith(output+'/'))throw Error('ARTICLE_CORE_UPGRADE_OUTPUT_REJECTED');
+ const release=verifyBackendPackage(source);
+ if(release.coreDigest!==ARTICLE_UPGRADE_SOURCE)throw Error('ARTICLE_CORE_UPGRADE_BASELINE_REJECTED');
+ const files=verifyCoreBundle(join(source,'core'),ARTICLE_UPGRADE_SOURCE).files;
+ const save=(name,bytes)=>{const target=join(output,name);mkdirSync(dirname(target),{recursive:true,mode:0o700});writeFileSync(target,bytes,{mode:0o600})};
+ for(const f of files)save('core/'+f.path,readFileSync(join(source,'core',f.path)));
+ save('core/core-manifest.json',readFileSync(join(source,'core/core-manifest.json')));
+ for(const f of release.hubFiles)save('hub/'+f.path,readFileSync(join(source,'hub',f.path)));
+ for(const name of ['release.json','Dockerfile','.dockerignore'])save(name,readFileSync(join(source,name)));
+ const proof=JSON.parse(readFileSync(new URL('./runtime-adaptations/article-admin.json',import.meta.url))),file=join(output,'core',proof.changedFile),before=readFileSync(file,'utf8');
+ if(sha(before)!==proof.beforeSha256)throw Error('ARTICLE_CORE_UPGRADE_HELPER_DRIFT');
+ const needle='async function chatParent(',helper=readFileSync(new URL('./runtime-adaptations/article-task-context.ts',import.meta.url),'utf8');
+ if(before.split(needle).length!==2)throw Error('ARTICLE_CORE_UPGRADE_HELPER_DRIFT');
+ const next=before.replace(needle,()=>helper+'\n'+needle).replace('(!hub && !kbId)','(!hub && !kbId && !articleTaskContext(session.contextKey, task.payload))');
+ if(sha(next)!==proof.afterSha256)throw Error('ARTICLE_CORE_UPGRADE_HELPER_DRIFT');
+ writeFileSync(file,next,{mode:0o600});save('core/prisma/runtime-adaptations/article-admin.json',JSON.stringify(proof,null,2)+'\n');
+ const sealed=sealCoreBundle(join(output,'core'));
+ if(sealed.digest!==ARTICLE_UPGRADE_TARGET)throw Error('ARTICLE_CORE_UPGRADE_DIGEST_REAPPROVAL_REQUIRED');
+ const result={...release,coreDigest:sealed.digest,compatibleHubCoreDigest:ARTICLE_UPGRADE_SOURCE,adaptations:[...release.adaptations,'article-current-fixed-parent']};
+ save('release.json',JSON.stringify(result,null,2)+'\n');verifyBackendPackage(output);return result;
+}

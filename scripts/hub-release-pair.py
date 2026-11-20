@@ -263,7 +263,7 @@ def run(action,sha):
  for kind in ('frontend','backend'):
   if release['images'][kind].get('configId'):need(release['images'][kind]['configId']==release['images'][kind]['id'],'HUB_PAIR_MANIFEST_CANONICAL_MISMATCH')
  helper=m.helper_module();saved=helper.read_config(m.OPS/'.env.prod');prior_receipt=HERE/'pair-baseline.json';prior_state=json.loads(prior_receipt.read_text()).get('previousExecution',execution_snapshot(saved)) if prior_receipt.is_file() else execution_snapshot(saved);prior_execution=prior_state.get('values',prior_state);keep_backend=can_keep_backend(keep_backend,release,prior_execution);previous['executionPolicy']={'profile':prior_execution.get('HUB_EXECUTION_PROFILE','disabled')};backend_plan=backend_configuration_context(previous,release,saved,keep_backend);m.plan_configuration(saved,backend_plan,control['target'],{})
- m.execution.core_transition(previous,release,saved,control.get('coreUpgrade'))
+ m.execution.core_transition(previous,release,saved,control.get('articleCoreUpgrade') or control.get('coreUpgrade'))
  m.execution.support(previous,prior_execution)
  if saved.get('HUB_EXECUTION_PROFILE')==prior_execution.get('HUB_EXECUTION_PROFILE') and saved.get('HUB_EXECUTION_PROFILE') in (m.execution.PROFILE,m.execution.KNOWLEDGE_PROFILE):
   BACK_TEMPLATE_CHECK=HERE/'previous-backend-compose.yml'

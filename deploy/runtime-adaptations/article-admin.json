@@ -1,0 +1,15 @@
+{
+  "schema": "researchhub-article-admin-compatibility.v1",
+  "sourceCoreDigest": "55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669",
+  "changedFile": "src/common/hub-knowledge-admin.ts",
+  "beforeSha256": "38084013d85f37da2c0f97f826e1c0435d17ee346b3eeac67ca56075cf9efa60",
+  "afterSha256": "5f281d385c983522dac08cba62a5292b3a8983e61a3a11c6cc430e8caef93fff",
+  "scope": {
+    "worker": "knowledge-chat",
+    "context": "canonical hub-article:v1 with matching immutable server payload",
+    "existingHubAndKnowledgeUnchanged": true,
+    "sourceAndQuotaValidation": "same native and Hub transactions; not waived"
+  },
+  "databaseMigration": false,
+  "oldSourceUnchanged": true
+}
