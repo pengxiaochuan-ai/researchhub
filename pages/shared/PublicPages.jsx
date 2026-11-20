@@ -1,13 +1,14 @@
-import React,{useState} from 'react';
+import React,{useState,lazy,Suspense} from 'react';
 import {createRoot} from 'react-dom/client';
 import {goToPage} from '../../src/platform-navigation.js';
 import {safeReturnTo,safeAuthenticatedReturnTo} from '../../src/route-context.js';
 import LoginSession from './LoginSession.jsx';
 import PublicLayout from './PublicLayout.jsx';
+import PublicPageBoundary from './PublicPageBoundary.jsx';
 import LoginResearchVisual from './LoginResearchVisual.jsx';
 import AccountAccess from './AccountAccess.jsx';
-import AccountProfile from './AccountProfile.jsx';
-import MemberInvitations from './MemberInvitations.jsx';
+const AccountProfile=lazy(()=>import('./AccountProfile.jsx'));
+const MemberInvitations=lazy(()=>import('./MemberInvitations.jsx'));
 import Initiative from '../p007/Initiative.jsx';
 import {HelpCenter,HelpArticle} from './HelpCenter.jsx';
 import './public-pages.css';
@@ -31,4 +32,4 @@ let demoAccount=false;try{demoAccount=sessionStorage.getItem('lingshu-demo-mode'
 const realAccount=Boolean(import.meta.env.VITE_AUTH_TENANT_SLUG);
 function ProfileRoute(){return realAccount&&!demoAccount?<AccountProfile/>:<Profile/>;}
 const Page=()=>['p003','p004','p005'].includes(page)?(['p004','p005'].includes(page)&&realAccount?<div className="ls-auth-grid"><LoginResearchVisual/><section className="ls-auth-card"><AccountAccess page={page}/></section></div>:<AuthPage page={page}/>):page==='p006'?<ProfileRoute/>:page==='p010'?<MemberInvitations mode="accept"/>:page==='p007'?<Initiative/>:page==='p008'?<HelpCenter/>:<HelpArticle/>;
-createRoot(document.getElementById('root')).render(<PublicLayout page={page}><Page/></PublicLayout>);
+createRoot(document.getElementById('root')).render(<PublicLayout page={page}><PublicPageBoundary><Suspense fallback={<p role="status">正在加载页面…</p>}><Page/></Suspense></PublicPageBoundary></PublicLayout>);
