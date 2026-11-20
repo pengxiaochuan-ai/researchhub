@@ -1,3 +1,4 @@
+import {readArticleOriginal} from './article-asset-reader.mjs';
 import {createHash} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import {getCurrentPmcAiHit} from './pmc-visible.mjs';
@@ -113,8 +114,8 @@ async function loadReading(args,item){
     ORDER BY (a.component_ref='jats') DESC,a.component_ref LIMIT 1`;
   if(!asset)return null; // Explicit field-offset fallback, not fabricated structure.
   if(asset.key!=='objects/'+item.rawSha256||Number(asset.bytes)<1||Number(asset.bytes)>8388608)fail('ARTICLE_EVIDENCE_CHANGED');
-  const bytes=await readFile(new URL('../../.tmp/researchhub-pmc-local/'+asset.key,import.meta.url));
-  if(bytes.length!==Number(asset.bytes)||hash(bytes)!==item.rawSha256)fail('ARTICLE_EVIDENCE_CHANGED');
+  const reader=args.readPmcAsset??(value=>readFile(new URL('../../.tmp/researchhub-pmc-local/'+value.localObjectKey,import.meta.url)));
+  const bytes=await readArticleOriginal({localObjectKey:asset.key,sha256:asset.sha,byteCount:Number(asset.bytes)},reader);
   return parsePmcReading(bytes.toString('utf8'),item.id.slice(4));
 }
 export async function loadArticleEvidence(args){

@@ -11,9 +11,9 @@ const fail=(code,status=409)=>{throw Object.assign(new Error(code),{code,status}
 const inputHash=(binding,text)=>createHash('sha256').update(JSON.stringify({binding:articleContextKey(binding),text:text.trim(),kbIds:[]})).digest('hex');
 const active=['queued','processing'];
 const publicFailures=new Set(['ARTICLE_AI_NUMERIC_REJECTED','ARTICLE_AI_NUMERIC_EVIDENCE_REJECTED','ARTICLE_EVIDENCE_CHANGED','QA_MODEL_TRUNCATED','ARTICLE_NO_DELIVERABLE_SECTIONS','ARTICLE_RESPONSE_CHANGED','ARTICLE_AI_JSON_INVALID','ARTICLE_AI_SCHEMA_REJECTED']);
-export function createArticleAi({ids,prisma,sessionsInTx,lockAuthorizationMutation,admission,executionStatus=()=>({canStart:false,code:'TOKEN_QUOTA_UNAVAILABLE',message:'暂时无法核对 Token 额度；已有结果仍可查看。'})}){
+export function createArticleAi({ids,prisma,sessionsInTx,lockAuthorizationMutation,admission,readPmcAsset,executionStatus=()=>({canStart:false,code:'TOKEN_QUOTA_UNAVAILABLE',message:'暂时无法核对 Token 额度；已有结果仍可查看。'})}){
   const pending=new AsyncLocalStorage(),agentId=ids.tenant+'-kb-research';
-  const scope=(db,user)=>({db,tenantId:ids.tenant,hubKey:'lingshu-xinyu',principal:user});
+  const scope=(db,user)=>({db,tenantId:ids.tenant,hubKey:'lingshu-xinyu',principal:user,...(readPmcAsset?{readPmcAsset}:{})});
   const transact=(user,fn)=>prisma.withTenantTransaction(user.tenantId,user.studyGroupId,user.researchProjectId,fn);
   const where=user=>({tenantId:ids.tenant,studyGroupId:user.studyGroupId,researchProjectId:user.researchProjectId,accountId:user.accountId});
   const summary=j=>j?{id:j.id,status:j.status,requestKey:j.requestKey,inputHash:j.payload?.articleInputHash??null,
