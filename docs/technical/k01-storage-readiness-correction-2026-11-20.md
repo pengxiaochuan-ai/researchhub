@@ -50,3 +50,15 @@ Nest在同模块中并发执行provider的onModuleInit。原RuntimeStorage在异
 Chrome只读复测发现GET /knowledge/ai-status?kbId在正确headers下仍400“请选择当前课题组”：该路由为兼容Hub全局状态未启用Study metadata，JWT principal因此没有研究字段。首次脚本怀疑所选库范围，原记录保留；补精确范围后仍400，确认接线缺陷。没有创建会话/任务或模型调用。
 
 最小修补仅在Hub自有controller.status：有kbId时用原生header解析器取group/project，复制principal传给原status/evidence；原生withCurrentKnowledgeRead仍核当前账号/成员/研究/KB可见性，再核AI用途。不改原principal、角色、authVersion、无scope Hub状态、写路由、权限或core。5项Controller先红后绿；精确源72项回归通过；专用合成PG＋真实Nest HTTP＋原生StudyGroupGuard，两账号正向、伪造project403、缺header400、global200均通过，持久写/Provider0。证据status-scope-red.log、status-scope-green.log、status-scope-exact-regression.log、status-scope-http-native-pg.log。状态修补仍待复核/发布/真实浏览器复验。
+
+## 最终生产回执（2026-11-20）
+
+上述状态修补经独立复核后随6e6ffbaa6155866a36a515ddc9ee69d5d082a43e发布；44679992177成功，准确配对tag=hub-runtime-6e6ffbaa-44679992177001，上传最终manifest SHA256=2160afaa36624aab3937b2b7004dae6252521fb9a61c61cf882fc61f11cdce65。此回执更新上一节待发布状态；没有数据库迁移。
+
+两原账号真实Chrome1440×1000复验通过：已授权原库状态200/enabled=false/尚未开放问答，新具名私有库200/enabled=true/canStart=true；页面保留原Shell与页签布局，脚本异常0。截图admin-postfix-final.png、owner-postfix-final.png和录屏video/postfix-readonly保留。只读脚本阻止了admin默认新库一次会话初始化请求；没有据此声称页面不会请求会话，实际AI会话/问答任务/Provider写入0。最初脚本漏docId导致无效深链接，及将这次被拦初始化误作失败的记录均保留，修正测试后通过；未更改页面来迎合脚本。
+
+44680156763最终只读核对：paidEnabled=true、workerKinds仅knowledge-chat/knowledge-import，后者仍只认领原2ID；历史623条hash735bdccbbc401c67285f0dd9714a2bed及chatBudget与激活后快照完全一致，2会话/2任务/2真实请求、费用上界54540微元，模型新增0、原2条PDF失败/docId=null。旧服务保持，未自动重排/对账。证据status-scope-final-inspect.json、readonly-browser-postfix.json、status-scope-release-receipt.json。
+
+存储及状态修补已在目标环境复验；PDF真正导入、已审核资料真实问答/固定版引用/撤回恢复和专业签收仍未完成。下一步只提交k01-two-import-retry-proposal的准确两笔修复确认，未批准前不重新入队。
+
+独立总评保留未关闭问题：owner浏览器实际GET /api/knowledge/docs/ee2531ba-4f56-4ffb-90e6-95aa6ba83cba/source返回500，不能宣称整页无HTTP错误或全部历史原件可读。该历史原件不属于本轮两份新PDF，未改历史资料；来源/错误原因待另行只读核清，不能据此否定已单独通过的两份准确原件预检。auth/me的401发生于登录前，另行区分。
