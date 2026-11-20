@@ -1,3 +1,4 @@
+import {ARTICLE_ORIGINAL_MISSING_MESSAGE} from '../hub-sources/article-asset-reader.mjs';
 import {createRuntimeArticle} from './article-runtime.mjs';
 import {parseArticleContext} from '../hub-sources/article-evidence.mjs';
 import {createPmcObjectReader} from './pmc-storage.mjs';
@@ -138,7 +139,7 @@ export function createRuntimeChatController({require,load,getChat,getQueue}){
  routes.push(['articleContext',Get,'hub-sources/article-context/:recordId',[Param('recordId'),Query()]]);
  {const name='unavailable'+routes.length;HubChatController.prototype[name]=HubChatController.prototype.notConfigured;routes.push([name,Patch,'sessions/:id/history-action',[]]);}
  for(const [method,verb,path,params]of routes){
-  const original=HubChatController.prototype[method];HubChatController.prototype[method]=async function(...args){try{return await original.apply(this,args);}catch(e){if(e.getStatus)throw e;throw new HttpException({code:e.code??'HUB_CHAT_UNAVAILABLE',message:e.status===400?e.message:e.code==='HUB_CHAT_NOT_CONFIGURED'?'科研问答尚未配置，请联系管理员。':e.code==='HUB_CHAT_COMMIT_PENDING'?'前次请求状态待核对，请联系管理员，暂勿重复提交。':e.code==='HUB_CHAT_SESSION_NOT_ADMITTED'?'此历史会话仅供查看，请使用新对话提问。':/^HUB_CHAT_(BUDGET_|SESSION_LIMIT)/.test(e.code??'')?'当前AI使用额度不可用，请联系管理员。':'当前会话或来源暂不可用，请重新核对后重试。'},e.status??503);}};
+  const original=HubChatController.prototype[method];HubChatController.prototype[method]=async function(...args){try{return await original.apply(this,args);}catch(e){if(e.getStatus)throw e;throw new HttpException({code:e.code??'HUB_CHAT_UNAVAILABLE',message:e.code==='ARTICLE_ORIGINAL_MISSING'?ARTICLE_ORIGINAL_MISSING_MESSAGE:e.status===400?e.message:e.code==='HUB_CHAT_NOT_CONFIGURED'?'科研问答尚未配置，请联系管理员。':e.code==='HUB_CHAT_COMMIT_PENDING'?'前次请求状态待核对，请联系管理员，暂勿重复提交。':e.code==='HUB_CHAT_SESSION_NOT_ADMITTED'?'此历史会话仅供查看，请使用新对话提问。':/^HUB_CHAT_(BUDGET_|SESSION_LIMIT)/.test(e.code??'')?'当前AI使用额度不可用，请联系管理员。':'当前会话或来源暂不可用，请重新核对后重试。'},e.status??503);}};
   const p=HubChatController.prototype;verb(path)(p,method,Object.getOwnPropertyDescriptor(p,method));Req()(p,method,0);params.forEach((d,i)=>d(p,method,i+1));
   if(!['status','agents'].includes(method))for(const decorate of [load('common/decorators','RequireStudyGroup')(),load('common/decorators','RequireResearchProject')(),load('common/decorators','RequireStudyGroupMenu')('workbench'),load('common/decorators','RequireStudyGroupPermission')('chat.use')])decorate(p,method,Object.getOwnPropertyDescriptor(p,method));
  }

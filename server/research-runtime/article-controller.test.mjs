@@ -1,3 +1,11 @@
 import test from'node:test';import assert from'node:assert/strict';import{runtimeDependencies}from'./dependencies.mjs';import{createRuntimeChatController}from'./chat.mjs';import{articleContextKey}from'../hub-sources/article-evidence.mjs';
 const{load,require}=runtimeDependencies();
 test('original article composer command keeps explicit no-network intent and the article queue branch',async()=>{const binding={recordId:'pmc-PMC1',articleVersion:'PMC1.1',rawSha256:'a'.repeat(64),reviewVersion:'article:1'},session={id:'s',agentId:'a',contextKey:articleContextKey(binding)},calls=[],user={accountId:'u'},chat={agentId:'a',requireReady:async()=>{},sessions:{assertKnowledgeSession:async()=>session},article:{authorizeSession:async()=>session,enqueue:async(...args)=>{calls.push(args);return{id:'j',status:'queued'}}}},queue={},Controller=createRuntimeChatController({load,require,getChat:()=>chat,getQueue:()=>queue}),c=new Controller(),req={user},body={text:'解释文章的证据局限',requestKey:'article-controller-key',kbIds:[],networkIntent:{schema:'hub-network-intent.v1',enabled:false}};const result=await c.command(req,'s',body);assert.equal(result.id,'j');assert.equal(calls.length,1);assert.equal(calls[0][3],queue);assert.deepEqual(calls[0][2].networkIntent,{enabled:false});await assert.rejects(c.command(req,'s',{...body,networkIntent:{...body.networkIntent,enabled:true}}));assert.equal(calls.length,1);});
+test('article readiness failure stays 422 with actionable copy and never creates work',async()=>{
+ const events=[];
+ const chat={requireReady:async()=>{},article:{context:async()=>{throw Object.assign(Error('do not expose internal storage path'),{code:'ARTICLE_ORIGINAL_MISSING',status:422});}}};
+ const queue={enqueue:()=>events.push('enqueue')};
+ const Controller=createRuntimeChatController({load,require,getChat:()=>chat,getQueue:()=>queue});
+ await assert.rejects(new Controller().articleContext({user:{},res:{setHeader(){}}},'pmc-PMC1',{}),e=>e.getStatus()===422&&e.getResponse().code==='ARTICLE_ORIGINAL_MISSING'&&e.getResponse().message.includes('原文尚未准备完整')&&!e.getResponse().message.includes('internal'));
+ assert.deepEqual(events,[]);
+});
