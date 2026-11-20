@@ -4,7 +4,7 @@
 .ls-public .ls-account-brand{display:flex;align-items:center;gap:14px;flex-shrink:0;color:#071342;font-size:32px;font-weight:650;letter-spacing:-.8px;line-height:normal;text-decoration:none}
 .ls-account-brand small{display:block;color:#52638f;font-size:18px;font-weight:400;letter-spacing:0;line-height:1.5;margin-top:3px}
 .ls-account-brand-icon{display:block;position:relative;width:76px;aspect-ratio:66/67;overflow:hidden;flex:none}
-.ls-account-brand-icon img{position:absolute;display:block;width:2403.030303%;height:auto;max-width:none;left:-113.636364%;top:-147.761194%}
+.ls-account-brand-icon img{display:block;width:100%;height:100%}
 .ls-account-header nav{display:flex;align-items:center;gap:20px;white-space:nowrap;margin-left:auto;font-size:16px;font-weight:550;line-height:24px}
 .ls-public .ls-account-header nav a{position:relative;padding:15px 0;color:#071342;text-decoration:none}
 .ls-public .ls-account-header nav a:hover,.ls-public .ls-account-header nav a:focus-visible{color:#0956ff}

@@ -1,3 +1,11 @@
+## 2026-11-20 · 正式登录入口与公开Logo
+
+[规格](product/p003-production-entry-2026-11-20.md) · [验收](testing/p003-production-entry-2026-11-20.md)，本机通过，生产未发布。
+
+## 2026-11-20 · 账号三页图片性能
+
+P003/P004/P005本机已复用无损小图与缓存，每页冷图片4.96MB→1.99MB，线上尚未发布。见[规格](product/account-image-performance-2026-11-20.md)和[验收](testing/account-image-performance-2026-11-20.md)。
+
 ## 2026-11-19 · 公开页面字号与留白规则
 
 [现行UI规则](ui/portal-typography-v1.0.md) · [实际截图与验收](testing/public-ui-standard-2026-11-19.md) · [统一用户复验](product/用户验证与操作手册.md#公开页面统一排版复验2026-11-19)。本机已应用；生产和客户视觉另验。

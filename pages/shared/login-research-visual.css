@@ -3,7 +3,7 @@
 .ls-auth-story.ls-login-story { padding-bottom:0; }
 .ls-login-story::before {
  content:""; position:absolute; inset:-16px -24px; z-index:-1; pointer-events:none;
- background:radial-gradient(ellipse at 42% 55%,rgb(78 139 255 / 18%),transparent 70%),radial-gradient(ellipse at 78% 68%,rgb(138 103 255 / 10%),transparent 60%),url('/pages/p002/assets/section-background.png') center / cover no-repeat;
+ background:radial-gradient(ellipse at 42% 55%,rgb(78 139 255 / 18%),transparent 70%),radial-gradient(ellipse at 78% 68%,rgb(138 103 255 / 10%),transparent 60%),var(--ls-login-story-background) center / cover no-repeat;
  opacity:.8;
  -webkit-mask-image:radial-gradient(ellipse 50% 50% at 50% 50%,#000 40%,transparent 100%);
  mask-image:radial-gradient(ellipse 50% 50% at 50% 50%,#000 40%,transparent 100%);

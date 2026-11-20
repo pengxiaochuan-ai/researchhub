@@ -4,7 +4,7 @@ import './login-session.css';
 import {createAdmissionClient,ADMISSION_PAGE} from '../../src/admission-session.js';
 import {safeAuthenticatedReturnTo} from '../../src/route-context.js';
 
-export default function LoginSession({ enterDemo, returnTo = '/pages/p01/' }) {
+export default function LoginSession({ returnTo = '/pages/p01/' }) {
   const client = useMemo(() => createAuthClient({ tenantSlug: import.meta.env.VITE_AUTH_TENANT_SLUG }), []);
   const admission=useMemo(()=>createAdmissionClient(),[]);
   const [user, setUser] = useState(null);
@@ -79,7 +79,6 @@ export default function LoginSession({ enterDemo, returnTo = '/pages/p01/' }) {
       <button className="ls-primary" type="submit" disabled={Boolean(busy)}>{busy === 'login' ? '正在登录…' : busy === 'refresh' ? '正在检查登录状态…' : '登录'}</button>
     </form>}
     {notice.text&&<p className="ls-feedback" ref={errorRef} tabIndex={-1} role={notice.error ? 'alert' : 'status'}>{notice.text}</p>}
-    {!user&&<><button className="ls-secondary" type="button" disabled={Boolean(busy)} onClick={enterDemo}>进入演示模式</button>
-    <div className="ls-auth-links"><a href="/pages/p004/">新用户注册</a><a href="/pages/p005/">找回密码</a><a href="/pages/p008/">需要帮助</a></div></>}
+    {!user&&<div className="ls-auth-links"><a href="/pages/p004/">新用户注册</a><a href="/pages/p005/">找回密码</a><a href="/pages/p008/">需要帮助</a></div>}
   </div>;
 }
