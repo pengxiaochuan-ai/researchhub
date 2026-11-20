@@ -7,7 +7,7 @@ export const K01_OLD_LEDGER_SHA='b37a00f199bd2358424ea23cfde08e23b94f1dd2358eea3
 const hashes={admin:{md:'740c449454d26fef8e0d67227fdfa9149bdbe5b0c2114ba6c1f394b297a3aa59',pdf:'3b83d035edc68e9c2593a400dee1168a535ab1c87bae741cc4be52d927ce1988'},owner:{md:'743b0ba14e59c8d9c3e3d28467c7107f6f724a836be94e3a92f6a185cb2b60e8',pdf:'edc10bafa65d30529aa9122d6bd9dee5a27a4be059aea857281b924d249dd2dc'}};
 const sha=x=>createHash('sha256').update(x).digest('hex');
 const need=(x,code)=>{if(!x)throw Error(code);};
-export async function prepareKnowledgeMigration({tx,oldAdmissionRaw,oldLedgerRaw,input}){
+export async function prepareKnowledgeAdmission({tx,oldAdmissionRaw,oldLedgerRaw,input}){
  need(sha(oldAdmissionRaw)===K01_OLD_SHA&&sha(oldLedgerRaw)===K01_OLD_LEDGER_SHA,'K01_ORIGINAL_FILES_CHANGED');
  const old=validateChatAdmission(JSON.parse(oldAdmissionRaw)),previous=JSON.parse(oldLedgerRaw);
  need(input&&Object.keys(input).sort().join(',')==='bindings,issuedAt'&&Number.isFinite(Date.parse(input.issuedAt))&&new Date(input.issuedAt).toISOString()===input.issuedAt&&Date.parse(input.issuedAt)<=Date.now(),'K01_INPUT_REJECTED');
