@@ -64,6 +64,7 @@ def main(action):
   time.sleep(2)
  else:raise ValueError('K01_CITATION_API_NOT_READY')
  live=H.current();assert_live_configuration(live,receipt['admissionSha']);verified=json.loads(H.run(['docker','exec','-i',live['Id'],'node','--input-type=module','-'],VERIFY).splitlines()[-1]);H.need(verified.get('status')=='citation-live-budget-verified','K01_CITATION_LIVE_BUDGET_REJECTED')
+ profile=H.load('citation_live_profile',p/'execution-profile.py');current_saved=db.read_config(H.OPS/'.env.prod');profile.support(r,current_saved);profile.sealed(current_saved);H.need(profile.admitted_jobs(current_saved)=={},'K01_CITATION_UNEXPECTED_NEW_JOB')
  H.need(legacy_services()==services and live['Config']['Image']==receipt['backendImage'],'K01_CITATION_SERVICES_CHANGED');after=server.task_snapshot(db,db.read_config(H.OPS/'.env.prod'));H.need(before==after,'K01_CITATION_TASKS_CHANGED');H.exclusive(stage/'activated.json',(json.dumps({'status':'activated','admissionSha':receipt['admissionSha'],'tag':tag})+'\n').encode());print(json.dumps({'status':'citation-extension-activated','tag':tag,'admissionSha256':receipt['admissionSha'],'limits':{'sessions':4,'jobs':8,'dispatches':6,'feeMicros':1000000},'oldServicesUnchanged':True,'historicalTasksUnchanged':True,'databaseWrites':0,'modelCalls':0}))
 
 def execute(action):
