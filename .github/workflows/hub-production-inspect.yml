@@ -1,4 +1,4 @@
-name: Inspect Hub incident metadata
+name: Recover four verified Hub archive cache files
 on:
   workflow_dispatch:
 permissions:
@@ -13,7 +13,7 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v4
-      - name: Read only the independent Hub incident metadata
+      - name: Reclaim four remote-verified Hub cache archives
         env:
           ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
           ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
@@ -34,7 +34,7 @@ jobs:
           value=base64.b64encode(script.encode()).decode();assert len(value)<24000
           pathlib.Path(sys.argv[1]).write_text(value)
           PY
-          "$d/aliyun" ecs RunCommand --RegionId cn-hangzhou --Type RunShellScript --ContentEncoding Base64 --CommandContent "$(cat "$d/payload")" --InstanceId.1 "$ALIYUN_ECS_INSTANCE_ID" --Username root --Timeout 180 --TerminationMode ProcessTree --RepeatMode Once --KeepCommand false --ClientToken "hub-inspect-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" --Name hub-read-only-incident > "$d/invocation.json"
+          "$d/aliyun" ecs RunCommand --RegionId cn-hangzhou --Type RunShellScript --ContentEncoding Base64 --CommandContent "$(cat "$d/payload")" --InstanceId.1 "$ALIYUN_ECS_INSTANCE_ID" --Username root --Timeout 180 --TerminationMode ProcessTree --RepeatMode Once --KeepCommand false --ClientToken "hub-inspect-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" --Name hub-four-cache-recovery > "$d/invocation.json"
           id="$(jq -er .InvokeId "$d/invocation.json")"
           for attempt in $(seq 1 48); do
             "$d/aliyun" ecs DescribeInvocationResults --RegionId cn-hangzhou --InvokeId "$id" --InstanceId "$ALIYUN_ECS_INSTANCE_ID" --ContentEncoding Base64 > "$d/result.json"
