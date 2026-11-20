@@ -14,7 +14,11 @@ def need(ok,code):
 def values(saved):
  profile=saved.get('HUB_EXECUTION_PROFILE','disabled')
  need(profile in ('disabled',PROFILE,KNOWLEDGE_PROFILE),'HUB_EXECUTION_PROFILE_REJECTED')
+ extension=saved.get('HUB_CHAT_BUDGET_EXTENSION')
+ if extension is not None:
+  need(extension=='citation-review-v1' and profile==KNOWLEDGE_PROFILE,'HUB_CHAT_BUDGET_EXTENSION_REJECTED')
  fixed={'CONTROL_PLANE_ENABLED':'false','OFFICIAL_JOB_KINDS':'','HUB_EMBEDDING_MODE':'keyword-only','HUB_MAIL_MODE':'disabled'}
+ if extension is not None:fixed['HUB_CHAT_BUDGET_EXTENSION']=extension
  fixed.update(HUB_EXECUTION_PROFILE=profile,HUB_PAID_AI_ENABLED='false' if profile=='disabled' else 'true',ENABLED_WORKER_KINDS='knowledge-chat,knowledge-import' if profile==KNOWLEDGE_PROFILE else 'knowledge-chat' if profile==PROFILE else '')
  if profile!='disabled':
   sha=saved.get('HUB_CHAT_ADMISSION_SHA256','')
@@ -31,6 +35,7 @@ def support(release,saved):
  if profile!='disabled':
   cores=[KNOWLEDGE_CORE] if profile==KNOWLEDGE_PROFILE else [CORE,KNOWLEDGE_CORE]
   need(profile in release.get('supportedExecutionProfiles',[]) and release.get('coreDigest') in cores,'HUB_ROLLBACK_EXECUTION_UNSUPPORTED')
+ if state.get('HUB_CHAT_BUDGET_EXTENSION'):need(state['HUB_CHAT_BUDGET_EXTENSION'] in release.get('supportedBudgetExtensions',[]),'HUB_BUDGET_EXTENSION_ROLLBACK_UNSUPPORTED')
  return state
 
 def sealed(saved):
@@ -38,7 +43,11 @@ def sealed(saved):
  p=ROOT/'admission'/'admission.json';need(p.is_file() and not p.is_symlink() and p.stat().st_size<262144,'HUB_CHAT_ADMISSION_REQUIRED')
  raw=p.read_bytes();need(hashlib.sha256(raw).hexdigest()==sha,'HUB_CHAT_ADMISSION_CHANGED');a=json.loads(raw)
  v2=saved.get('HUB_EXECUTION_PROFILE')==KNOWLEDGE_PROFILE
- need(a.get('schema')==('hub-chat-admission.v2' if v2 else 'hub-chat-admission.v1') and a.get('campaignId')=='prod-ai-assets-20261120' and a.get('database')=='researchhub' and a.get('tenantId')=='rh-kb-local-b0e2af9d-tenant' and len(a.get('accounts',[]))==2 and set(a.get('accounts',[]))==ACCOUNTS and a.get('limits')==({'sessions':4,'jobs':6,'dispatches':4,'feeMicros':1000000} if v2 else {'sessions':2,'jobs':2,'dispatches':2,'feeMicros':1000000}),'HUB_CHAT_ADMISSION_REJECTED')
+ extension=a.get('citationReview');extended=extension is not None
+ need(not extended or v2 and isinstance(extension,dict) and set(extension)=={'issuedAt','prefixHash','previousAdmissionSha'} and extension['previousAdmissionSha']=='6467192bf782f24a16090d365817ff8a811d351c9ae97730465f57d1d4168492' and re.fullmatch('[a-f0-9]{64}',extension.get('prefixHash','')) and extension.get('issuedAt','')>=a.get('k01',{}).get('issuedAt',''),'HUB_CHAT_CITATION_EXTENSION_REJECTED')
+ need(a.get('schema')==('hub-chat-admission.v2' if v2 else 'hub-chat-admission.v1') and a.get('campaignId')=='prod-ai-assets-20261120' and a.get('database')=='researchhub' and a.get('tenantId')=='rh-kb-local-b0e2af9d-tenant' and len(a.get('accounts',[]))==2 and set(a.get('accounts',[]))==ACCOUNTS and a.get('limits')==({'sessions':4,'jobs':8 if extended else 6,'dispatches':6 if extended else 4,'feeMicros':1000000} if v2 else {'sessions':2,'jobs':2,'dispatches':2,'feeMicros':1000000}),'HUB_CHAT_ADMISSION_REJECTED')
+ if v2:need(extended==(saved.get('HUB_CHAT_BUDGET_EXTENSION')=='citation-review-v1'),'HUB_CHAT_BUDGET_EXTENSION_REJECTED')
+ if extended:need(datetime.datetime.strptime(extension['issuedAt'],'%Y-%m-%dT%H:%M:%S.%fZ')>=datetime.datetime.strptime(a['k01']['issuedAt'],'%Y-%m-%dT%H:%M:%S.%fZ'),'HUB_CHAT_CITATION_EXTENSION_REJECTED')
  if v2:
   old=a.get('legacy',{});k=a.get('k01',{});bindings=k.get('bindings',[])
   need(a.get('coreDigest')==KNOWLEDGE_CORE and old.get('admission',{}).get('coreDigest')==CORE and re.fullmatch('[a-f0-9]{64}',old.get('admissionSha','')) and re.fullmatch('[a-f0-9]{64}',old.get('prefixHash','')),'HUB_CHAT_LEGACY_BINDING_REJECTED')
@@ -59,7 +68,12 @@ def admitted_jobs(saved):
   need(digest==a['legacy']['prefixHash'] and isinstance(s.get('inheritedRevision'),int) and s.get('revision',-1)>s['inheritedRevision'],'HUB_CHAT_LEGACY_LEDGER_CHANGED')
   bindings={b['accountId']:b for b in a['k01']['bindings']}
   need(all(x.get('accountId') in bindings and x.get('contextKey')=='kb:'+bindings[x['accountId']]['kbId'] and x.get('reservedAt','')>=a['k01']['issuedAt'] for x in sessions[2:]) and len({x['accountId'] for x in sessions[2:]})==len(sessions[2:]),'HUB_CHAT_KB_BINDING_REJECTED')
-  need(all(sum(j.get('accountId')==actor for j in jobs[2:])<=2 for actor in ACCOUNTS) and all(sum(d.get('accountId')==actor for d in s['dispatches'][2:])<=1 for actor in ACCOUNTS),'HUB_CHAT_LEDGER_REJECTED')
+  extended=a.get('citationReview') is not None
+  if extended:
+   need(all(len(s[key])>=n for key,n in [('sessions',4),('jobs',6),('dispatches',4)]),'HUB_CHAT_LEDGER_REJECTED')
+   frozen={key:s[key][:n] for key,n in [('sessions',4),('jobs',6),('dispatches',4)]};digest=hashlib.sha256(json.dumps(frozen,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()).hexdigest()
+   need(digest==a['citationReview']['prefixHash'] and all(j.get('createdAt','')>=a['citationReview']['issuedAt'] for j in jobs[6:]) and all(d.get('at','')>=a['citationReview']['issuedAt'] for d in s['dispatches'][4:]),'HUB_CHAT_CITATION_PREFIX_CHANGED')
+  need(all(sum(j.get('accountId')==actor for j in jobs[2:])<=(3 if extended else 2) for actor in ACCOUNTS) and all(sum(d.get('accountId')==actor for d in s['dispatches'][2:])<=(2 if extended else 1) for actor in ACCOUNTS),'HUB_CHAT_LEDGER_REJECTED')
   need(sum(d.get('feeUpperMicros',d.get('reservedMicros',1000001)) if d.get('state')=='known' else d.get('reservedMicros',1000001) for d in s['dispatches'])<=1000000,'HUB_CHAT_LEDGER_REJECTED')
  historical=set(a['historicalChatIds']);result={}
  for job in jobs:
@@ -69,7 +83,7 @@ def admitted_jobs(saved):
  need(len(result)==len(jobs) and (v2 or len({x['accountId'] for x in jobs})==len(jobs)),'HUB_CHAT_LEDGER_JOB_REJECTED')
  # V2 freezes the two original failed Hub jobs, including their terminal rows.
  # Only new, signed K01 jobs may change while the new worker is active.
- return {job['id']:result[job['id']] for job in jobs[2:]} if v2 else result
+ return {job['id']:result[job['id']] for job in jobs[6 if a.get('citationReview') else 2:]} if v2 else result
 
 def core_transition(previous,release,saved,upgrade=None):
  if previous.get('coreDigest')==release.get('coreDigest'):return

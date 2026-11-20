@@ -8,6 +8,11 @@ class ProfileTests(unittest.TestCase):
   state=self.enabled();self.assertEqual(m.values(state)['ENABLED_WORKER_KINDS'],'knowledge-chat')
   for key,value in [('ENABLED_WORKER_KINDS','research-agent'),('HUB_PAID_AI_ENABLED','false'),('HUB_CHAT_LEDGER_DIR','/tmp/reset')]:
    with self.assertRaises(ValueError):m.values(dict(state,**{key:value}))
+ def test_extension_requires_explicit_capability_and_rejects_unknown_flag(self):
+  state=dict(self.enabled(),HUB_EXECUTION_PROFILE=m.KNOWLEDGE_PROFILE,HUB_CHAT_BUDGET_EXTENSION='citation-review-v1');release={'coreDigest':m.KNOWLEDGE_CORE,'supportedExecutionProfiles':[m.KNOWLEDGE_PROFILE]}
+  with self.assertRaises(ValueError):m.support(release,state)
+  self.assertEqual(m.support(dict(release,supportedBudgetExtensions=['citation-review-v1']),state)['HUB_CHAT_BUDGET_EXTENSION'],'citation-review-v1')
+  with self.assertRaises(ValueError):m.values(dict(state,HUB_CHAT_BUDGET_EXTENSION='unknown'))
  def test_old_image_cannot_be_used_as_on_rollback(self):
   with self.assertRaises(ValueError):m.support({'coreDigest':m.CORE},self.enabled())
   self.assertEqual(m.support({'coreDigest':m.CORE,'supportedExecutionProfiles':[m.PROFILE]},self.enabled())['HUB_PAID_AI_ENABLED'],'true')

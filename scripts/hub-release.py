@@ -74,6 +74,7 @@ def main():
   path=directory/'runtime-release.json';r=json.loads(path.read_text());r.pop('contextSha256',None);r.update(releaseGit=os.environ['GITHUB_SHA'],privateCoreSourceArchiveSha256=policy['coreSourceSha256'],databaseDigest=plan['databaseDigest'],databaseSources=plan['databaseSources'],databaseFingerprint=policy['target']['schemaFingerprint'],previousRelease=json.loads((directory/'baseline-pointer.json').read_text()),components={kind:provenance(previous,kind,plan['build'][kind],os.environ['GITHUB_SHA']) for kind in ('frontend','backend')})
   if not plan['build']['backend']:
    need(r['backendImage']==previous['backendImage'] and r['coreDigest']==previous['coreDigest'] and r['files']['backend-image.tar.gz']==previous['files']['backend-image.tar.gz'],'HUB_RELEASE_REUSED_BACKEND_MANIFEST_MISMATCH')
+   r['supportedBudgetExtensions']=previous.get('supportedBudgetExtensions',[])
    r['hubDigest']=previous['hubDigest'];r['supportedExecutionProfiles']=previous.get('supportedExecutionProfiles',['disabled'])
   for kind,name in [('frontend','researchhub.tar.gz'),('backend','backend-image.tar.gz')]:r['images'][kind]['configId']=runtime.canonical_image_id(directory/name,r[kind+'Image'],r['files'][name]['sha256'])
   path.write_text(json.dumps(r,indent=2)+'\n');output({'tag':tag,'manifest_sha':digest(path.read_bytes())});return

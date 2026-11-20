@@ -73,6 +73,8 @@ def collect(args):
  manifest={'schema':'researchhub-runtime-images.v1','tag':tag,'architecture':'amd64','frontendImage':frontend,'backendImage':backend,'coreDigest':context['coreDigest'],'hubDigest':context['hubDigest'],'contextSha256':args.source_sha,'controlGit':os.environ['GITHUB_SHA'],'tenantSlug':os.environ['HUB_TENANT_SLUG'],'files':files,'images':{'frontend':image_info(frontend),'backend':image_info(backend)},'workersEnabled':False,'modelsEnabled':False,'mailEnabled':False}
  # Capability is distinct from the operator's persistent activation state.
  manifest['supportedExecutionProfiles']=['disabled','bounded-hub-chat-v1']+(['bounded-hub-knowledge-v2'] if context['coreDigest']=='55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669' else [])
+ feature=pathlib.Path(args.context)/'hub/server/research-runtime/chat-k01-budget.mjs'
+ manifest['supportedBudgetExtensions']=getattr(args,'backend_release',None).get('supportedBudgetExtensions',[]) if getattr(args,'backend_release',None) else (['citation-review-v1'] if feature.is_file() and all(marker in feature.read_text() for marker in ("export const CITATION_REVIEW_EXTENSION='citation-review-v1'",'export function extendCitationReviewBudget(')) else [])
  (target/'runtime-release.json').write_text(json.dumps(manifest,indent=2)+'\n');print(json.dumps({'tag':tag,'coreDigest':manifest['coreDigest'],'frontendImage':frontend,'backendImage':backend,'manifestSha256':file_info(target/'runtime-release.json')['sha256']}))
 
 def upload(args):

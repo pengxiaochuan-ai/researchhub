@@ -37,6 +37,7 @@ def backend_unchanged(previous,release):
  paths=[('backendImage',),('coreDigest',),('hubDigest',),('images','backend','configId'),('files','backend-image.tar.gz'),('files','backend-compose.yml')]
  same=all(field(previous,*path) is not None and field(previous,*path)==field(release,*path) for path in paths)
  same=same and (field(previous,'components','backend','sourceGit') or previous.get('controlGit'))==(field(release,'components','backend','sourceGit') or release.get('controlGit'))
+ same=same and previous.get('supportedBudgetExtensions',[])==release.get('supportedBudgetExtensions',[])
  same=same and previous.get('supportedExecutionProfiles',['disabled'])==release.get('supportedExecutionProfiles',['disabled'])
  need(field(release,'components','backend','built') is not False or same,'HUB_PAIR_REUSED_BACKEND_IDENTITY_CHANGED')
  return bool(same)

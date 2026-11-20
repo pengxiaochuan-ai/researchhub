@@ -3,7 +3,7 @@ from unittest.mock import patch
 s=importlib.util.spec_from_file_location('bootstrap',str(pathlib.Path(__file__).with_name('hub-runtime-bootstrap.py')));m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 class BootstrapTests(unittest.TestCase):
  def test_v2_checkpoint_is_the_current_bridge_pair_and_exact_staged_admission(self):
-  release={'tag':'bridge','backendImage':'backend:bridge','frontendImage':'frontend:bridge','coreDigest':'55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669','supportedExecutionProfiles':['bounded-hub-knowledge-v2']};raw=json.dumps(release).encode();control={'previousManifestSha256':hashlib.sha256(raw).hexdigest(),'executionPolicy':{'profile':'bounded-hub-knowledge-v2','admissionSha256':'a'*64}}
+  release={'tag':'bridge','backendImage':'backend:bridge','frontendImage':'frontend:bridge','coreDigest':'55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669','supportedBudgetExtensions':['citation-review-v1'],'supportedExecutionProfiles':['bounded-hub-knowledge-v2']};raw=json.dumps(release).encode();control={'previousManifestSha256':hashlib.sha256(raw).hexdigest(),'executionPolicy':{'profile':'bounded-hub-knowledge-v2','admissionSha256':'a'*64}}
   m.knowledge_checkpoint(release,control,raw,'a'*64)
   for old,sha in [(dict(release,coreDigest='85'*32),'a'*64),(dict(release,tag='old'),'a'*64),(release,'b'*64)]:
    prior=json.dumps(old).encode();bound=dict(control,previousManifestSha256=hashlib.sha256(prior).hexdigest())
@@ -31,4 +31,10 @@ class BootstrapTests(unittest.TestCase):
    self.assertEqual(m.read_release_storage()['S3_SECRET_KEY'],'$(not executed)')
    p.write_text(p.read_text()+'S3_BUCKET=other\n')
    with self.assertRaises(ValueError):m.read_release_storage()
+class CitationCheckpoint(unittest.TestCase):
+ def test_new_sha_rejects_old_capability_but_original_sha_remains_supported(self):
+  release={'tag':'same','coreDigest':'55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669','supportedExecutionProfiles':['bounded-hub-knowledge-v2'],'backendImage':'b','frontendImage':'f'};raw=json.dumps(release).encode();old='6467192bf782f24a16090d365817ff8a811d351c9ae97730465f57d1d4168492';control={'previousManifestSha256':__import__('hashlib').sha256(raw).hexdigest(),'executionPolicy':{'profile':'bounded-hub-knowledge-v2','admissionSha256':old}}
+  m.knowledge_checkpoint(release,control,raw,old)
+  control['executionPolicy']['admissionSha256']='f'*64
+  with self.assertRaises(ValueError):m.knowledge_checkpoint(release,control,raw,'f'*64)
 if __name__=='__main__':unittest.main()

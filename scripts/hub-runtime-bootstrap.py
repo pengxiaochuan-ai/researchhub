@@ -35,6 +35,7 @@ def knowledge_checkpoint(release,control,previous_raw,admission_sha):
  need(re.fullmatch('[a-f0-9]{64}',admission_sha or '') and control.get('executionPolicy')=={'profile':profile,'admissionSha256':admission_sha},'HUB_K01_CHECKPOINT_ADMISSION_REJECTED')
  need(hashlib.sha256(previous_raw).hexdigest()==control.get('previousManifestSha256'),'HUB_K01_CHECKPOINT_PREVIOUS_REJECTED')
  previous=json.loads(previous_raw)
+ if admission_sha!='6467192bf782f24a16090d365817ff8a811d351c9ae97730465f57d1d4168492':need(all('citation-review-v1' in x.get('supportedBudgetExtensions',[]) for x in (release,previous)),'HUB_K01_EXTENSION_CHECKPOINT_UNSUPPORTED')
  need(all(x.get('coreDigest')==core and profile in x.get('supportedExecutionProfiles',[]) for x in (release,previous)),'HUB_K01_CHECKPOINT_REJECTED')
  need(previous.get('tag')==release.get('tag') and previous.get('backendImage')==release.get('backendImage') and previous.get('frontendImage')==release.get('frontendImage'),'HUB_K01_CHECKPOINT_NOT_CURRENT_BRIDGE')
 
