@@ -151,7 +151,7 @@ jobs:
       - name: Real isolated Docker and PostgreSQL upgrade and rollback rehearsal
         if: steps.artifacts.outcome == 'success'
         env:
-          HUB_FIXTURE_NODE_IMAGE: researchhub-backend:${{ env.HUB_RELEASE_TAG }}
+          HUB_FIXTURE_NODE_IMAGE: ${{ steps.prepare.outputs.backend_image }}
           HUB_REHEARSAL_OUTPUT: ${{ runner.temp }}/hub-rehearsal
         run: python3 scripts/hub-release-rehearsal.py
       - uses: actions/upload-artifact@v4

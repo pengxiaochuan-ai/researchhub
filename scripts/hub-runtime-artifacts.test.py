@@ -44,6 +44,10 @@ class Artifacts(unittest.TestCase):
    with patch.dict(os.environ,{'GITHUB_SHA':'d'*40,'HUB_TENANT_SLUG':'synthetic-hub'}),patch.object(m,'image_info',return_value={'id':'sha256:'+'f'*64,'architecture':'amd64'}) as inspect:m.collect(args)
    release=json.loads((root/'runtime-release.json').read_text())
    self.assertEqual(release['backendImage'],args.backend_image);self.assertEqual(release['coreDigest'],previous['coreDigest']);self.assertEqual(release['hubDigest'],previous['hubDigest']);inspect.assert_any_call(args.backend_image)
+ def test_rehearsal_uses_the_actual_reused_backend_image(self):
+  text=pathlib.Path('.github/workflows/deploy.yml').read_text()
+  self.assertIn('HUB_FIXTURE_NODE_IMAGE: ${{ steps.prepare.outputs.backend_image }}',text)
+  self.assertNotIn('HUB_FIXTURE_NODE_IMAGE: researchhub-backend:${{ env.HUB_RELEASE_TAG }}',text)
  def test_private_backend_never_exports_an_actions_cache_or_build_record(self):
   text=pathlib.Path('.github/workflows/deploy.yml').read_text()
   backend=text.split('      - name: Build changed backend',1)[1].split('      - name: Reuse unchanged backend',1)[0]
