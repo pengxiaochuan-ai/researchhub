@@ -19,8 +19,10 @@ export function readResearchRuntimeConfig(env=process.env){
  const scope=parseDeploymentScope(env),cookieName=resolveAuthCookieName(scope,env);
  const profile=env.HUB_RUNTIME_PROFILE??'minimal';
  const executionProfile=env.HUB_EXECUTION_PROFILE??'disabled';
- if(!['disabled','bounded-hub-chat-v1'].includes(executionProfile)||env.HUB_PAID_AI_ENABLED==='true'&&executionProfile!=='bounded-hub-chat-v1'||executionProfile==='bounded-hub-chat-v1'&&(env.HUB_PAID_AI_ENABLED!=='true'||scope.enabledWorkerKinds.length!==1||scope.enabledWorkerKinds[0]!=='knowledge-chat'))invalid('HUB_EXECUTION_PROFILE');
- if(executionProfile==='bounded-hub-chat-v1'&&(env.HUB_CHAT_ADMISSION_FILE!=='/run/researchhub-admission/admission.json'||env.HUB_CHAT_LEDGER_DIR!=='/run/researchhub-ai-ledger'||!/^[a-f0-9]{64}$/.test(env.HUB_CHAT_ADMISSION_SHA256??'')))invalid('HUB_CHAT_ADMISSION_FILE');
+ if(!['disabled','bounded-hub-chat-v1','bounded-hub-knowledge-v2'].includes(executionProfile)||env.HUB_PAID_AI_ENABLED==='true'&&executionProfile==='disabled'||executionProfile!=='disabled'&&env.HUB_PAID_AI_ENABLED!=='true')invalid('HUB_EXECUTION_PROFILE');
+ if(executionProfile==='bounded-hub-chat-v1'&&(scope.enabledWorkerKinds.length!==1||scope.enabledWorkerKinds[0]!=='knowledge-chat'))invalid('HUB_EXECUTION_PROFILE');
+ if(executionProfile==='bounded-hub-knowledge-v2'&&(scope.enabledWorkerKinds.length!==2||!['knowledge-chat','knowledge-import'].every(k=>scope.enabledWorkerKinds.includes(k))))invalid('HUB_EXECUTION_PROFILE');
+ if(executionProfile!=='disabled'&&(env.HUB_CHAT_ADMISSION_FILE!=='/run/researchhub-admission/admission.json'||env.HUB_CHAT_LEDGER_DIR!=='/run/researchhub-ai-ledger'||!/^[a-f0-9]{64}$/.test(env.HUB_CHAT_ADMISSION_SHA256??'')))invalid('HUB_CHAT_ADMISSION_FILE');
  const assetMarkdownExport=env.HUB_ASSET_MARKDOWN_EXPORT_ENABLED??'false';if(!['true','false'].includes(assetMarkdownExport))invalid('HUB_ASSET_MARKDOWN_EXPORT_ENABLED');
  if(!['minimal','full'].includes(profile)||env.NODE_ENV==='production'&&profile!=='full')invalid('HUB_RUNTIME_PROFILE');
  if(profile==='minimal'&&scope.enabledWorkerKinds.length)invalid('ENABLED_WORKER_KINDS');

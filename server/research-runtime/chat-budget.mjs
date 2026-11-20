@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash,randomUUID} from 'node:crypto';
+import {createK01ChatBudget,validateK01Admission} from './chat-k01-budget.mjs';
 
 const fail=code=>{throw Object.assign(Error(code),{code,status:409});};
 const validId=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,160}$/.test(x);
@@ -8,6 +9,7 @@ const integer=x=>Number.isSafeInteger(x)&&x>=0;
 const milliseconds=x=>x instanceof Date?x.getTime():typeof x==='string'?Date.parse(x):NaN;
 const digest=raw=>createHash('sha256').update(raw).digest('hex');
 export function validateChatAdmission(a){
+ if(a?.schema==='hub-chat-admission.v2'){validateK01Admission(a);validateChatAdmission(a.legacy.admission);return a;}
  if(a?.schema!=='hub-chat-admission.v1'||a.campaignId!=='prod-ai-assets-20261120'||a.database!=='researchhub'||a.tenantId!=='rh-kb-local-b0e2af9d-tenant'||
    !Array.isArray(a.accounts)||a.accounts.length!==2||new Set(a.accounts).size!==2||!a.accounts.every(x=>['rh-kb-local-b0e2af9d-admin','rh-kb-local-b0e2af9d-owner'].includes(x))||
    a.limits?.sessions!==2||a.limits.jobs!==2||a.limits.dispatches!==2||a.limits.feeMicros!==1000000||typeof a.issuedAt!=='string'||!Number.isFinite(milliseconds(a.issuedAt)))fail('HUB_CHAT_ADMISSION_INVALID');
@@ -17,6 +19,7 @@ export function validateChatAdmission(a){
 }
 
 export function initialChatBudget(admission,admissionSha){
+ if(admission?.schema==='hub-chat-admission.v2')fail('HUB_CHAT_MIGRATION_REQUIRED');
  validateChatAdmission(admission);if(!/^[a-f0-9]{64}$/.test(admissionSha))fail('HUB_CHAT_ADMISSION_DIGEST_INVALID');
  return{schema:'hub-chat-budget.v1',campaignId:admission.campaignId,admissionSha,revision:0,sessions:[],jobs:[],dispatches:[]};
 }
@@ -25,6 +28,7 @@ export function initialChatBudget(admission,admissionSha){
 // date, release or restart path can create/reset quota.
 export function createChatBudget({admission,admissionSha,directory,now=()=>new Date()}){
  validateChatAdmission(admission);
+ if(admission.schema==='hub-chat-admission.v2')return createK01ChatBudget({admission,admissionSha,directory,now});
  if(!/^[a-f0-9]{64}$/.test(admissionSha))fail('HUB_CHAT_ADMISSION_DIGEST_INVALID');
  const directoryStat=fs.lstatSync(directory);
  if(!path.isAbsolute(directory)||!directoryStat.isDirectory()||directoryStat.isSymbolicLink()||(directoryStat.mode&0o077)!==0||directoryStat.uid!==process.getuid())fail('HUB_CHAT_LEDGER_DIRECTORY_INVALID');

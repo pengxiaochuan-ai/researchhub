@@ -42,7 +42,20 @@ async function chatParent(tx: Prisma.TransactionClient, user: JwtUser, taskId: s
   if (!task || task.tenantId !== user.tenantId || task.studyGroupId !== groupId || task.researchProjectId !== projectId || task.accountId !== user.accountId) denied();
   const session = await tx.session.findUnique({ where: { id: task.sessionId } });
   const hub = session?.contextKey === 'hub:lingshu-xinyu' || /^hub:lingshu-xinyu:conversation:[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(session?.contextKey ?? '');
-  if (!session || session.tenantId !== user.tenantId || session.studyGroupId !== groupId || session.researchProjectId !== projectId || session.accountId !== user.accountId || session.deletedAt || session.channel !== 'knowledge' || !hub || session.agentId !== user.tenantId + '-kb-research') denied();
+  const kbId = /^kb:([A-Za-z0-9_-]{1,160})$/.exec(session?.contextKey ?? '')?.[1];
+  if (!session || session.tenantId !== user.tenantId || session.studyGroupId !== groupId || session.researchProjectId !== projectId || session.accountId !== user.accountId || session.deletedAt || session.channel !== 'knowledge' || (!hub && !kbId) || session.agentId !== user.tenantId + '-kb-research') denied();
+  if (kbId) {
+    // Same visibility branches as native RetrievalService. Tenant admin does
+    // not acquire somebody else's unassigned private KB through this adapter.
+    const kb = await tx.knowledgeBase.findFirst({ where: { id: kbId, OR: [
+      { tenantId: user.tenantId, studyGroupId: groupId, researchProjectId: projectId, ownerAccountId: user.accountId },
+      { tenantId: user.tenantId, studyGroupId: groupId, researchProjectId: projectId, visibility: 'tenant', ownerAccountId: null },
+      { tenantId: null, studyGroupId: null, researchProjectId: null },
+      { tenantId: user.tenantId, studyGroupId: groupId, researchProjectId: projectId,
+        assignments: { some: { studyGroupId: groupId, OR: [{ accountId: user.accountId }, { accountId: null }] } } },
+    ] }, select: { id: true } });
+    if (!kb) denied();
+  }
   const agent = await tx.agent.findFirst({ where: { id: session.agentId, tenantId: user.tenantId, status: 'active', type: 'research' }, select: { id: true } });
   const access = await tx.agentAccess.findFirst({ where: { tenantId: user.tenantId, agentId: session.agentId, accountId: user.accountId, scopeKey: user.accountId, enabled: true }, select: { id: true } });
   if (!agent || !access) denied();

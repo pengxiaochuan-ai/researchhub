@@ -1,0 +1,4 @@
+import test from'node:test';import assert from'node:assert/strict';import{knowledgePublicError}from'./knowledge-errors.mjs';
+test('missing evidence tells the researcher what to do without exposing an internal code as copy',()=>{const e=knowledgePublicError(Object.assign(Error('QA_NO_EVIDENCE'),{code:'QA_NO_EVIDENCE'}));assert.equal(e.getResponse().code,'QA_NO_EVIDENCE');assert.match(e.getResponse().message,/已审核/);assert(!e.getResponse().message.includes('QA_'));});
+test('unknown provider error bodies and rejected model text never enter job error copy',()=>{const e=knowledgePublicError(Error('https://secret.example/key?key=credential scientific-output'));assert.equal(e.getResponse().code,'KNOWLEDGE_CHAT_FAILED');assert(!e.message.includes('credential'));});
+test('native permission and billing errors keep their established response contract',()=>{const e={getResponse:()=>({code:'TOKEN_QUOTA_EXCEEDED',message:'额度不足'})};assert.equal(knowledgePublicError(e),e);});

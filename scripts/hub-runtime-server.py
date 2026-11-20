@@ -139,7 +139,7 @@ def assert_task_snapshot(before,after,allow_new=False):
    need(isinstance(after[name].get(key),dict) and after[name][key].get('binding')==admitted[key],'HUB_RUNTIME_ADMITTED_TASK_BINDING_CHANGED')
    if key in old:need(isinstance(old[key],dict) and old[key].get('binding')==admitted[key],'HUB_RUNTIME_ADMITTED_TASK_BINDING_CHANGED')
   need(all(after[name].get(key)==value for key,value in old.items() if key not in exempt),'HUB_RUNTIME_HISTORICAL_TASK_CHANGED')
-  if not allow_new or EXECUTION_SAVED.get('HUB_EXECUTION_PROFILE')==execution.PROFILE:need(set(old)-exempt==set(after[name])-exempt,'HUB_RUNTIME_UNEXPECTED_NEW_TASK')
+  if not allow_new or EXECUTION_SAVED.get('HUB_EXECUTION_PROFILE') in (execution.PROFILE,execution.KNOWLEDGE_PROFILE):need(set(old)-exempt==set(after[name])-exempt,'HUB_RUNTIME_UNEXPECTED_NEW_TASK')
 
 def live_api(items,release,target):
  own=[x for x in items if (x['Config'].get('Labels') or {}).get('com.docker.compose.project')=='researchhub-backend']
@@ -148,7 +148,7 @@ def live_api(items,release,target):
  expected={'HUB_DATABASE_NAME':'researchhub','HUB_DATABASE_APP_ROLE':'researchhub_demo_app','HUB_DATABASE_OWNER_ROLE':'researchhub_demo_owner','HUB_DATABASE_MARKER_SHA256':target['markerSha256'],'HUB_SCHEMA_FINGERPRINT':target['schemaFingerprint'],'DEFAULT_TENANT_ID':TENANT,'ALLOWED_TENANT_IDS':TENANT,'HUB_CORE_MANIFEST_SHA256':release['coreDigest'],'ENABLED_WORKER_KINDS':'','OFFICIAL_JOB_KINDS':'','CONTROL_PLANE_ENABLED':'false','HUB_PAID_AI_ENABLED':'false','HUB_EMBEDDING_MODE':'keyword-only','HUB_MAIL_MODE':'disabled'}
  if EXECUTION_SAVED:expected.update(execution.support(release,EXECUTION_SAVED))
  if expected.get('HUB_EXECUTION_PROFILE')=='disabled' and 'bounded-hub-chat-v1' not in release.get('supportedExecutionProfiles',[]):expected.pop('HUB_EXECUTION_PROFILE',None)
- if expected.get('HUB_EXECUTION_PROFILE')==execution.PROFILE:
+ if expected.get('HUB_EXECUTION_PROFILE') in (execution.PROFILE,execution.KNOWLEDGE_PROFILE):
   execution.sealed(EXECUTION_SAVED)
   mounts={x.get('Destination'):x for x in own[0].get('Mounts',[])}
   for target_path,name,rw in [('/run/researchhub-admission','admission',False),('/run/researchhub-ai-ledger','ledger',True)]:

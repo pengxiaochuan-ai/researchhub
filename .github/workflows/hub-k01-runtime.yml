@@ -1,0 +1,78 @@
+name: Activate approved K01 knowledge extension
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        type: choice
+        options: [stage, checkpoint, activate, inspect]
+        default: inspect
+        required: true
+      spec_json:
+        description: Exact non-secret binding or checkpoint JSON
+        type: string
+        default: '{}'
+permissions:
+  contents: read
+concurrency:
+  group: researchhub-ecs-release
+  cancel-in-progress: false
+jobs:
+  k01:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    env:
+      SPEC: ${{ inputs.spec_json }}
+      ACTION: ${{ inputs.action }}
+      OSS_ACCESS_KEY: ${{ secrets.OSS_ACCESS_KEY }}
+      OSS_SECRET_KEY: ${{ secrets.OSS_SECRET_KEY }}
+      OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
+      OSS_ENDPOINT: ${{ secrets.OSS_ENDPOINT }}
+      ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
+      ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
+      ALIYUN_ECS_INSTANCE_ID: ${{ secrets.ALIYUN_ECS_INSTANCE_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Validate public input and operator tests
+        run: |
+          python3 scripts/hub-k01-runtime.test.py
+          python3 scripts/hub-runtime-bootstrap.test.py
+          python3 - <<'PY'
+          import json,os,re
+          x=json.loads(os.environ['SPEC']);action=os.environ['ACTION']
+          assert isinstance(x,dict)
+          if action=='stage':assert set(x)=={'bindings','issuedAt'}
+          elif action=='activate':assert set(x)=={'controlSha256'} and re.fullmatch('[a-f0-9]{64}',x['controlSha256'])
+          elif action=='checkpoint':assert set(x)=={'tag','manifestSha256','admissionSha256'} and re.fullmatch('hub-runtime-[a-f0-9]{8}-[0-9]+',x['tag']) and all(re.fullmatch('[a-f0-9]{64}',x[k]) for k in ('manifestSha256','admissionSha256'))
+          else:assert action=='inspect' and not x
+          with open(os.environ['GITHUB_ENV'],'a') as f:
+           f.write('HUB_K01_ACTION='+action+'\n')
+           if action=='stage':f.write('HUB_K01_INPUT='+json.dumps(x,separators=(',',':'))+'\n')
+           if action=='activate':f.write('HUB_K01_CHECKPOINT_SHA='+x['controlSha256']+'\n')
+          PY
+      - name: Seal current bridge as both sides of exact V2 checkpoint
+        if: env.ACTION == 'checkpoint'
+        run: |
+          python3 -m pip install 'oss2==2.19.1'
+          python3 - <<'PY'
+          import json,os,pathlib,hashlib,importlib.util,subprocess
+          x=json.loads(os.environ['SPEC']);s=importlib.util.spec_from_file_location('artifacts','scripts/hub-runtime-artifacts.py');m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
+          raw=m.bucket().get_object('releases/researchhub/'+x['tag']+'/runtime-release.json').read();assert hashlib.sha256(raw).hexdigest()==x['manifestSha256']
+          r=json.loads(raw);assert r['coreDigest']=='55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669' and 'bounded-hub-knowledge-v2' in r['supportedExecutionProfiles']
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'current-bridge.json';p.write_bytes(raw)
+          policy=pathlib.Path('deploy/release-policy.json');body=json.loads(policy.read_text());body['executionPolicy']={'profile':'bounded-hub-knowledge-v2','admissionSha256':x['admissionSha256']};policy.write_text(json.dumps(body))
+          subprocess.run(['python3','scripts/hub-runtime-controls.py','--tag',x['tag'],'--manifest-sha',x['manifestSha256'],'--previous',str(p)],check=True)
+          with open(os.environ['GITHUB_ENV'],'a') as f:
+           f.write('HUB_RUNTIME_TAG='+x['tag']+'\nHUB_K01_ADMISSION_SHA256='+x['admissionSha256']+'\nHUB_RUNTIME_ACTION=pair-stage\n')
+          PY
+          sha="$(sed -n 's/^control_sha=//p' "$GITHUB_OUTPUT")"
+          echo "HUB_RUNTIME_CONTROL_SHA256=$sha" >> "$GITHUB_ENV"
+          echo "CHECKPOINT_SHA256=$sha"
+      - name: Download and verify checkpoint without starting workers
+        if: env.ACTION == 'checkpoint'
+        run: bash scripts/run-hub-runtime-command.sh
+      - name: Execute only approved stage or activation
+        if: env.ACTION != 'checkpoint'
+        run: bash scripts/run-hub-k01-command.sh

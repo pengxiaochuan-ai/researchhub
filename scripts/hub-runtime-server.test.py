@@ -1,6 +1,14 @@
 import importlib.util,pathlib,unittest,json
 s=importlib.util.spec_from_file_location('m',str(pathlib.Path(__file__).with_name('hub-runtime-server.py')));m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 class ServerPlan(unittest.TestCase):
+ def test_v2_only_new_k01_task_rows_can_change_and_original_failed_rows_stay_frozen(self):
+  from unittest.mock import patch
+  binding={'tenantId':'t','accountId':'a','sessionId':'s','requestKey':'r','createdAtMillis':1}
+  before={'knowledge_chat_job':{'old-admin':{'hash':'old-admin','binding':{}},'old-owner':{'hash':'old-owner','binding':{}},'new':{'hash':'queued','binding':binding}}};after={'knowledge_chat_job':dict(before['knowledge_chat_job'],new={'hash':'complete','binding':binding})}
+  with patch.object(m,'EXECUTION_SAVED',{'HUB_EXECUTION_PROFILE':m.execution.KNOWLEDGE_PROFILE}),patch.object(m.execution,'admitted_jobs',return_value={'new':binding}):
+   m.assert_task_snapshot(before,after)
+   for changed in [dict(after['knowledge_chat_job'],**{'old-admin':{'hash':'changed','binding':{}}}),dict(after['knowledge_chat_job'],unapproved='new')]:
+    with self.assertRaises(m.Stop):m.assert_task_snapshot(before,{'knowledge_chat_job':changed},allow_new=True)
  def test_enabled_task_changes_preserve_binding_and_never_allow_deletion(self):
   from unittest.mock import patch
   binding={'tenantId':'t','accountId':'a','sessionId':'s','requestKey':'r','createdAtMillis':1}

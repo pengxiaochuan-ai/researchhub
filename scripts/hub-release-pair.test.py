@@ -2,6 +2,14 @@ import importlib.util,pathlib,json,hashlib,unittest,tempfile,contextlib
 from unittest.mock import patch,MagicMock
 s=importlib.util.spec_from_file_location('pair',str(pathlib.Path(__file__).with_name('hub-release-pair.py')));p=importlib.util.module_from_spec(s);s.loader.exec_module(p);m=p.m
 class PairTests(unittest.TestCase):
+ def test_apply_and_restore_bind_each_image_to_its_own_core_without_resetting_execution(self):
+  helper=MagicMock()
+  with patch.object(m,'command'),patch.object(p,'wait_api'),patch.object(p,'healthy'):
+   for digest in (m.execution.KNOWLEDGE_CORE,m.execution.CORE):
+    release={'backendImage':'backend:'+digest[:8],'frontendImage':'frontend:'+digest[:8],'coreDigest':digest}
+    p.apply_images(helper,release)
+    changes=[call.args[1] for call in helper.save_config.call_args_list if call.args[0].name=='.env.prod'][-1]
+    self.assertEqual(changes,{'HUB_BACKEND_IMAGE':release['backendImage'],'HUB_CORE_MANIFEST_SHA256':digest})
  def exercise(self,failure=None,wrong_baseline=False,action='pair-release',drift=False):
   with tempfile.TemporaryDirectory() as d,contextlib.ExitStack() as stack:
    root=pathlib.Path(d);ops=root/'ops';package=root/'control';ops.mkdir();package.mkdir();compose=b'services:\n  researchhub:\n    image: ${RESEARCHHUB_IMAGE}\n';(ops/'docker-compose.ecs.yml').write_bytes(compose);(package/'frontend-compose.yml').write_bytes(compose);(package/'previous-frontend-compose.yml').write_bytes(compose);(package/'previous-backend-compose.yml').write_bytes(b'old-backend');(package/'backend-compose.yml').write_bytes(b'new-backend')

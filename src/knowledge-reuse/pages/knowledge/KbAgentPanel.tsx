@@ -34,10 +34,10 @@ function Reply({message,sessionId,onOpenDoc}:{message:KnowledgeMessage;sessionId
 
 export default function KbAgentPanel({kbId,kbName,onOpenDoc,onActivity}:{kbId?:string;kbName?:string;onOpenDoc?:(id:string)=>void;onKbMutated?:()=>void;onActivity?:(v:{dirty:boolean;inFlight:boolean})=>void}){
   const {user,scope}=useAuth(),allowed=canUseKnowledgeAi(user,scope);
-  const [creatingPlan,setCreatingPlan]=useState(false),planRequest=useRef('');
+  const [creatingPlan,setCreatingPlan]=useState(false),[plansReady,setPlansReady]=useState(false),planRequest=useRef('');
   const [planList,setPlanList]=useState<{items:Array<{id:string;version:number;stage:string;sourceStatus:string}>;nextCursor?:string}|null>(null);
   const [sessionId,setSessionId]=useState(''),[state,setState]=useState<State>({messages:[],jobs:[]}),[draft,setDraft]=useState(''),[error,setError]=useState(''),[initializing,setInitializing]=useState(false),[sending,setSending]=useState(false),[quota,setQuota]=useState<Quota|null>(null),[attempt,setAttempt]=useState(0);
-  const drafts=useRef(new Map<string,string>()),request=useRef<{text:string;key:string}|null>(null),scopeKey=[user?.accountId,scope?.studyGroupId,scope?.researchProjectId,kbId].join(':'),active=useRef(scopeKey),scroll=useRef<HTMLDivElement>(null);
+  const drafts=useRef(new Map<string,string>()),request=useRef<{text:string;key:string}|null>(null),scopeKey=[user?.tenantId,user?.accountId,user?.authVersion,scope?.studyGroupId,scope?.researchProjectId,kbId].join(':'),active=useRef(scopeKey),scroll=useRef<HTMLDivElement>(null);
   active.current=scopeKey;
   const followLatest=useRef(true);
   useLayoutEffect(()=>{if(scroll.current&&followLatest.current)scroll.current.scrollTop=scroll.current.scrollHeight;},[state]);
@@ -46,21 +46,21 @@ export default function KbAgentPanel({kbId,kbName,onOpenDoc,onActivity}:{kbId?:s
   const pending=state.jobs.some(j=>j.status==='queued'||j.status==='processing');
   const items=useMemo(()=>buildKnowledgeConversationItems(state.messages,state.jobs),[state]);
   useEffect(()=>{
-    let alive=true;setSessionId('');setState({messages:[],jobs:[]});setQuota(null);setError('');setDraft(drafts.current.get(scopeKey)||'');request.current=null;planRequest.current='';setPlanList(null);
+    let alive=true;setSessionId('');setState({messages:[],jobs:[]});setQuota(null);setPlansReady(false);setError('');setDraft(drafts.current.get(scopeKey)||'');request.current=null;planRequest.current='';setPlanList(null);
     if(!allowed||!kbId)return;
     setInitializing(true);
     (async()=>{try{
-      const agents=await api.get<Array<{id:string;type:string}>>('/agents'),agent=agents.find(a=>a.type==='research');if(!agent)throw new Error('当前账号没有可用科研 Agent，请联系管理员。');
+      const [agents,status]=await Promise.all([api.get<Array<{id:string;type:string}>>('/agents'),api.get<{enabled?:boolean;message?:string;researchPlans?:{enabled:boolean};quota:Quota}>('/knowledge/ai-status?kbId='+encodeURIComponent(kbId))]),agent=agents.find(a=>a.type==='research');if(!agent)throw new Error('当前账号没有可用科研 Agent，请联系管理员。');if(status.enabled===false)throw new Error(status.message||'当前知识库尚未开放资料问答。');
       const session=await api.post<{id:string}>('/sessions/knowledge',{agentId:agent.id,kbId,kbName});
-      const [loaded,status]=await Promise.all([api.get<State>(`/sessions/${session.id}/knowledge-state?limit=60`),api.get<{quota:Quota}>('/knowledge/ai-status')]);
-      if(alive){setSessionId(session.id);setState(loaded);setQuota(status.quota);}
+      const loaded=await api.get<State>(`/sessions/${session.id}/knowledge-state?limit=60`);
+      if(alive){setSessionId(session.id);setState(loaded);setQuota(status.quota);setPlansReady(status.researchPlans?.enabled!==false);}
     }catch(e){if(alive)setError(e instanceof Error?e.message:'问答服务不可用');}finally{if(alive)setInitializing(false);}})();
     return()=>{alive=false;};
   },[scopeKey,allowed,attempt]);
   async function refresh(){
     if(!sessionId)return;
     const key=scopeKey;
-    try{const [loaded,status]=await Promise.all([api.get<State>(`/sessions/${sessionId}/knowledge-state?limit=60`),api.get<{quota:Quota}>('/knowledge/ai-status')]);if(active.current===key){setState(loaded);setQuota(status.quota);setError('');}}
+    try{const [loaded,status]=await Promise.all([api.get<State>(`/sessions/${sessionId}/knowledge-state?limit=60`),api.get<{researchPlans?:{enabled:boolean};quota:Quota}>('/knowledge/ai-status?kbId='+encodeURIComponent(kbId!))]);if(active.current===key){setState(loaded);setQuota(status.quota);setPlansReady(status.researchPlans?.enabled!==false);setError('');}}
     catch(e){if(active.current===key){setError(e instanceof Error?e.message:'更新会话失败');if(e instanceof ApiError&&[401,403].includes(e.status))setState({messages:[],jobs:[]});}}
   }
   useEffect(()=>{
@@ -77,12 +77,12 @@ export default function KbAgentPanel({kbId,kbName,onOpenDoc,onActivity}:{kbId?:s
     finally{if(active.current===key)setSending(false);}
   }
   async function createPlan(){
-    if(!sessionId||creatingPlan||draft.trim())return;setCreatingPlan(true);setError('');
+    if(!plansReady){setError('研究设计功能暂未就绪，请先完成资料问答。');return;}if(!sessionId||creatingPlan||draft.trim())return;setCreatingPlan(true);setError('');
     planRequest.current||='plan-'+crypto.randomUUID();
     try{const plan=await api.post<{id:string}>('/research-plan-drafts',{sessionId,requestKey:planRequest.current});const query=new URLSearchParams({researchPlanId:plan.id,studyGroupId:scope!.studyGroupId,researchProjectId:scope!.researchProjectId});window.top!.location.assign('/pages/q01/?'+query);}
     catch(e){setError(e instanceof Error?e.message:'候选建立失败；请先核对，不自动重试。');}finally{setCreatingPlan(false);}
   }
-  async function listPlans(before?:string){const key=scopeKey;try{const response=await api.get<any>('/research-plan-drafts?limit=20'+(before?'&before='+before:''));if(active.current===key)setPlanList(previous=>({...response,items:before?[...(previous?.items??[]),...response.items]:response.items}));}catch(e){setError(e instanceof Error?e.message:'候选列表读取失败');}}
+  async function listPlans(before?:string){if(!plansReady){setError('研究设计功能暂未就绪，请先完成资料问答。');return;}const key=scopeKey;try{const response=await api.get<any>('/research-plan-drafts?limit=20'+(before?'&before='+before:''));if(active.current===key)setPlanList(previous=>({...response,items:before?[...(previous?.items??[]),...response.items]:response.items}));}catch(e){setError(e instanceof Error?e.message:'候选列表读取失败');}}
   function openPlan(id:string){const query=new URLSearchParams({researchPlanId:id,studyGroupId:scope!.studyGroupId,researchProjectId:scope!.researchProjectId});window.top!.location.assign('/pages/q01/?'+query);}
   return <section className="knowledge-ai flex h-full min-h-0 flex-col" aria-label="科研 Agent 问答">
     <header className="shrink-0 border-b border-ink-200 p-3"><h2 className="font-semibold">科研 Agent · 资料问答</h2><p className="mt-1 text-ink-500">仅依据当前库已审核材料，只读回答；来源可核验。合成体验，不是研究结论。</p></header>
@@ -98,8 +98,8 @@ export default function KbAgentPanel({kbId,kbName,onOpenDoc,onActivity}:{kbId?:s
       <div className="shrink-0 border-t border-ink-200 p-3">
         {error&&<p role="alert" className="mb-2 text-red-700">{error}</p>}
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><button type="button" className="btn-outline" onClick={()=>sessionId?void refresh():setAttempt(n=>n+1)} disabled={initializing}>刷新会话</button>{quota&&<span className="text-ink-500">{quota.message}</span>}</div>
-        {canUseResearchPlans(user,scope)&&<div className="mb-3"><button type="button" className="btn-outline" disabled={!sessionId||creatingPlan||sending||pending||!!draft.trim()} aria-busy={creatingPlan} onClick={()=>void createPlan()}>形成PICO与方案草稿</button><p className="mt-1 text-ink-500">先保存或清空未发送问题；将固定当前库已审核片段，进入研究者确认流程，不自动调用模型。</p><details onToggle={event=>{if(event.currentTarget.open)void listPlans();}}><summary>继续本账号已有方案草稿</summary>{planList&&!planList.items.length&&<p>当前研究尚无本次候选草稿。</p>}{planList?.items.map(p=><div key={p.id} className="mt-2"><button type="button" className="btn-outline" disabled={!!draft.trim()||creatingPlan||sending||pending||p.sourceStatus!=='current'} onClick={()=>openPlan(p.id)}>继续草稿 {p.id} · v{p.version}</button><p>{({awaiting_pico:'待生成PICO',pico_pending:'PICO任务，请打开核对',pico_confirmed:'PICO已确认',protocol_pending:'方案任务，请打开核对',protocol_draft:'方案草稿已保存',restricted:'来源访问已失效',unavailable:'上下文待核对'} as Record<string,string>)[p.stage]||p.stage}{p.sourceStatus==='stale'?' · 来源已过期':''}</p></div>)}{planList?.nextCursor&&<button className="btn-outline mt-2" type="button" onClick={()=>void listPlans(planList.nextCursor)}>加载更多本账号草稿</button>}</details></div>}
-        {canUseResearchPlans(user,scope)&&<div className="mb-3"><button type="button" className="btn-outline" disabled={creatingPlan||sending||pending||!!draft.trim()} onClick={()=>window.top!.location.assign(makeDesignWorkspaceUrl('q02',scope))}>我的研究设计草稿</button><p className="mt-1 text-ink-500">仅查看当前研究内本人已保存草稿；打开列表不会调用模型。</p></div>}
+        {canUseResearchPlans(user,scope)&&<div className="mb-3"><button type="button" className="btn-outline" disabled={!plansReady||!sessionId||creatingPlan||sending||pending||!!draft.trim()} aria-busy={creatingPlan} onClick={()=>void createPlan()}>形成PICO与方案草稿</button><p className="mt-1 text-ink-500">{plansReady?'先保存或清空未发送问题；将固定当前库已审核片段，进入研究者确认流程，不自动调用模型。':'研究设计功能暂未就绪，可先完成资料问答。'}</p><details onToggle={event=>{if(event.currentTarget.open)void listPlans();}}><summary>继续本账号已有方案草稿</summary>{planList&&!planList.items.length&&<p>当前研究尚无本次候选草稿。</p>}{planList?.items.map(p=><div key={p.id} className="mt-2"><button type="button" className="btn-outline" disabled={!!draft.trim()||creatingPlan||sending||pending||p.sourceStatus!=='current'} onClick={()=>openPlan(p.id)}>继续草稿 {p.id} · v{p.version}</button><p>{({awaiting_pico:'待生成PICO',pico_pending:'PICO任务，请打开核对',pico_confirmed:'PICO已确认',protocol_pending:'方案任务，请打开核对',protocol_draft:'方案草稿已保存',restricted:'来源访问已失效',unavailable:'上下文待核对'} as Record<string,string>)[p.stage]||p.stage}{p.sourceStatus==='stale'?' · 来源已过期':''}</p></div>)}{planList?.nextCursor&&<button className="btn-outline mt-2" type="button" onClick={()=>void listPlans(planList.nextCursor)}>加载更多本账号草稿</button>}</details></div>}
+        {canUseResearchPlans(user,scope)&&<div className="mb-3"><button type="button" className="btn-outline" disabled={!plansReady||creatingPlan||sending||pending||!!draft.trim()} onClick={()=>window.top!.location.assign(makeDesignWorkspaceUrl('q02',scope))}>我的研究设计草稿</button><p className="mt-1 text-ink-500">{plansReady?'仅查看当前研究内本人已保存草稿；打开列表不会调用模型。':'研究设计草稿暂不可用。'}</p></div>}
         <form onSubmit={send}><label htmlFor="knowledge-ai-question" className="label">向科研 Agent 提问</label><textarea id="knowledge-ai-question" className="input resize-y" rows={3} value={draft} onChange={e=>change(e.target.value)} maxLength={1000} disabled={initializing||!sessionId} placeholder="围绕当前已审核资料提出具体科研问题…"/>
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2"><span className="text-ink-500">不自动重试；每问重新检索。{draft.length}/1000</span><button type="submit" className="btn-primary" disabled={sending||!sessionId||draft.trim().length<2||quota?.canStart!==true} aria-busy={sending}>{sending?'正在提交…':'发送问题'}</button></div>
         </form>

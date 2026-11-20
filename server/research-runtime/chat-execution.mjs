@@ -1,12 +1,15 @@
 import {AsyncLocalStorage} from 'node:async_hooks';
 
 export const BOUNDED_CHAT_CORE='85a0f5c5e7b5155b1593e04baaebd534322d8cb2b41d2847e394e54a5ad75135';
+export const KNOWLEDGE_CHAT_CORE='55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669';
+export const supportsBoundedChatCore=(core,budget)=>core===BOUNDED_CHAT_CORE&&budget?.admission?.schema==='hub-chat-admission.v1'||core===KNOWLEDGE_CHAT_CORE&&(
+ budget?.admission?.schema==='hub-chat-admission.v1'&&budget.admission.coreDigest===BOUNDED_CHAT_CORE||budget?.admission?.schema==='hub-chat-admission.v2'&&budget.admission.coreDigest===KNOWLEDGE_CHAT_CORE);
 const deny=()=>{throw Object.assign(Error('HUB_CHAT_EXECUTION_NOT_ADMITTED'),{code:'HUB_CHAT_EXECUTION_NOT_ADMITTED',status:403});};
 
 // The sealed core is unchanged. Intercept the actual per-candidate credential
 // boundary immediately before its single fetch, not just its public chat method.
 export function createBoundedChatProvider({raw,budget,coreDigest,unknownError=(detail,route)=>Object.assign(Error(detail),{code:'MODEL_OUTCOME_UNKNOWN',route}),diagnostic=()=>{}}){
- if(coreDigest!==BOUNDED_CHAT_CORE||!['chat','credentials','candidates'].every(k=>typeof raw?.[k]==='function'))deny();
+ if(!supportsBoundedChatCore(coreDigest,budget)||!['chat','credentials','candidates'].every(k=>typeof raw?.[k]==='function'))deny();
  const context=new AsyncLocalStorage(),nativeChat=raw.chat.bind(raw),credentials=raw.credentials.bind(raw);
  raw.candidates=model=>{const current=context.getStore();if(!current||model!==current.model)deny();return[{...model,fallbacks:undefined}];};
  raw.credentials=model=>{
@@ -48,10 +51,13 @@ export function createBoundedChatProvider({raw,budget,coreDigest,unknownError=(d
 }
 
 export function fenceBoundedChatQueue(instance,budget,coreDigest){
- if(coreDigest!==BOUNDED_CHAT_CORE||!['scopeWhere','claimNext','processSession','resumePending'].every(k=>typeof instance?.[k]==='function'))deny();
- instance.scopeWhere=()=>budget.claimScope();
+ if(!supportsBoundedChatCore(coreDigest,budget)||!['scopeWhere','claimNext','processSession','resumePending'].every(k=>typeof instance?.[k]==='function'))deny();
+ const claiming=new AsyncLocalStorage();
+ instance.scopeWhere=()=>{const scope=budget.claimScope();return claiming.getStore()?{...scope,AND:[...scope.AND,{attempts:0}]}:scope;};
  const claim=instance.claimNext.bind(instance);
- instance.claimNext=(sessionId,...args)=>budget.canClaim(sessionId)?claim(sessionId,...args):Promise.resolve(null);
+ instance.claimNext=(sessionId,...args)=>budget.canClaim(sessionId)?claiming.run(true,()=>claim(sessionId,...args)):Promise.resolve(null);
+ const resume=instance.resumePending.bind(instance);instance.resumePending=(...args)=>claiming.run(true,()=>resume(...args));
+ if(typeof instance.scheduleSession==='function'){const schedule=instance.scheduleSession.bind(instance);instance.scheduleSession=(...args)=>claiming.exit(()=>schedule(...args));}
  // One owned queue instance is registered in the one API container. Serializing
 // its two admitted sessions avoids a paid-in-flight conflict; native CAS/leases
 // and terminal handling remain untouched. No automatic Provider retry is added.

@@ -18,6 +18,7 @@ import{boundWorkerLifecycle}from'./worker-lifecycle.mjs';
 import{createRuntimeChat,createRuntimeChatController}from'./chat.mjs';
 import{createPmcObjectReader}from'./pmc-storage.mjs';
 import{loadChatAdmission,createChatBudget}from'./chat-budget.mjs';
+import{BOUNDED_CHAT_CORE,KNOWLEDGE_CHAT_CORE}from'./chat-execution.mjs';
 const field=(env,key,pattern)=>{if(!pattern.test(env[key]??''))throw Error('RESEARCH_RUNTIME_CONFIGURATION_REQUIRED:'+key);return env[key];};
 export async function createRuntimeFoundation({config,env,load,require,prisma,jwt}){
  if(config.scope.allowedTenantIds.length!==1)throw Error('RESEARCH_RUNTIME_SINGLE_HUB_TENANT_REQUIRED');
@@ -34,9 +35,11 @@ export async function createRuntimeFoundation({config,env,load,require,prisma,jw
  if(env.HUB_PAID_AI_ENABLED==='false'&&config.scope.enabledWorkerKinds.some(kind=>!['knowledge-import','raw-processing'].includes(kind)))throw Error('RESEARCH_RUNTIME_WORKER_ADMISSION_REQUIRED');
  const stopGates=[];
  let chatBudget;
- if(config.executionProfile==='bounded-hub-chat-v1'){
+ if(['bounded-hub-chat-v1','bounded-hub-knowledge-v2'].includes(config.executionProfile)){
   const admission=loadChatAdmission(env.HUB_CHAT_ADMISSION_FILE,env.HUB_CHAT_ADMISSION_SHA256);
-  if(admission.database!==config.identity.database||admission.tenantId!==config.scope.defaultTenantId||admission.coreDigest!==config.core.digest)throw Error('HUB_CHAT_ADMISSION_BINDING_CHANGED');
+  const bridge=config.core.digest===KNOWLEDGE_CHAT_CORE&&admission.schema==='hub-chat-admission.v1'&&admission.coreDigest===BOUNDED_CHAT_CORE;
+  if(admission.database!==config.identity.database||admission.tenantId!==config.scope.defaultTenantId||admission.coreDigest!==config.core.digest&&!bridge||
+   config.executionProfile==='bounded-hub-knowledge-v2'&&admission.schema!=='hub-chat-admission.v2'||config.executionProfile==='bounded-hub-chat-v1'&&admission.schema!=='hub-chat-admission.v1')throw Error('HUB_CHAT_ADMISSION_BINDING_CHANGED');
   chatBudget=createChatBudget({admission,admissionSha:env.HUB_CHAT_ADMISSION_SHA256,directory:env.HUB_CHAT_LEDGER_DIR});
  }
  const storage=createRuntimeStorage({load,require,settings:storageSettings(env)});
@@ -56,6 +59,13 @@ export async function createRuntimeFoundation({config,env,load,require,prisma,jw
   createMyResearchController({ids,prisma,load,require,runtime:true})];
  const providers=createRuntimeProviders({load,require,prisma,scope:config.scope,cookieName:config.cookieName,jwt,storage,embeddingMode,stopGates,modelEnabled:env.HUB_PAID_AI_ENABLED==='true',chatBudget,coreDigest:config.core.digest,createChat:services=>(chat=createRuntimeChat({config,env,transactionEnv,prisma,load,services,chatBudget}))});
  return{Controllers,providers,storage,transactionEnv,runtimePolicy,ids,
-  bindWorkers:app=>{queue=app.get(load('sessions/knowledge-chat-queue.service','KnowledgeChatQueueService'));for(const[path,name]of [['knowledge/knowledge-import.service','KnowledgeImportService'],['ingest/raw-processing.service','RawProcessingService']])boundWorkerLifecycle(app.get(load(path,name)),stopGates);},
+  bindWorkers:app=>{queue=app.get(load('sessions/knowledge-chat-queue.service','KnowledgeChatQueueService'));for(const[path,name]of [['knowledge/knowledge-import.service','KnowledgeImportService'],['ingest/raw-processing.service','RawProcessingService']]){
+   const instance=app.get(load(path,name));
+   if(name==='KnowledgeImportService'&&config.executionProfile==='bounded-hub-knowledge-v2'){
+    if(chatBudget?.admission.schema!=='hub-chat-admission.v2'||typeof instance.scopeWhere!=='function')throw Error('KNOWLEDGE_IMPORT_ADMISSION_REQUIRED');
+    const a=chatBudget.admission;instance.scopeWhere=()=>({tenantId:a.tenantId,AND:[{OR:a.k01.bindings.map(b=>({id:b.importTaskId,kbId:b.kbId,createdBy:b.accountId,studyGroupId:a.k01.studyGroupId}))}]});
+   }
+   boundWorkerLifecycle(instance,stopGates);
+  }},
   stop:()=>stopGates.forEach(stop=>stop())};
 }

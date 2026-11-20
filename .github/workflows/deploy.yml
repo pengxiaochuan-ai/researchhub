@@ -84,6 +84,10 @@ jobs:
         run: |
           node --input-type=module - <<'JS'
           import{refreshBackendHub}from'./deploy/backend-package.mjs';
+          import{upgradeFrozenKnowledgeCore}from'./deploy/knowledge-chat-kb-upgrade.mjs';
+          import{readFileSync}from'node:fs';
+          const policy=JSON.parse(readFileSync('deploy/release-policy.json'));
+          if(policy.coreUpgrade){const upgraded=upgradeFrozenKnowledgeCore({source:process.env.RUNNER_TEMP+'/hub-backend-baseline',output:process.env.RUNNER_TEMP+'/hub-backend-context'});if(upgraded.coreDigest!==policy.coreDigest)throw Error('KB_CORE_UPGRADE_DIGEST_REAPPROVAL_REQUIRED');}
           const r=refreshBackendHub({context:process.env.RUNNER_TEMP+'/hub-backend-context',source:process.cwd(),sourceGit:process.env.GITHUB_SHA});
           console.log(JSON.stringify({coreDigest:r.coreDigest,hubDigest:r.hubDigest,sourceGit:r.sourceGit}));
           JS

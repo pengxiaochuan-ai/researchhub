@@ -4,7 +4,7 @@
   "seedManifestSha256": "56b37e68bdb8c04ae343596dea24f1881f7a00d3661819cf4c1ba73e0a2adb9b",
   "coreSourceKey": "releases/researchhub/backend-demo-20261119-45651761fc8b/context.tar.gz",
   "coreSourceSha256": "45651761fc8b3513e884554c0ecc9c79249a5e7d21766f259c8ea04cad3d1745",
-  "coreDigest": "85a0f5c5e7b5155b1593e04baaebd534322d8cb2b41d2847e394e54a5ad75135",
+  "coreDigest": "55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669",
   "tenantSlug": "rh-kb-local-b0e2af9d-tenant",
   "target": {
     "database": "researchhub",
@@ -20,5 +20,13 @@
   "executionPolicy": {
     "profile": "bounded-hub-chat-v1",
     "admissionSha256": "fd96111fd68a7658b79c12dcaf23437ee9ced0bd1ca1af6093dacb8e4d9e23c4"
+  },
+  "coreUpgrade": {
+    "sourceCoreDigest": "85a0f5c5e7b5155b1593e04baaebd534322d8cb2b41d2847e394e54a5ad75135",
+    "targetCoreDigest": "55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669"
+  },
+  "coreUpgradeGuards": {
+    "deploy/knowledge-chat-kb-upgrade.mjs": "feba71439819e889dce656270626472e98ece0b57fd6d61afee6b2f13141859e",
+    "deploy/runtime-adaptations/hub-knowledge-admin.ts": "38084013d85f37da2c0f97f826e1c0435d17ee346b3eeac67ca56075cf9efa60"
   }
 }

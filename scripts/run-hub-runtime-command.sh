@@ -4,7 +4,7 @@ set -Eeuo pipefail
 [[ "${ALIYUN_ECS_INSTANCE_ID:-}" =~ ^i-[A-Za-z0-9]+$ ]]
 [[ "${HUB_RUNTIME_TAG:-}" =~ ^hub-runtime-[a-f0-9]{8}-[0-9]+$ ]]
 [[ "${HUB_RUNTIME_CONTROL_SHA256:-}" =~ ^[a-f0-9]{64}$ ]]
-[[ "${HUB_RUNTIME_ACTION:-}" == activate || "${HUB_RUNTIME_ACTION:-}" == verify || "${HUB_RUNTIME_ACTION:-}" == activate-front || "${HUB_RUNTIME_ACTION:-}" == pair-release || "${HUB_RUNTIME_ACTION:-}" == pair-rollback || "${HUB_RUNTIME_ACTION:-}" == pair-verify || "${HUB_RUNTIME_ACTION:-}" == pair-finalize ]]
+[[ "${HUB_RUNTIME_ACTION:-}" == activate || "${HUB_RUNTIME_ACTION:-}" == verify || "${HUB_RUNTIME_ACTION:-}" == activate-front || "${HUB_RUNTIME_ACTION:-}" == pair-release || "${HUB_RUNTIME_ACTION:-}" == pair-rollback || "${HUB_RUNTIME_ACTION:-}" == pair-verify || "${HUB_RUNTIME_ACTION:-}" == pair-finalize || "${HUB_RUNTIME_ACTION:-}" == pair-stage ]]
 runtime_client_token() {
   python3 - <<'TOKEN'
 import hashlib,os
@@ -22,6 +22,9 @@ tar -xzf "${task_dir}/cli.tgz" -C "${task_dir}" aliyun
 python3 - > "${task_dir}/payload" <<'PY'
 import os,json,pathlib,base64
 values={k:os.environ[k] for k in ('HUB_RUNTIME_TAG','HUB_RUNTIME_CONTROL_SHA256','HUB_RUNTIME_ACTION')}
+if values['HUB_RUNTIME_ACTION']=='pair-stage':
+ import re
+ sha=os.environ.get('HUB_K01_ADMISSION_SHA256','');assert re.fullmatch('[a-f0-9]{64}',sha);values['HUB_K01_ADMISSION_SHA256']=sha
 source=pathlib.Path('scripts/hub-runtime-bootstrap.py').read_text()
 script="python3 - <<'HUB_RUNTIME_BOOTSTRAP'\nimport os\nos.environ.update("+repr(values)+")\n"+source+"\nHUB_RUNTIME_BOOTSTRAP\n"
 encoded=base64.b64encode(script.encode()).decode();assert len(encoded)<24000

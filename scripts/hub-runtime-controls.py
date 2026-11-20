@@ -38,6 +38,7 @@ def main():
  files={name:{'sha256':hashlib.sha256(body).hexdigest(),'bytes':len(body)} for name,body in bodies.items()}
  control={'schema':'researchhub-runtime-controls.v1','tag':a.tag,'imageManifestSha256':a.manifest_sha,'target':TARGET,'files':files,'controlGit':os.environ['GITHUB_SHA']}
  policy=json.loads((HERE.parent/'deploy/release-policy.json').read_text());control['executionPolicy']=policy.get('executionPolicy',{'profile':'disabled'})
+ if policy.get('coreUpgrade'):control['coreUpgrade']=policy['coreUpgrade']
  if a.previous:
   previous=json.loads(bodies['previous-release.json']);control.update(paired=True,previousManifestSha256=hashlib.sha256(bodies['previous-release.json']).hexdigest(),previousTag=previous['tag'],previousBackendComposeSha256=hashlib.sha256(bodies['previous-backend-compose.yml']).hexdigest())
  content=(json.dumps(control,indent=2)+'\n').encode();sha=hashlib.sha256(content).hexdigest();prefix='releases/researchhub/'+a.tag+'/runtime-controls-'+sha[:16]+'/'

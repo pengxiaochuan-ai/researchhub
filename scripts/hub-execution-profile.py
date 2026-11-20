@@ -2,8 +2,10 @@
 import calendar,datetime,hashlib,json,pathlib,re
 
 PROFILE='bounded-hub-chat-v1'
+KNOWLEDGE_PROFILE='bounded-hub-knowledge-v2'
 ROOT=pathlib.Path('/srv/researchhub/ops/chat-runtime')
 CORE='85a0f5c5e7b5155b1593e04baaebd534322d8cb2b41d2847e394e54a5ad75135'
+KNOWLEDGE_CORE='55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669'
 ACCOUNTS={'rh-kb-local-b0e2af9d-admin','rh-kb-local-b0e2af9d-owner'}
 
 def need(ok,code):
@@ -11,10 +13,10 @@ def need(ok,code):
 
 def values(saved):
  profile=saved.get('HUB_EXECUTION_PROFILE','disabled')
- need(profile in ('disabled',PROFILE),'HUB_EXECUTION_PROFILE_REJECTED')
+ need(profile in ('disabled',PROFILE,KNOWLEDGE_PROFILE),'HUB_EXECUTION_PROFILE_REJECTED')
  fixed={'CONTROL_PLANE_ENABLED':'false','OFFICIAL_JOB_KINDS':'','HUB_EMBEDDING_MODE':'keyword-only','HUB_MAIL_MODE':'disabled'}
- fixed.update(HUB_EXECUTION_PROFILE=profile,HUB_PAID_AI_ENABLED='true' if profile==PROFILE else 'false',ENABLED_WORKER_KINDS='knowledge-chat' if profile==PROFILE else '')
- if profile==PROFILE:
+ fixed.update(HUB_EXECUTION_PROFILE=profile,HUB_PAID_AI_ENABLED='false' if profile=='disabled' else 'true',ENABLED_WORKER_KINDS='knowledge-chat,knowledge-import' if profile==KNOWLEDGE_PROFILE else 'knowledge-chat' if profile==PROFILE else '')
+ if profile!='disabled':
   sha=saved.get('HUB_CHAT_ADMISSION_SHA256','')
   need(re.fullmatch('[a-f0-9]{64}',sha or ''),'HUB_CHAT_ADMISSION_DIGEST_REQUIRED')
   need(saved.get('HUB_CHAT_ADMISSION_FILE')=='/run/researchhub-admission/admission.json' and saved.get('HUB_CHAT_LEDGER_DIR')=='/run/researchhub-ai-ledger','HUB_CHAT_PATHS_REJECTED')
@@ -25,30 +27,53 @@ def values(saved):
 
 def support(release,saved):
  state=values(saved)
- if state['HUB_EXECUTION_PROFILE']==PROFILE:
-  need(PROFILE in release.get('supportedExecutionProfiles',[]) and release.get('coreDigest')==CORE,'HUB_ROLLBACK_EXECUTION_UNSUPPORTED')
+ profile=state['HUB_EXECUTION_PROFILE']
+ if profile!='disabled':
+  cores=[KNOWLEDGE_CORE] if profile==KNOWLEDGE_PROFILE else [CORE,KNOWLEDGE_CORE]
+  need(profile in release.get('supportedExecutionProfiles',[]) and release.get('coreDigest') in cores,'HUB_ROLLBACK_EXECUTION_UNSUPPORTED')
  return state
 
 def sealed(saved):
  sha=saved.get('HUB_CHAT_ADMISSION_SHA256','');need(re.fullmatch('[a-f0-9]{64}',sha or ''),'HUB_CHAT_ADMISSION_DIGEST_REQUIRED')
  p=ROOT/'admission'/'admission.json';need(p.is_file() and not p.is_symlink() and p.stat().st_size<262144,'HUB_CHAT_ADMISSION_REQUIRED')
  raw=p.read_bytes();need(hashlib.sha256(raw).hexdigest()==sha,'HUB_CHAT_ADMISSION_CHANGED');a=json.loads(raw)
- need(a.get('schema')=='hub-chat-admission.v1' and a.get('campaignId')=='prod-ai-assets-20261120' and a.get('database')=='researchhub' and a.get('tenantId')=='rh-kb-local-b0e2af9d-tenant' and set(a.get('accounts',[]))==ACCOUNTS and a.get('limits')=={'sessions':2,'jobs':2,'dispatches':2,'feeMicros':1000000},'HUB_CHAT_ADMISSION_REJECTED')
+ v2=saved.get('HUB_EXECUTION_PROFILE')==KNOWLEDGE_PROFILE
+ need(a.get('schema')==('hub-chat-admission.v2' if v2 else 'hub-chat-admission.v1') and a.get('campaignId')=='prod-ai-assets-20261120' and a.get('database')=='researchhub' and a.get('tenantId')=='rh-kb-local-b0e2af9d-tenant' and len(a.get('accounts',[]))==2 and set(a.get('accounts',[]))==ACCOUNTS and a.get('limits')==({'sessions':4,'jobs':6,'dispatches':4,'feeMicros':1000000} if v2 else {'sessions':2,'jobs':2,'dispatches':2,'feeMicros':1000000}),'HUB_CHAT_ADMISSION_REJECTED')
+ if v2:
+  old=a.get('legacy',{});k=a.get('k01',{});bindings=k.get('bindings',[])
+  need(a.get('coreDigest')==KNOWLEDGE_CORE and old.get('admission',{}).get('coreDigest')==CORE and re.fullmatch('[a-f0-9]{64}',old.get('admissionSha','')) and re.fullmatch('[a-f0-9]{64}',old.get('prefixHash','')),'HUB_CHAT_LEGACY_BINDING_REJECTED')
+  legacy=old['admission'];need(legacy.get('schema')=='hub-chat-admission.v1' and legacy.get('limits')=={'sessions':2,'jobs':2,'dispatches':2,'feeMicros':1000000} and all(legacy.get(key)==a.get(key) for key in ('issuedAt','model','accounts','database','tenantId','campaignId','historicalChatIds')),'HUB_CHAT_LEGACY_BINDING_REJECTED')
+  need(k.get('studyGroupId')=='rh-kb-local-b0e2af9d-group' and k.get('researchProjectId')=='rh-kb-local-b0e2af9d-project' and len(bindings)==2 and {b.get('accountId') for b in bindings}==ACCOUNTS and len({b.get('kbId') for b in bindings})==2 and all(re.fullmatch('[A-Za-z0-9_-]{1,160}',b.get(key,'') or '') for b in bindings for key in ('kbId','positiveDocId','importTaskId')) and len({b[key] for b in bindings for key in ('positiveDocId','importTaskId')})==4,'HUB_CHAT_KB_BINDING_REJECTED')
+  need(datetime.datetime.strptime(k['issuedAt'],'%Y-%m-%dT%H:%M:%S.%fZ')>=datetime.datetime.strptime(a['issuedAt'],'%Y-%m-%dT%H:%M:%S.%fZ'),'HUB_CHAT_KB_BINDING_REJECTED')
  return a
 
 def admitted_jobs(saved):
  if saved.get('HUB_EXECUTION_PROFILE','disabled')=='disabled':return {}
  a=sealed(saved);p=ROOT/'ledger'/'budget.json'
  need(p.is_file() and not p.is_symlink() and p.stat().st_size<262144 and p.stat().st_uid==1000 and p.stat().st_mode&0o077==0,'HUB_CHAT_LEDGER_REQUIRED')
- s=json.loads(p.read_text());need(s.get('schema')=='hub-chat-budget.v1' and s.get('admissionSha')==saved['HUB_CHAT_ADMISSION_SHA256'] and s.get('campaignId')==a['campaignId'],'HUB_CHAT_LEDGER_CHANGED')
- jobs=s.get('jobs',[]);sessions=s.get('sessions',[]);need(isinstance(jobs,list) and len(jobs)<=2 and isinstance(sessions,list) and len(sessions)<=2,'HUB_CHAT_LEDGER_REJECTED')
+ s=json.loads(p.read_text());v2=a['schema']=='hub-chat-admission.v2';need(s.get('schema')==('hub-chat-budget.v2' if v2 else 'hub-chat-budget.v1') and s.get('admissionSha')==saved['HUB_CHAT_ADMISSION_SHA256'] and s.get('campaignId')==a['campaignId'],'HUB_CHAT_LEDGER_CHANGED')
+ jobs=s.get('jobs',[]);sessions=s.get('sessions',[]);need(isinstance(jobs,list) and len(jobs)<=a['limits']['jobs'] and isinstance(sessions,list) and len(sessions)<=a['limits']['sessions'],'HUB_CHAT_LEDGER_REJECTED')
+ if v2:
+  need(all(isinstance(s.get(key),list) and 2<=len(s[key])<=a['limits'][key] for key in ('sessions','jobs','dispatches')),'HUB_CHAT_LEDGER_REJECTED')
+  prefix={key:s[key][:2] for key in ('sessions','jobs','dispatches')};digest=hashlib.sha256(json.dumps(prefix,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()).hexdigest()
+  need(digest==a['legacy']['prefixHash'] and isinstance(s.get('inheritedRevision'),int) and s.get('revision',-1)>s['inheritedRevision'],'HUB_CHAT_LEGACY_LEDGER_CHANGED')
+  bindings={b['accountId']:b for b in a['k01']['bindings']}
+  need(all(x.get('accountId') in bindings and x.get('contextKey')=='kb:'+bindings[x['accountId']]['kbId'] and x.get('reservedAt','')>=a['k01']['issuedAt'] for x in sessions[2:]) and len({x['accountId'] for x in sessions[2:]})==len(sessions[2:]),'HUB_CHAT_KB_BINDING_REJECTED')
+  need(all(sum(j.get('accountId')==actor for j in jobs[2:])<=2 for actor in ACCOUNTS) and all(sum(d.get('accountId')==actor for d in s['dispatches'][2:])<=1 for actor in ACCOUNTS),'HUB_CHAT_LEDGER_REJECTED')
+  need(sum(d.get('feeUpperMicros',d.get('reservedMicros',1000001)) if d.get('state')=='known' else d.get('reservedMicros',1000001) for d in s['dispatches'])<=1000000,'HUB_CHAT_LEDGER_REJECTED')
  historical=set(a['historicalChatIds']);result={}
  for job in jobs:
   need(job.get('accountId') in ACCOUNTS and all(re.fullmatch('[A-Za-z0-9_-]{1,160}',job.get(k,'') or '') for k in ('id','requestKey','sessionId')) and job['id'] not in historical and job.get('createdAt','')>=a['issuedAt'] and any(x.get('accountId')==job['accountId'] and x.get('sessionId')==job['sessionId'] for x in sessions),'HUB_CHAT_LEDGER_JOB_REJECTED')
   created=datetime.datetime.strptime(job['createdAt'],'%Y-%m-%dT%H:%M:%S.%fZ');millis=calendar.timegm(created.utctimetuple())*1000+created.microsecond//1000
   result[job['id']]={'tenantId':a['tenantId'],'accountId':job['accountId'],'sessionId':job['sessionId'],'requestKey':job['requestKey'],'createdAtMillis':millis}
- need(len(result)==len(jobs) and len({x['accountId'] for x in jobs})==len(jobs),'HUB_CHAT_LEDGER_JOB_REJECTED')
- return result
+ need(len(result)==len(jobs) and (v2 or len({x['accountId'] for x in jobs})==len(jobs)),'HUB_CHAT_LEDGER_JOB_REJECTED')
+ # V2 freezes the two original failed Hub jobs, including their terminal rows.
+ # Only new, signed K01 jobs may change while the new worker is active.
+ return {job['id']:result[job['id']] for job in jobs[2:]} if v2 else result
+
+def core_transition(previous,release,saved,upgrade=None):
+ if previous.get('coreDigest')==release.get('coreDigest'):return
+ need(saved.get('HUB_EXECUTION_PROFILE')==PROFILE and upgrade=={'sourceCoreDigest':CORE,'targetCoreDigest':KNOWLEDGE_CORE} and {previous.get('coreDigest'),release.get('coreDigest')}=={CORE,KNOWLEDGE_CORE},'HUB_PAIR_CORE_OR_DATABASE_REAPPROVAL_REQUIRED')
 
 def mounts(service,saved,template=None):
  expected={'/run/researchhub-admission':(str(ROOT/'admission'),True),'/run/researchhub-ai-ledger':(str(ROOT/'ledger'),False)}

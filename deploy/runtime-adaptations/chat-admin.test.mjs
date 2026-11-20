@@ -13,6 +13,12 @@ test('Hub chat admin worker binds actual Hub session, named access and current a
  for(const key of ['access','approved']){state[key]=false;await assert.rejects(h.authorizeHubKnowledgeAdminWorker(tx,user,{kind:'knowledge-chat',taskId:'task'},{product:'researchhub'},'group','project'));state[key]=true;}
  state.owner='other';await assert.rejects(h.authorizeHubKnowledgeAdminWorker(tx,user,{kind:'knowledge-chat',taskId:'task'},{product:'researchhub'},'group','project'));state.owner='admin';state.context='kb:private';await assert.rejects(h.authorizeHubKnowledgeAdminWorker(tx,user,{kind:'knowledge-chat',taskId:'task'},{product:'researchhub'},'group','project'));
 });
+test('KB admin worker requires the real KB parent and preserves private visibility',async()=>{
+ const {h,user,state,tx}=setup();state.context='kb:private';let visible=true;
+ tx.knowledgeBase={findFirst:async({where})=>{assert.equal(where.id,'private');assert(where.OR.some(x=>x.ownerAccountId===user.accountId));assert(!where.OR.some(x=>x.visibility==='private'&&!x.ownerAccountId));return visible?{id:'private',tenantId:'tenant',studyGroupId:'group',researchProjectId:'project'}:null;}};
+ assert.equal(await h.authorizeHubKnowledgeAdminWorker(tx,user,{kind:'knowledge-chat',taskId:'task'},{product:'researchhub'},'group','project'),true);
+ visible=false;await assert.rejects(h.authorizeHubKnowledgeAdminWorker(tx,user,{kind:'knowledge-chat',taskId:'task'},{product:'researchhub'},'group','project'));
+});
 test('native HTTP dispatch includes only KnowledgeController and HubChatController admin compatibility',{skip:!root},async()=>{
  const{h,user}=setup(),{StudyGroupGuard}=compile(knowledgeAdminTransform('src/common/guards/study-group.guard.ts',readFileSync(root+'/src/common/guards/study-group.guard.ts','utf8')),'guards/study-group.guard.ts',h);
  const tx={account:{findFirst:async()=>({id:'admin'})},studyGroup:{findFirst:async()=>({id:'group'})},researchProject:{findFirst:async()=>({id:'project'})},$executeRaw:async()=>1},prisma={elevated:{$transaction:fn=>fn(tx)},forTenant:()=>{throw Error('NATIVE_MEMBERSHIP_PATH');}},reflector={getAllAndOverride:k=>k==='requireStudyGroup'||k==='requireResearchProject'},req={user,headers:{'x-study-group-id':'group','x-research-project-id':'project'}},ctx={getHandler:()=>()=>{},getClass:()=>class HubChatController{},switchToHttp:()=>({getRequest:()=>req})};

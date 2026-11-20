@@ -54,7 +54,7 @@ def validate_templates(saved):
  front=json.loads(m.command(front_args()+['config','--format','json']))['services']['researchhub'].get('environment',{})
  service=json.loads(m.command(back_args()+['config','--format','json']))['services']['researchhub-api']
  check_environments(front,service.get('environment',{}),saved)
- if saved.get('HUB_EXECUTION_PROFILE')==m.execution.PROFILE:m.execution.mounts(service,saved,BACK_TEMPLATE.read_text())
+ if saved.get('HUB_EXECUTION_PROFILE') in (m.execution.PROFILE,m.execution.KNOWLEDGE_PROFILE):m.execution.mounts(service,saved,BACK_TEMPLATE.read_text())
 
 def wait_api():
  for _ in range(40):
@@ -87,7 +87,7 @@ def apply_images(helper,release,template=None,backend_template=None):
  FRONT_TEMPLATE=template or HERE/'frontend-compose.yml';BACK_TEMPLATE=backend_template or HERE/'backend-compose.yml'
  m.command(front_args()+['stop','researchhub'],60)
  m.command(back_args()+['stop','researchhub-api'],60)
- helper.save_config(m.OPS/'.env.prod',{'HUB_BACKEND_IMAGE':release['backendImage']})
+ helper.save_config(m.OPS/'.env.prod',{'HUB_BACKEND_IMAGE':release['backendImage'],'HUB_CORE_MANIFEST_SHA256':release['coreDigest']})
  helper.save_config(m.OPS/'current.env',{'RESEARCHHUB_IMAGE':release['frontendImage'],'RESEARCHHUB_PORT':'8083'})
  m.command(back_args()+['up','-d','--no-deps','researchhub-api'],120);wait_api()
  m.command(front_args()+['up','-d','--no-deps','researchhub'],120);healthy()
@@ -137,13 +137,13 @@ def run(action,sha):
  need(os.geteuid()==0,'HUB_PAIR_ROOT_REQUIRED');control,release=m.load_release(sha)
  need(control.get('paired') is True,'HUB_PAIR_CONTROL_REQUIRED')
  raw=(HERE/'previous-release.json').read_bytes();need(hashlib.sha256(raw).hexdigest()==control.get('previousManifestSha256'),'HUB_PAIR_BASELINE_DIGEST_MISMATCH');previous=identities(json.loads(raw))
- need(previous['coreDigest']==release['coreDigest'],'HUB_PAIR_CORE_OR_DATABASE_REAPPROVAL_REQUIRED')
  release['images']['frontend']['id']=m.canonical_image_id(HERE/'researchhub.tar.gz',release['frontendImage'],release['files']['researchhub.tar.gz']['sha256'])
  for kind in ('frontend','backend'):
   if release['images'][kind].get('configId'):need(release['images'][kind]['configId']==release['images'][kind]['id'],'HUB_PAIR_MANIFEST_CANONICAL_MISMATCH')
  helper=m.helper_module();saved=helper.read_config(m.OPS/'.env.prod');m.plan_configuration(saved,release,control['target'],{})
+ m.execution.core_transition(previous,release,saved,control.get('coreUpgrade'))
  m.execution.support(previous,saved)
- if saved.get('HUB_EXECUTION_PROFILE')==m.execution.PROFILE:
+ if saved.get('HUB_EXECUTION_PROFILE') in (m.execution.PROFILE,m.execution.KNOWLEDGE_PROFILE):
   BACK_TEMPLATE_CHECK=HERE/'previous-backend-compose.yml'
   previous_args=['docker','compose','--project-name','researchhub-backend','--env-file',str(m.OPS/'.env.prod'),'-f',str(BACK_TEMPLATE_CHECK),'config','--format','json']
   old_service=json.loads(m.command(previous_args))['services']['researchhub-api'];check_environments({},old_service.get('environment',{}),saved);m.execution.mounts(old_service,saved,BACK_TEMPLATE_CHECK.read_text())
