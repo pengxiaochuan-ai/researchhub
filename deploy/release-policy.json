@@ -19,7 +19,7 @@
   },
   "executionPolicy": {
     "profile": "bounded-hub-knowledge-v2",
-    "admissionSha256": "6467192bf782f24a16090d365817ff8a811d351c9ae97730465f57d1d4168492"
+    "admissionSha256": "4f0bce262076ad3a1c18bbeeb4e652528527098f77f8953cdfb0d214b28e0c28"
   },
   "coreUpgrade": {
     "sourceCoreDigest": "85a0f5c5e7b5155b1593e04baaebd534322d8cb2b41d2847e394e54a5ad75135",
