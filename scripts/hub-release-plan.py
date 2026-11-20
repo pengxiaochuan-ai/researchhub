@@ -52,6 +52,16 @@ def embedded_ddl(text,path):
   except SyntaxError:pass
  return bool(ddl.search(text))
 
+def private_core_path_only(before,after,path):
+ # Exact, mechanically verifiable dependency-path rewrite only. Any other byte
+ # change (including DDL literals) still requires the normal database approval.
+ if not path.endswith('.mjs'):return False
+ expected,count=re.subn(r"require\(root\+'app/server/src/([a-zA-Z0-9_/-]+)\.ts'\)",lambda match:"require(coreSourcePath('"+match.group(1)+"'))",before)
+ if not count:return False
+ prefix='../server/research-runtime/dependencies.mjs' if path.startswith('scripts/') else '../research-runtime/dependencies.mjs'
+ expected="import {coreSourcePath} from '"+prefix+"';\n"+expected
+ return after==expected
+
 def make_plan(previous,revision,approval=''):
  flags={kind:classify(changed(component_base(previous,kind),revision))[kind] for kind in ('frontend','backend')}
  last=previous.get('releaseGit') or previous['controlGit'];old_tree=tree(last);new_tree=tree(revision);known=set(previous.get('databaseSources',[]))
@@ -62,7 +72,7 @@ def make_plan(previous,revision,approval=''):
    for ref,entries in ((last,old_tree),(revision,new_tree)):
     if path in entries and embedded_ddl(git('show',ref+':'+path),path):known.add(path);break
  sources=sorted(known|{path for path in set(old_tree)|set(new_tree) if production_source(path) and database_path(path)})
- db_paths=sorted(path for path in paths if path in sources)
+ db_paths=sorted(path for path in paths if path in sources and not (not database_path(path) and path in old_tree and path in new_tree and private_core_path_only(git('show',last+':'+path),git('show',revision+':'+path),path)))
  digest=hashlib.sha256(json.dumps([[path,new_tree.get(path,'deleted')] for path in sources],separators=(',',':')).encode()).hexdigest()
  if db_paths:flags.update(frontend=True,backend=True)
  return {'schema':'researchhub-release-plan.v1','releaseGit':revision,'baselineTag':previous['tag'],'build':flags,'databaseChanged':bool(db_paths),'databasePaths':db_paths,'databaseSources':sources,'databaseDigest':digest,'databaseApproved':not db_paths or approval==digest,'releaseRequired':any(flags.values()),'databaseMigrationExecuted':False}
