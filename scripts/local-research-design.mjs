@@ -1,3 +1,4 @@
+import {coreSourcePath} from '../server/research-runtime/dependencies.mjs';
 // Own draft design only. Reuses the original authorization transaction, queue and artifact versions.
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {hashText} from './knowledge-ai-contract.mjs';
@@ -7,9 +8,9 @@ import {readDesignBlock,designTaskBinding,designInputBinding,assertDesignBinding
 
 export async function createLocalResearchDesign({root,ids,plans,prisma,storage,load,require,quota,own}){
  const {Controller,Get,Post,Req,Body,Param,HttpException}=require('@nestjs/common');
- const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(root+'app/server/src/common/decorators.ts');
- const {lockAuthorizationMutation}=require(root+'app/server/src/common/worker-publication.ts');
- const {canonicalArtifactJson}=require(root+'app/server/src/research-artifacts/research-artifact-integrity.ts');
+ const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(coreSourcePath('common/decorators'));
+ const {lockAuthorizationMutation}=require(coreSourcePath('common/worker-publication'));
+ const {canonicalArtifactJson}=require(coreSourcePath('research-artifacts/research-artifact-integrity'));
  const Artifacts=load('research-artifacts/research-artifacts.service','ResearchArtifactsService'),enqueue=new AsyncLocalStorage();let queue;
  const fail=(code,message,status=409)=>{throw new HttpException({code,message},status);};
  const current=(state)=>{if(state!=='current')fail('DESIGN_SOURCE_CHANGED','资料版本、审核或授权已变化，请核对后另建候选。');};

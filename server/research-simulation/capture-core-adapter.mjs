@@ -1,8 +1,8 @@
+import {coreSourcePath} from '../research-runtime/dependencies.mjs';
 import {Module,createRequire} from 'node:module';
-import {fileURLToPath} from 'node:url';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {createResearchFormAdapter} from '../research-capture/form-core-adapter.mjs';
-const source=name=>fileURLToPath(new URL('../../../app/server/src/study-operations/'+name+'.ts',import.meta.url));
+const source=name=>coreSourcePath('study-operations/'+name);
 const names=['formal-response-writer','formal-response-commands','study-outreach.service','formal-response-assignment','formal-outreach','study-forms.service'];
 const privateFiles=new Set(names.map(source)),lockPath=source('formal-response-lock'),policyPath=source('study-forms-policy'),writerPath=source('formal-response-writer'),outreachServicePath=source('study-outreach.service');
 /** Trusted composition only. No global source/cache mutation, new transactions or clock replacement. */

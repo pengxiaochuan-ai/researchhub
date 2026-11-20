@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 
 const valid = () => ({DATABASE_URL:'postgresql://runtime:opaque@localhost:5432/research',DIRECT_URL:'postgresql://owner:opaque@localhost:5432/research',JWT_SECRET:'a'.repeat(48),DEPLOYMENT_ID:'research-runtime',DEPLOYMENT_PRODUCT:'researchhub',ALLOWED_TENANT_IDS:'tenant-one,tenant-two',DEFAULT_TENANT_ID:'tenant-one',AUTH_COOKIE_NAME:'rh_research_session',HUB_APP_ORIGIN:'http://127.0.0.1:19611',HUB_AUTH_COOKIE_SECURE:'false'});
 const config = async env => (await import('./config.mjs')).readResearchRuntimeConfig(env);
+test('standard product execution uses business authorization without a named acceptance manifest',async()=>{
+ const value=await config({...valid(),HUB_RUNTIME_PROFILE:'full',HUB_DATABASE_NAME:'research',HUB_DATABASE_APP_ROLE:'runtime',HUB_DATABASE_OWNER_ROLE:'owner',HUB_DATABASE_MARKER_SHA256:'a'.repeat(64),HUB_EXECUTION_PROFILE:'standard',HUB_PAID_AI_ENABLED:'true',ENABLED_WORKER_KINDS:'knowledge-chat,knowledge-import'});
+ assert.equal(value.executionProfile,'standard');
+});
 
 test('reads existing deployment scope and explicit Hub origin without mutating input', async()=>{
  const env=valid(),before={...env},value=await config(env);

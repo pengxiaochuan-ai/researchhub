@@ -48,6 +48,38 @@ def backend_snapshot(items,release,target):
   'configSha256':hashlib.sha256(json.dumps(api['Config'],sort_keys=True,separators=(',',':')).encode()).hexdigest(),
   'startedAt':api['State']['StartedAt'],'restartCount':api.get('RestartCount',0),'envProdSha256':m.file_sha(m.OPS/'.env.prod')}
 
+EXECUTION_KEYS=('HUB_EXECUTION_PROFILE','HUB_PAID_AI_ENABLED','ENABLED_WORKER_KINDS','CONTROL_PLANE_ENABLED','OFFICIAL_JOB_KINDS','HUB_EMBEDDING_MODE','HUB_MAIL_MODE','HUB_CHAT_ADMISSION_SHA256','HUB_CHAT_ADMISSION_FILE','HUB_CHAT_LEDGER_DIR','HUB_CHAT_BUDGET_EXTENSION','KB_DOC_PARSER_URL','KB_EMBED_URL','HUB_KNOWLEDGE_PARSER_IMAGE','HUB_KNOWLEDGE_EMBED_IMAGE')
+DEPENDENCIES={'researchhub-doc-parser':'HUB_KNOWLEDGE_PARSER_IMAGE','researchhub-embed':'HUB_KNOWLEDGE_EMBED_IMAGE'}
+
+def execution_snapshot(saved):
+ return {'values':{key:saved[key] for key in EXECUTION_KEYS if key in saved},'absent':[key for key in EXECUTION_KEYS if key not in saved]}
+
+def can_keep_backend(same,release,saved):
+ return same and release.get('executionPolicy',{}).get('profile',saved.get('HUB_EXECUTION_PROFILE','disabled'))==saved.get('HUB_EXECUTION_PROFILE','disabled')
+
+def knowledge_snapshot(items):
+ rows=[]
+ for item in items:
+  labels=item['Config'].get('Labels') or {};service=labels.get('com.docker.compose.service')
+  if labels.get('com.docker.compose.project')=='researchhub-backend' and service in DEPENDENCIES:
+   rows.append({'id':item['Id'],'service':service,'imageId':item['Image'],'imageRef':item['Config']['Image'],'running':item['State'].get('Running',False)})
+ need(len({row['service'] for row in rows})==len(rows),'HUB_KNOWLEDGE_DUPLICATE_SERVICE')
+ return rows
+
+def restore_knowledge(previous):
+ old={row['service']:row for row in previous};current=knowledge_snapshot(m.containers())
+ for row in current:
+  if row['service'] not in old:m.command(['docker','rm','-f',row['id']])
+ for service,row in old.items():
+  image=json.loads(m.command(['docker','image','inspect',row['imageRef']]))[0]
+  need(image['Id']==row['imageId'],'HUB_KNOWLEDGE_ROLLBACK_IMAGE_CHANGED')
+  m.command(back_args()+['up','-d','--no-deps',service],120)
+  if not row['running']:m.command(back_args()+['stop',service],60)
+ restored=knowledge_snapshot(m.containers());need({row['service'] for row in restored}==set(old),'HUB_KNOWLEDGE_ROLLBACK_MISMATCH')
+ for row in restored:
+  expected=old.get(row['service']);need(expected is not None and all(row[k]==expected[k] for k in ('imageId','imageRef','running')),'HUB_KNOWLEDGE_ROLLBACK_MISMATCH')
+ if len(old)==2 and all(row['running'] for row in old.values()):wait_knowledge({DEPENDENCIES[service]:row['imageRef'] for service,row in old.items()})
+
 def backend_configuration_context(previous,release,saved,keep_backend):
  if not keep_backend:return release
  # This validates the running backend, not a proposed execution-policy change.
@@ -58,7 +90,7 @@ def backend_configuration_context(previous,release,saved,keep_backend):
  need(match is not None,'HUB_RUNTIME_IMAGE_REJECTED')
  context=dict(previous,tag=match.group(1))
  context['executionPolicy']={'profile':state['HUB_EXECUTION_PROFILE']}
- if state['HUB_EXECUTION_PROFILE']!='disabled':context['executionPolicy']['admissionSha256']=state['HUB_CHAT_ADMISSION_SHA256']
+ if state['HUB_EXECUTION_PROFILE'] not in ('disabled',m.execution.STANDARD_PROFILE):context['executionPolicy']['admissionSha256']=state['HUB_CHAT_ADMISSION_SHA256']
  return context
 
 FRONT_TEMPLATE=HERE/'frontend-compose.yml';BACK_TEMPLATE=HERE/'backend-compose.yml'
@@ -66,7 +98,7 @@ FRONT_TEMPLATE=HERE/'frontend-compose.yml';BACK_TEMPLATE=HERE/'backend-compose.y
 def owned_pair(items,release):
  # Recovery accepts our own exited components, never an unknown project/image.
  for kind,project,service in [('backend','researchhub-backend','researchhub-api'),('frontend','researchhub','researchhub')]:
-  rows=[x for x in items if (x['Config'].get('Labels') or {}).get('com.docker.compose.project')==project]
+  rows=[x for x in items if (x['Config'].get('Labels') or {}).get('com.docker.compose.project')==project and (x['Config'].get('Labels') or {}).get('com.docker.compose.service')==service]
   need(len(rows)==1 and (rows[0]['Config'].get('Labels') or {}).get('com.docker.compose.service')==service and rows[0]['Image']==release['images'][kind]['id'] and rows[0]['Config']['Image']==release[kind+'Image'],'HUB_PAIR_RECOVERY_OWNERSHIP_REJECTED')
   if kind=='frontend':m.assert_frontend_environment(rows[0])
 
@@ -115,15 +147,70 @@ def load_image(path,reference,expected,architecture='amd64'):
  image=json.loads(m.command(['docker','image','inspect',reference]))[0];need(image['Architecture']==architecture and image['Id']==expected,'HUB_PAIR_LOADED_IMAGE_MISMATCH')
  return image
 
-def apply_images(helper,release,template=None,backend_template=None,keep_backend=False):
+def prepare_knowledge_images(release):
+ """Build owned services from sealed API sources and resident immutable bases."""
+ need('standard' in release.get('supportedExecutionProfiles',[]),'HUB_KNOWLEDGE_IMAGE_CAPABILITY_REQUIRED')
+ container=m.command(['docker','create','--network','none','--entrypoint','true',release['backendImage']]).strip()
+ need(re.fullmatch('[a-f0-9]{64}',container),'HUB_KNOWLEDGE_ARTIFACT_CONTAINER_REJECTED')
+ try:
+  with tempfile.TemporaryDirectory(prefix='hub-knowledge-build-',dir=str(HERE)) as directory:
+   root=pathlib.Path(directory)
+   m.command(['docker','cp',container+':/opt/researchhub/hub/services/knowledge/.',str(root)])
+   manifest=json.loads((root/'dependencies.json').read_text())
+   need(manifest.get('schema')=='researchhub-knowledge-dependencies.v1' and set(manifest.get('bases',{}))=={'parser','embedding'},'HUB_KNOWLEDGE_DEPENDENCIES_REJECTED')
+   required=('parser.py','embedding.py','run.py','verify_model.py','model.json','parser.Dockerfile','embedding.Dockerfile','dependencies.json')
+   source=hashlib.sha256(''.join(name+':'+hashlib.sha256((root/name).read_bytes()).hexdigest()+'\n' for name in required).encode()).hexdigest()
+   updates={}
+   for kind,key in [('parser','HUB_KNOWLEDGE_PARSER_IMAGE'),('embedding','HUB_KNOWLEDGE_EMBED_IMAGE')]:
+    base=manifest['bases'][kind]['id'];need(re.fullmatch('sha256:[a-f0-9]{64}',base),'HUB_KNOWLEDGE_BASE_REJECTED')
+    image=json.loads(m.command(['docker','image','inspect',base]))[0]
+    need(image.get('Id')==base and image.get('Architecture')=='amd64','HUB_KNOWLEDGE_RESIDENT_BASE_MISMATCH')
+    alias='researchhub-knowledge-base:'+kind+'-'+base[7:23]
+    m.command(['docker','tag',base,alias])
+    reference='researchhub-knowledge-'+kind+':src-'+source
+    try:existing=json.loads(m.command(['docker','image','inspect',reference]))[0]
+    except m.Stop:existing=None
+    if existing is None:
+     m.command(['docker','build','--pull=false','--network=none','--build-arg','KNOWLEDGE_BASE_IMAGE='+alias,'--label','researchhub.knowledge.source='+source,'--label','researchhub.knowledge.base='+base,'-f',str(root/(kind+'.Dockerfile')),'-t',reference,str(root)],300,env=dict(os.environ,DOCKER_BUILDKIT='0'))
+     existing=json.loads(m.command(['docker','image','inspect',reference]))[0]
+    labels=existing.get('Config',{}).get('Labels') or {}
+    need(existing.get('Architecture')=='amd64' and labels.get('researchhub.knowledge.source')==source and labels.get('researchhub.knowledge.base')==base,'HUB_KNOWLEDGE_BUILT_IMAGE_MISMATCH')
+    updates[key]=reference
+   return updates
+ finally:m.command(['docker','rm',container])
+
+def wait_knowledge(refs):
+ expected={service:(refs[key],json.loads(m.command(['docker','image','inspect',refs[key]]))[0]['Id']) for service,key in DEPENDENCIES.items()}
+ for _ in range(30):
+  items=[x for x in m.containers() if (x['Config'].get('Labels') or {}).get('com.docker.compose.project')=='researchhub-backend' and (x['Config'].get('Labels') or {}).get('com.docker.compose.service') in ('researchhub-doc-parser','researchhub-embed')]
+  if len(items)==2 and all(x['State'].get('Running') and x['State'].get('Health',{}).get('Status')=='healthy' and (x['Config']['Image'],x['Image'])==expected[x['Config']['Labels']['com.docker.compose.service']] for x in items):return
+  time.sleep(2)
+ raise m.Stop('HUB_KNOWLEDGE_DEPENDENCY_NOT_READY')
+
+def apply_images(helper,release,template=None,backend_template=None,keep_backend=False,restore_execution=None,restore_dependencies=None):
  global FRONT_TEMPLATE,BACK_TEMPLATE
  FRONT_TEMPLATE=template or HERE/'frontend-compose.yml';BACK_TEMPLATE=backend_template or HERE/'backend-compose.yml'
+ standard=release.get('executionPolicy',{}).get('profile')==m.execution.STANDARD_PROFILE
+ dependencies=prepare_knowledge_images(release) if standard and not keep_backend and restore_execution is None else {}
  m.command(front_args()+['stop','researchhub'],60)
  if not keep_backend:
   m.command(back_args()+['stop','researchhub-api'],60)
-  helper.save_config(m.OPS/'.env.prod',{'HUB_BACKEND_IMAGE':release['backendImage'],'HUB_CORE_MANIFEST_SHA256':release['coreDigest']})
+  updates={'HUB_BACKEND_IMAGE':release['backendImage'],'HUB_CORE_MANIFEST_SHA256':release['coreDigest']}
+  if standard or restore_execution is not None:
+   saved=helper.read_config(m.OPS/'.env.prod')
+   desired=m.execution.proposed(release,saved) if restore_execution is None else restore_execution.get('values',restore_execution)
+   updates.update(m.execution.support(release,desired));updates.update(dependencies)
+   if restore_execution is not None:
+    updates.update(desired)
+    for key in restore_execution.get('absent',[]):updates.pop(key,None)
+   helper.save_config(m.OPS/'.env.prod',updates,remove_keys=restore_execution.get('absent',[]) if restore_execution else ());m.EXECUTION_SAVED=dict(saved,**updates)
+   for key in restore_execution.get('absent',[]) if restore_execution else ():m.EXECUTION_SAVED.pop(key,None)
+  else:helper.save_config(m.OPS/'.env.prod',updates)
  helper.save_config(m.OPS/'current.env',{'RESEARCHHUB_IMAGE':release['frontendImage'],'RESEARCHHUB_PORT':'8083'})
- if not keep_backend:m.command(back_args()+['up','-d','--no-deps','researchhub-api'],120);wait_api()
+ if not keep_backend:
+  if restore_dependencies is not None:restore_knowledge(restore_dependencies)
+  elif standard:m.command(back_args()+['up','-d','--no-deps','researchhub-doc-parser','researchhub-embed'],120);wait_knowledge(dependencies)
+  m.command(back_args()+['up','-d','--no-deps','researchhub-api'],120);wait_api()
  m.command(front_args()+['up','-d','--no-deps','researchhub'],120);healthy()
 
 
@@ -175,16 +262,18 @@ def run(action,sha):
  release['images']['frontend']['id']=m.canonical_image_id(HERE/'researchhub.tar.gz',release['frontendImage'],release['files']['researchhub.tar.gz']['sha256'])
  for kind in ('frontend','backend'):
   if release['images'][kind].get('configId'):need(release['images'][kind]['configId']==release['images'][kind]['id'],'HUB_PAIR_MANIFEST_CANONICAL_MISMATCH')
- helper=m.helper_module();saved=helper.read_config(m.OPS/'.env.prod');backend_plan=backend_configuration_context(previous,release,saved,keep_backend);m.plan_configuration(saved,backend_plan,control['target'],{})
+ helper=m.helper_module();saved=helper.read_config(m.OPS/'.env.prod');prior_receipt=HERE/'pair-baseline.json';prior_state=json.loads(prior_receipt.read_text()).get('previousExecution',execution_snapshot(saved)) if prior_receipt.is_file() else execution_snapshot(saved);prior_execution=prior_state.get('values',prior_state);keep_backend=can_keep_backend(keep_backend,release,prior_execution);previous['executionPolicy']={'profile':prior_execution.get('HUB_EXECUTION_PROFILE','disabled')};backend_plan=backend_configuration_context(previous,release,saved,keep_backend);m.plan_configuration(saved,backend_plan,control['target'],{})
  m.execution.core_transition(previous,release,saved,control.get('coreUpgrade'))
- m.execution.support(previous,saved)
- if saved.get('HUB_EXECUTION_PROFILE') in (m.execution.PROFILE,m.execution.KNOWLEDGE_PROFILE):
+ m.execution.support(previous,prior_execution)
+ if saved.get('HUB_EXECUTION_PROFILE')==prior_execution.get('HUB_EXECUTION_PROFILE') and saved.get('HUB_EXECUTION_PROFILE') in (m.execution.PROFILE,m.execution.KNOWLEDGE_PROFILE):
   BACK_TEMPLATE_CHECK=HERE/'previous-backend-compose.yml'
   previous_args=['docker','compose','--project-name','researchhub-backend','--env-file',str(m.OPS/'.env.prod'),'-f',str(BACK_TEMPLATE_CHECK),'config','--format','json']
   old_service=json.loads(m.command(previous_args))['services']['researchhub-api'];check_environments({},old_service.get('environment',{}),saved);m.execution.mounts(old_service,saved,BACK_TEMPLATE_CHECK.read_text())
+ standard_snapshot=release.get('executionPolicy',{}).get('profile')==m.execution.STANDARD_PROFILE or prior_execution.get('HUB_EXECUTION_PROFILE')==m.execution.STANDARD_PROFILE
+ def check_tasks(before,after):m.assert_task_snapshot(before,after,standard=standard_snapshot)
  items=m.containers();old_services=m.baseline(items);states=m.task_snapshot(helper,saved)
  need(not re.search(r'^\s*env_file:',(HERE/'frontend-compose.yml').read_text(),re.M),'HUB_PAIR_FRONTEND_ENV_FILE_REJECTED')
- need(m.command(front_args()+['config','--services']).split()==['researchhub'],'HUB_PAIR_FRONTEND_SCOPE_REJECTED');need(m.command(back_args()+['config','--services']).split()==['researchhub-api'],'HUB_PAIR_BACKEND_SCOPE_REJECTED')
+ need(m.command(front_args()+['config','--services']).split()==['researchhub'],'HUB_PAIR_FRONTEND_SCOPE_REJECTED');need(set(m.command(back_args()+['config','--services']).split())==({'researchhub-api','researchhub-doc-parser','researchhub-embed'} if 'standard' in release.get('supportedExecutionProfiles',[]) else {'researchhub-api'}),'HUB_PAIR_BACKEND_SCOPE_REJECTED')
  validate_templates(saved)
  target=control['target'];journal=HERE/'pair-receipt.json';baseline_file=HERE/'pair-baseline.json';previous_template=HERE/'previous-frontend-compose.yml';previous_backend=HERE/'previous-backend-compose.yml'
  preserved=backend_snapshot(items,release,target) if keep_backend else None
@@ -192,18 +281,19 @@ def run(action,sha):
   if keep_backend:need(backend_snapshot(m.containers(),release,target)==preserved,'HUB_PAIR_REUSED_BACKEND_CHANGED')
  def replace(replacement,template=None,backend_template=None):
   if keep_backend:apply_images(helper,replacement,template,backend_template,keep_backend=True)
+  elif release.get('executionPolicy',{}).get('profile')==m.execution.STANDARD_PROFILE and replacement['tag']==previous['tag']:apply_images(helper,replacement,template,backend_template,restore_execution=prior_state,restore_dependencies=json.loads(prior_receipt.read_text()).get('previousDependencies',[]))
   else:apply_images(helper,replacement,template,backend_template)
   check_backend()
  if keep_backend and baseline_file.exists():need(json.loads(baseline_file.read_text()).get('backendPreserved')==preserved,'HUB_PAIR_REUSED_BACKEND_BASELINE_CHANGED')
  if action=='pair-finalize':
-  pair_matches(items,release,target);healthy();need(baseline_file.is_file(),'HUB_PAIR_BASELINE_RECEIPT_REQUIRED');baseline=json.loads(baseline_file.read_text());need(m.baseline(m.containers())==baseline['services'],'HUB_OTHER_SERVICES_CHANGED');m.assert_task_snapshot(baseline['tasks'],m.task_snapshot(helper,saved));need(journal.is_file() and json.loads(journal.read_text()).get('status') in ('applied','promoted'),'HUB_PAIR_APPLIED_RECEIPT_REQUIRED');check_backend();publish_pointer(control,release,previous);save(journal,{'status':'promoted','tag':release['tag'],**({'backendPreserved':preserved} if keep_backend else {})});print(json.dumps({'status':'paired-release-complete','tag':release['tag'],'databaseMigrationExecuted':False}));return
+  pair_matches(items,release,target);healthy();need(baseline_file.is_file(),'HUB_PAIR_BASELINE_RECEIPT_REQUIRED');baseline=json.loads(baseline_file.read_text());need(m.baseline(m.containers())==baseline['services'],'HUB_OTHER_SERVICES_CHANGED');check_tasks(baseline['tasks'],m.task_snapshot(helper,saved));need(journal.is_file() and json.loads(journal.read_text()).get('status') in ('applied','promoted'),'HUB_PAIR_APPLIED_RECEIPT_REQUIRED');check_backend();publish_pointer(control,release,previous);save(journal,{'status':'promoted','tag':release['tag'],**({'backendPreserved':preserved} if keep_backend else {})});print(json.dumps({'status':'paired-release-complete','tag':release['tag'],'databaseMigrationExecuted':False}));return
  if action=='pair-verify':pair_matches(items,release,target);healthy();check_backend();print(json.dumps({'status':'paired-release-verified','tag':release['tag']}));return
  need(previous_backend.is_file() and m.file_sha(previous_backend)==control['previousBackendComposeSha256'],'HUB_PAIR_PREVIOUS_BACKEND_TEMPLATE_MISMATCH')
  if action=='pair-rollback':
   try:pair_matches(items,previous,target);healthy();print(json.dumps({'status':'paired-rollback-complete','tag':previous['tag'],'alreadyRestored':True}));return
   except m.Stop:pass
   owned_pair(items,release);need(previous_template.is_file() and m.file_sha(previous_template)==previous['files']['docker-compose.ecs.yml']['sha256'],'HUB_PAIR_ROLLBACK_TEMPLATE_REQUIRED');replace(previous,previous_template,previous_backend);(m.OPS/'docker-compose.ecs.yml').write_bytes(previous_template.read_bytes());pair_matches(m.containers(),previous,target)
-  need(m.baseline(m.containers())==old_services,'HUB_OTHER_SERVICES_CHANGED');m.assert_task_snapshot(states,m.task_snapshot(helper,saved));save(journal,{'status':'rolled-back','tag':previous['tag'],**({'backendPreserved':preserved} if keep_backend else {})});print(json.dumps({'status':'paired-rollback-complete','tag':previous['tag']}));return
+  need(m.baseline(m.containers())==old_services,'HUB_OTHER_SERVICES_CHANGED');check_tasks(states,m.task_snapshot(helper,saved));save(journal,{'status':'rolled-back','tag':previous['tag'],**({'backendPreserved':preserved} if keep_backend else {})});print(json.dumps({'status':'paired-rollback-complete','tag':previous['tag']}));return
  pair_matches(items,previous,target)
  preflight_pointer(control,release,previous)
  recorded=helper.read_config(m.OPS/'current.env');need(recorded.get('RESEARCHHUB_IMAGE')==previous['frontendImage'] and saved.get('HUB_BACKEND_IMAGE')==previous['backendImage'],'HUB_PAIR_CURRENT_REFERENCE_MISMATCH')
@@ -215,13 +305,13 @@ def run(action,sha):
   image=load_image(HERE/name,release[kind+'Image'],release['images'][kind]['id'])
   if kind=='frontend':m.assert_frontend_environment(image)
  if baseline_file.exists():
-  baseline=json.loads(baseline_file.read_text());need(baseline['services']==old_services,'HUB_OTHER_SERVICES_CHANGED');m.assert_task_snapshot(baseline['tasks'],states)
- else:save(baseline_file,{'services':old_services,'tasks':states,**({'backendPreserved':preserved} if keep_backend else {})})
+  baseline=json.loads(baseline_file.read_text());need(baseline['services']==old_services,'HUB_OTHER_SERVICES_CHANGED');check_tasks(baseline['tasks'],states)
+ else:save(baseline_file,{'services':old_services,'tasks':states,'previousExecution':execution_snapshot(saved),'previousDependencies':knowledge_snapshot(items),**({'backendPreserved':preserved} if keep_backend else {})})
  save(journal,{'status':'prepared','tag':release['tag'],'previousTag':previous['tag'],'manifestSha256':control['imageManifestSha256']})
  accepted=False
  try:
   replace(release);pair_matches(m.containers(),release,target)
-  need(m.baseline(m.containers())==old_services,'HUB_OTHER_SERVICES_CHANGED');m.assert_task_snapshot(states,m.task_snapshot(helper,saved))
+  need(m.baseline(m.containers())==old_services,'HUB_OTHER_SERVICES_CHANGED');check_tasks(states,m.task_snapshot(helper,saved))
   # Keep the established operator-facing Compose path aligned without secrets.
   with tempfile.NamedTemporaryFile(dir=str(m.OPS),prefix='.front-compose-',delete=False) as f:f.write((HERE/'frontend-compose.yml').read_bytes());temporary=pathlib.Path(f.name)
   os.replace(str(temporary),str(compose));save(journal,{'status':'applied','tag':release['tag'],'previousTag':previous['tag'],'oldServicesUnchanged':True,'historicalTasksUnchanged':True,'databaseMigrationExecuted':False,**({'backendPreserved':preserved} if keep_backend else {})})
@@ -229,7 +319,7 @@ def run(action,sha):
  finally:
   if not accepted:
    try:
-    replace(previous,previous_template,previous_backend);compose.write_bytes(previous_template.read_bytes());pair_matches(m.containers(),previous,target);need(m.baseline(m.containers())==old_services,'HUB_OTHER_SERVICES_CHANGED');m.assert_task_snapshot(states,m.task_snapshot(helper,saved));save(journal,{'status':'rolled-back','tag':previous['tag'],**({'backendPreserved':preserved} if keep_backend else {})});print(json.dumps({'status':'paired-rollback-complete','tag':previous['tag']}))
+    replace(previous,previous_template,previous_backend);compose.write_bytes(previous_template.read_bytes());pair_matches(m.containers(),previous,target);need(m.baseline(m.containers())==old_services,'HUB_OTHER_SERVICES_CHANGED');check_tasks(states,m.task_snapshot(helper,saved));save(journal,{'status':'rolled-back','tag':previous['tag'],**({'backendPreserved':preserved} if keep_backend else {})});print(json.dumps({'status':'paired-rollback-complete','tag':previous['tag']}))
    except BaseException:save(journal,{'status':'unknown','tag':release['tag'],'previousTag':previous['tag']});raise m.Stop('HUB_PAIR_ROLLBACK_STATE_UNKNOWN_RECHECK_REQUIRED')
 
 def main():

@@ -1,3 +1,4 @@
+import {coreSourcePath} from '../server/research-runtime/dependencies.mjs';
 import assert from'node:assert/strict';
 import{AsyncLocalStorage}from'node:async_hooks';
 import{edcDigest,exactEdcFields}from'./synthetic-edc-contract.mjs';
@@ -6,7 +7,7 @@ import{sourceState}from'./knowledge-ai-contract.mjs';
 import{CRF_AI_REQUEST_TEXT,crfMethodsTask,bindCrfMethodsTask,crfInterpretationBinding,crfInterpretationModel,selectCrfEvidence,parseCrfMethodInterpretation,crfPrompt,crfToolEvidence,crfProviderOptions}from'./synthetic-crf-methods-ai-contract.mjs';
 
 export function createCrfMethodsAi({root,ids,methods,edc,prisma,quota,own,ownInTx,require}){
- const{HttpException}=require('@nestjs/common'),{lockAuthorizationMutation}=require(root+'app/server/src/common/worker-publication.ts');
+ const{HttpException}=require('@nestjs/common'),{lockAuthorizationMutation}=require(coreSourcePath('common/worker-publication'));
  const enqueue=new AsyncLocalStorage();let queue;
  const fail=(code,message,status=409)=>{throw new HttpException({code,message},status);};
  const checked=fn=>{try{return fn();}catch(e){if(e instanceof assert.AssertionError)fail('CRF_AI_INPUT_INVALID','方法结果、选择或任务绑定无法核对',400);throw e;}};

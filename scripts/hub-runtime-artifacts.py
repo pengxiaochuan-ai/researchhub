@@ -5,6 +5,15 @@ import argparse,hashlib,json,os,pathlib,re,shutil,sys,tarfile,subprocess
 def need(ok,code):
  if not ok:raise ValueError(code)
 
+def supported_execution_profiles(context,core,previous=None):
+ if previous is not None:return previous.get('supportedExecutionProfiles',['disabled'])
+ profiles=['disabled','bounded-hub-chat-v1']
+ if core=='55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669':
+  profiles.append('bounded-hub-knowledge-v2')
+  required=('server/research-runtime/knowledge-module.mjs','server/research-runtime/business-execution.mjs','services/knowledge/dependencies.json','services/knowledge/parser.py','services/knowledge/embedding.py','services/knowledge/model.json','services/knowledge/run.py','services/knowledge/verify_model.py','services/knowledge/parser.Dockerfile','services/knowledge/embedding.Dockerfile')
+  if all((pathlib.Path(context)/'hub'/name).is_file() for name in required):profiles.append('standard')
+ return profiles
+
 def source_key(key):
  need(isinstance(key,str) and len(key)<=255 and '..' not in key and re.fullmatch(r'releases/researchhub/[A-Za-z0-9][A-Za-z0-9._-]{0,95}/[A-Za-z0-9._-]+\.tar\.gz',key),'HUB_SOURCE_KEY_REJECTED');return key
 
@@ -72,7 +81,7 @@ def collect(args):
  context=getattr(args,'backend_release',None) or json.loads((pathlib.Path(args.context)/'release.json').read_text())
  manifest={'schema':'researchhub-runtime-images.v1','tag':tag,'architecture':'amd64','frontendImage':frontend,'backendImage':backend,'coreDigest':context['coreDigest'],'hubDigest':context['hubDigest'],'contextSha256':args.source_sha,'controlGit':os.environ['GITHUB_SHA'],'tenantSlug':os.environ['HUB_TENANT_SLUG'],'files':files,'images':{'frontend':image_info(frontend),'backend':image_info(backend)},'workersEnabled':False,'modelsEnabled':False,'mailEnabled':False}
  # Capability is distinct from the operator's persistent activation state.
- manifest['supportedExecutionProfiles']=['disabled','bounded-hub-chat-v1']+(['bounded-hub-knowledge-v2'] if context['coreDigest']=='55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669' else [])
+ manifest['supportedExecutionProfiles']=supported_execution_profiles(args.context,context['coreDigest'],getattr(args,'backend_release',None))
  feature=pathlib.Path(args.context)/'hub/server/research-runtime/chat-k01-budget.mjs'
  manifest['supportedBudgetExtensions']=getattr(args,'backend_release',None).get('supportedBudgetExtensions',[]) if getattr(args,'backend_release',None) else (['citation-review-v1'] if feature.is_file() and all(marker in feature.read_text() for marker in ("export const CITATION_REVIEW_EXTENSION='citation-review-v1'",'export function extendCitationReviewBudget(')) else [])
  (target/'runtime-release.json').write_text(json.dumps(manifest,indent=2)+'\n');print(json.dumps({'tag':tag,'coreDigest':manifest['coreDigest'],'frontendImage':frontend,'backendImage':backend,'manifestSha256':file_info(target/'runtime-release.json')['sha256']}))

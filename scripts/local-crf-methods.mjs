@@ -1,3 +1,4 @@
+import {coreSourcePath} from '../server/research-runtime/dependencies.mjs';
 // Approved local CRF method runs only. No old factory/grant initializer or Study-wide scan.
 import assert from'node:assert/strict';
 import{randomUUID,createHash}from'node:crypto';
@@ -7,7 +8,7 @@ import{edcDigest,exactEdcFields,syntheticDataBasis,syntheticQualityCurrent}from'
 
 export function createLocalCrfMethods({root,ids,edc,load,require,scope,nativeFetch=globalThis.fetch}){
  const{Controller,Get,Post,Req,Body,Param,Query,HttpException}=require('@nestjs/common');
- const{RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(root+'app/server/src/common/decorators.ts');
+ const{RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(coreSourcePath('common/decorators'));
  const instanceId=randomUUID(),agentId=ids.tenant+'-kb-research',skillId=ids.tenant+'-synthetic-dq',active=new Set(),interruptedIds=new Set();let ai,reports;
  const Worker=load('research-methods/research-method-worker.client','ResearchMethodWorkerClient');
  const traceDir=root+'.tmp/researchhub-knowledge-local/crf-method-traces/';mkdirSync(traceDir,{recursive:true,mode:0o700});

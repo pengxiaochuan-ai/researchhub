@@ -1,6 +1,16 @@
 import importlib.util,pathlib,tempfile,tarfile,io,unittest
 s=importlib.util.spec_from_file_location('m',str(pathlib.Path(__file__).with_name('hub-runtime-artifacts.py')));m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 class Artifacts(unittest.TestCase):
+ def test_normal_capability_requires_actual_module_and_owned_dependency_sources(self):
+  core='55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669'
+  with tempfile.TemporaryDirectory() as directory:
+   self.assertNotIn('standard',m.supported_execution_profiles(directory,core))
+   previous={'supportedExecutionProfiles':['disabled','bounded-hub-knowledge-v2']}
+   self.assertEqual(m.supported_execution_profiles(directory,core,previous),previous['supportedExecutionProfiles'])
+   required=('server/research-runtime/knowledge-module.mjs','server/research-runtime/business-execution.mjs','services/knowledge/dependencies.json','services/knowledge/parser.py','services/knowledge/embedding.py','services/knowledge/model.json','services/knowledge/run.py','services/knowledge/verify_model.py','services/knowledge/parser.Dockerfile','services/knowledge/embedding.Dockerfile')
+   for name in required:
+    p=pathlib.Path(directory)/'hub'/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text('synthetic-content')
+   self.assertIn('standard',m.supported_execution_profiles(directory,core))
  def test_source_is_pinned_to_the_hub_release_prefix(self):
   for key in ['other/file.tgz','releases/aisci/a/source.tar.gz','releases/researchhub/../secret','/releases/researchhub/a/source.tar.gz']:
    with self.assertRaises(ValueError):m.source_key(key)

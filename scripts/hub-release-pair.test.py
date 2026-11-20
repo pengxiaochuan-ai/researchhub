@@ -2,6 +2,53 @@ import importlib.util,pathlib,json,hashlib,unittest,tempfile,contextlib
 from unittest.mock import patch,MagicMock
 s=importlib.util.spec_from_file_location('pair',str(pathlib.Path(__file__).with_name('hub-release-pair.py')));p=importlib.util.module_from_spec(s);s.loader.exec_module(p);m=p.m
 class PairTests(unittest.TestCase):
+ def test_execution_snapshot_keeps_dependency_refs_and_absence_without_secrets(self):
+  saved={'HUB_EXECUTION_PROFILE':'disabled','HUB_KNOWLEDGE_PARSER_IMAGE':'parser:old','DATABASE_URL':'secret'}
+  state=p.execution_snapshot(saved)
+  self.assertEqual(state['values']['HUB_KNOWLEDGE_PARSER_IMAGE'],'parser:old')
+  self.assertIn('KB_EMBED_URL',state['absent']);self.assertNotIn('DATABASE_URL',state['values'])
+ def test_same_backend_does_not_skip_execution_policy_change(self):
+  saved={'HUB_EXECUTION_PROFILE':m.execution.KNOWLEDGE_PROFILE}
+  self.assertFalse(p.can_keep_backend(True,{'executionPolicy':{'profile':'standard'}},saved))
+  self.assertTrue(p.can_keep_backend(True,{'executionPolicy':{'profile':'standard'}},{'HUB_EXECUTION_PROFILE':'standard'}))
+ def test_dependency_health_rejects_healthy_wrong_image(self):
+  refs={'HUB_KNOWLEDGE_PARSER_IMAGE':'parser:new','HUB_KNOWLEDGE_EMBED_IMAGE':'embed:new'}
+  rows=[{'Id':kind,'Image':'sha256:wrong','Config':{'Image':ref,'Labels':{'com.docker.compose.project':'researchhub-backend','com.docker.compose.service':service}},'State':{'Running':True,'Health':{'Status':'healthy'}}} for kind,ref,service in [('parser','parser:new','researchhub-doc-parser'),('embedding','embed:new','researchhub-embed')]]
+  with patch.object(m,'containers',return_value=rows),patch.object(m,'command',return_value='[{"Id":"sha256:expected"}]'),patch.object(p.time,'sleep'):
+   with self.assertRaises(m.Stop):p.wait_knowledge(refs)
+ def test_dependency_rollback_removes_only_new_owned_containers(self):
+  row={'Id':'new-parser','Image':'sha256:new','Config':{'Image':'parser:new','Labels':{'com.docker.compose.project':'researchhub-backend','com.docker.compose.service':'researchhub-doc-parser'}},'State':{'Running':True}}
+  with patch.object(m,'containers',side_effect=[[row],[]]),patch.object(m,'command') as command:
+   p.restore_knowledge([])
+   self.assertEqual(command.call_args.args[0],['docker','rm','-f','new-parser'])
+ def test_failed_first_standard_restores_prior_config_presence_and_no_new_dependencies(self):
+  previous={'HUB_EXECUTION_PROFILE':'disabled'};snapshot=p.execution_snapshot(previous)
+  helper=MagicMock();helper.read_config.return_value={'HUB_EXECUTION_PROFILE':'standard','KB_EMBED_URL':'http://new:8199'}
+  release={'backendImage':'backend:old','frontendImage':'front:old','coreDigest':m.execution.KNOWLEDGE_CORE,'executionPolicy':{'profile':'disabled'}}
+  with patch.object(p,'prepare_knowledge_images',side_effect=AssertionError('rollback cannot build')),patch.object(p,'restore_knowledge') as restore,patch.object(m,'command'),patch.object(p,'wait_api'),patch.object(p,'healthy'):
+   p.apply_images(helper,release,restore_execution=snapshot,restore_dependencies=[])
+   restore.assert_called_once_with([])
+   call=next(c for c in helper.save_config.call_args_list if c.args[0].name=='.env.prod')
+   self.assertIn('KB_EMBED_URL',call.kwargs['remove_keys']);self.assertNotIn('KB_EMBED_URL',call.args[1])
+ def test_standard_rollback_restores_exact_previous_dependency_images(self):
+  saved={'HUB_EXECUTION_PROFILE':'standard','HUB_EMBEDDING_MODE':'service','KB_DOC_PARSER_URL':'http://parser:8200','KB_EMBED_URL':'http://embed:8199','HUB_KNOWLEDGE_PARSER_IMAGE':'parser:old','HUB_KNOWLEDGE_EMBED_IMAGE':'embed:old'}
+  helper=MagicMock();helper.read_config.return_value=dict(saved,HUB_KNOWLEDGE_PARSER_IMAGE='parser:new')
+  release={'backendImage':'backend:old','frontendImage':'front:old','coreDigest':m.execution.KNOWLEDGE_CORE,'executionPolicy':{'profile':'standard'},'supportedExecutionProfiles':['standard']}
+  with patch.object(p,'prepare_knowledge_images',side_effect=AssertionError('rollback cannot build')),patch.object(p,'restore_knowledge') as restore,patch.object(m,'command'),patch.object(p,'wait_api'),patch.object(p,'healthy'):
+   p.apply_images(helper,release,restore_execution=p.execution_snapshot(saved),restore_dependencies=[{'service':'researchhub-doc-parser'}])
+   call=next(c for c in helper.save_config.call_args_list if c.args[0].name=='.env.prod')
+   self.assertEqual(call.args[1]['HUB_KNOWLEDGE_PARSER_IMAGE'],'parser:old');restore.assert_called_once()
+ def test_standard_apply_activates_owned_dependencies_without_rewriting_archive(self):
+  saved={'HUB_EXECUTION_PROFILE':m.execution.KNOWLEDGE_PROFILE,'HUB_CHAT_ADMISSION_SHA256':'a'*64,'HUB_CHAT_ADMISSION_FILE':'/run/researchhub-admission/admission.json','HUB_CHAT_LEDGER_DIR':'/run/researchhub-ai-ledger'}
+  release={'backendImage':'backend:new','frontendImage':'front:new','coreDigest':m.execution.KNOWLEDGE_CORE,'executionPolicy':{'profile':'standard'},'supportedExecutionProfiles':['standard']}
+  helper=MagicMock();helper.read_config.return_value=saved
+  refs={'HUB_KNOWLEDGE_PARSER_IMAGE':'owned-parser','HUB_KNOWLEDGE_EMBED_IMAGE':'owned-embed'}
+  with patch.object(p,'prepare_knowledge_images',return_value=refs),patch.object(p,'wait_knowledge'),patch.object(m,'command') as command,patch.object(p,'wait_api'),patch.object(p,'healthy'):
+   p.apply_images(helper,release)
+   updates=[call.args[1] for call in helper.save_config.call_args_list if call.args[0].name=='.env.prod'][-1]
+   self.assertEqual(updates['HUB_EXECUTION_PROFILE'],'standard');self.assertEqual(updates['HUB_EMBEDDING_MODE'],'service')
+   self.assertEqual(updates['HUB_KNOWLEDGE_PARSER_IMAGE'],'owned-parser');self.assertNotIn('HUB_CHAT_LEDGER_DIR',updates);self.assertNotIn('DATABASE_URL',updates)
+   self.assertTrue(any('researchhub-doc-parser' in call.args[0] for call in command.call_args_list))
  def test_apply_and_restore_bind_each_image_to_its_own_core_without_resetting_execution(self):
   helper=MagicMock()
   with patch.object(m,'command'),patch.object(p,'wait_api'),patch.object(p,'healthy'):

@@ -1,3 +1,4 @@
+import {createHubStudyScopeGuard} from '../auth/study-scope-guard.mjs';
 import{closeRuntimeResources}from'./shutdown.mjs';
 import{runtimeBodyKind}from'./body-policy.mjs';
 import{assertDeploymentRequest}from'../http/deployment-request.mjs';
@@ -81,7 +82,7 @@ export async function bootResearchRuntime(env=process.env,options={}){
   installHttpPolicy(app,config,require,foundation);
   app.useGlobalPipes(new ValidationPipe({whitelist:true,transform:true,forbidNonWhitelisted:true}));
   const reflector=new Reflector();
-  app.useGlobalGuards(hubAuth.guard(reflector),admission.guard(reflector),new(load('common/guards/roles.guard','RolesGuard'))(reflector,prisma),new(load('common/guards/study-group.guard','StudyGroupGuard'))(reflector,prisma));
+  app.useGlobalGuards(hubAuth.guard(reflector),admission.guard(reflector),new(load('common/guards/roles.guard','RolesGuard'))(reflector,prisma),createHubStudyScopeGuard({native:new(load('common/guards/study-group.guard','StudyGroupGuard'))(reflector,prisma),reflector,prisma,load,allowedTenantIds:config.scope.allowedTenantIds}));
   if(foundation){foundation.bindWorkers(app);load('common/worker-consumer-assembly','assertWorkerConsumerAssembly')(app);}
   if(options.listen===false)await app.init();else await app.listen(config.port,config.host);
   return {app,address:app.getHttpServer().address(),close};

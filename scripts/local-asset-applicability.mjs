@@ -1,3 +1,4 @@
+import {coreSourcePath} from '../server/research-runtime/dependencies.mjs';
 // Local WP09 purpose only. Original services, locks and permissions stay authoritative.
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -12,8 +13,8 @@ import {assertDesignSources} from './research-design-contract.mjs';
 
 export function createAssetApplicability({root,ids,plans,assets,prisma,storage,load,require,scope,quota,access}){
  const {HttpException,Controller,Get,Post,Req,Param,Body,Query}=require('@nestjs/common'),Sessions=load('sessions/sessions.service','SessionsService'),Artifacts=load('research-artifacts/research-artifacts.service','ResearchArtifactsService');
- const {canonicalArtifactJson}=require(root+'app/server/src/research-artifacts/research-artifact-integrity.ts');
- const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(root+'app/server/src/common/decorators.ts');
+ const {canonicalArtifactJson}=require(coreSourcePath('research-artifacts/research-artifact-integrity'));
+ const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(coreSourcePath('common/decorators'));
  const fail=(code,message,status=409)=>{throw new HttpException({code,message},status);};
  const invalid=()=>fail('APPLICABILITY_INPUT_INVALID','核对字段、版本或标识无效',400);
  const bound=tx=>({forTenant:()=>tx,elevated:tx,app:tx,withTenantTransaction:(_t,_g,_p,cb)=>cb(tx)});

@@ -1,6 +1,14 @@
 import importlib.util,pathlib,unittest
 s=importlib.util.spec_from_file_location('plan',str(pathlib.Path(__file__).with_name('hub-release-plan.py')));m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 class Changes(unittest.TestCase):
+ def test_plain_http_guard_and_knowledge_dependencies_are_backend_without_ddl(self):
+  self.assertEqual(m.classify(['server/auth/study-scope-guard.mjs','services/knowledge/parser.py']),{'frontend':False,'backend':True,'database':False})
+ def test_exact_dependency_path_replacement_does_not_request_database_migration(self):
+  old="const D=require(root+'app/server/src/common/decorators.ts');\nconst ddl=`CREATE TABLE actual(id text)`;\n"
+  new="import {coreSourcePath} from '../server/research-runtime/dependencies.mjs';\n"+old.replace("require(root+'app/server/src/common/decorators.ts')","require(coreSourcePath('common/decorators'))")
+  self.assertTrue(m.private_core_path_only(old,new,'scripts/local-crf-methods.mjs'))
+  self.assertFalse(m.private_core_path_only(old,new.replace('id text','id integer'),'scripts/local-crf-methods.mjs'))
+  self.assertFalse(m.private_core_path_only(old,new+'GRANT all ON actual TO public','scripts/local-crf-methods.mjs'))
  def test_page_only(self):self.assertEqual(m.classify(['pages/h01/src/main.jsx','pages/shared/Button.css','Dockerfile']),{'frontend':True,'backend':False,'database':False})
  def test_exact_release_controls_do_not_rebuild_api(self):
   self.assertEqual(m.classify(sorted(m.RELEASE_CONTROL_PATHS)),{'frontend':False,'backend':False,'database':False})

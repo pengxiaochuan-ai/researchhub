@@ -1,3 +1,4 @@
+import {coreSourcePath} from '../server/research-runtime/dependencies.mjs';
 // Independent new drafts only; original method and collection rows remain read-only.
 import assert from'node:assert/strict';
 import{edcDigest,exactEdcFields}from'./synthetic-edc-contract.mjs';
@@ -5,7 +6,7 @@ import{hashText}from'./knowledge-ai-contract.mjs';
 import{reportDocumentSources}from'./synthetic-report-contract.mjs';
 import{CRF_REPORT_MARKER,buildCrfMethodReportFacts,crfReportCurrent,crfReportNotesOperation,renderCrfMethodReport}from'./synthetic-crf-methods-report-contract.mjs';
 export function createCrfMethodReports({root,ids,methods,edc,ai,storage,load,require}){
- const{HttpException}=require('@nestjs/common'),Artifacts=load('research-artifacts/research-artifacts.service','ResearchArtifactsService'),{canonicalArtifactJson}=require(root+'app/server/src/research-artifacts/research-artifact-integrity.ts'),prefix='rh-crf-method-report-20261025:';
+ const{HttpException}=require('@nestjs/common'),Artifacts=load('research-artifacts/research-artifacts.service','ResearchArtifactsService'),{canonicalArtifactJson}=require(coreSourcePath('research-artifacts/research-artifact-integrity')),prefix='rh-crf-method-report-20261025:';
  const fail=(code,message,status=409)=>{throw new HttpException({code,message},status);},seal=b=>({...b,seal:edcDigest(b)}),service=tx=>new Artifacts({forTenant:()=>tx,elevated:tx,app:tx,withTenantTransaction:(_t,_g,_p,cb)=>cb(tx)},storage,null,null);
  const checked=fn=>{try{return fn();}catch(e){if(e instanceof assert.AssertionError){const code=e.message.startsWith('CRF_REPORT_')?e.message:'CRF_REPORT_INPUT_INVALID';fail(code,'报告输入、版本、说明或来源无法核对',code==='CRF_REPORT_NO_CHANGE'?422:code==='CRF_REPORT_CAPACITY'?429:code==='CRF_REPORT_INPUT_INVALID'?400:409);}throw e;}};
  const where=(u,raw,id)=>({...id?{id}:{},tenantId:u.tenantId,studyGroupId:u.studyGroupId,researchProjectId:u.researchProjectId,ownerAccountId:u.accountId,createdBy:u.accountId,typeKey:'data_quality_report',status:'draft',deletedAt:null,idempotencyKey:{startsWith:prefix+u.accountId+':'+raw.id+':'}});

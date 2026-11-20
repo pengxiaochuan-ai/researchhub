@@ -1,3 +1,4 @@
+import {coreSourcePath} from '../server/research-runtime/dependencies.mjs';
 // Approved local synthetic snapshot adapter, not a Study-wide data/release API.
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -8,13 +9,13 @@ import {createLocalSyntheticReports} from './local-synthetic-reports.mjs';
 
 export async function createLocalSyntheticQuality({root,dir,ids,prisma,plans,storage,load,require}){
  const {Controller,Get,Post,Req,Body,Param,Query,HttpException}=require('@nestjs/common');
- const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(root+'app/server/src/common/decorators.ts');
- const {lockAuthorizationMutation}=require(root+'app/server/src/common/worker-publication.ts');
- const {assembleQualityManifest}=require(root+'app/server/src/research-methods/research-method-quality-manifest.ts');
- const {executeDeterministicDataQuality}=require(root+'app/server/src/research-methods/data-quality-execution.ts');
- const {buildDataQualityGateEvaluation}=require(root+'app/server/src/research-methods/data-quality-release.service.ts');
- const {canonicalManifestHash}=require(root+'app/server/src/research-methods/data-quality-release-policy.ts');
- const {transitionResearchMethodStatus}=require(root+'app/server/src/research-methods/research-method-run-policy.ts');
+ const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(coreSourcePath('common/decorators'));
+ const {lockAuthorizationMutation}=require(coreSourcePath('common/worker-publication'));
+ const {assembleQualityManifest}=require(coreSourcePath('research-methods/research-method-quality-manifest'));
+ const {executeDeterministicDataQuality}=require(coreSourcePath('research-methods/data-quality-execution'));
+ const {buildDataQualityGateEvaluation}=require(coreSourcePath('research-methods/data-quality-release.service'));
+ const {canonicalManifestHash}=require(coreSourcePath('research-methods/data-quality-release-policy'));
+ const {transitionResearchMethodStatus}=require(coreSourcePath('research-methods/research-method-run-policy'));
  const Worker=load('research-methods/research-method-worker.client','ResearchMethodWorkerClient'),agentId=ids.tenant+'-kb-research',skillId=ids.tenant+'-synthetic-dq',prefix='rh-sim-20261022:',active=new Set(),interrupted=new Set();
  const traceDir=dir+'synthetic-traces/';mkdirSync(traceDir,{recursive:true,mode:0o700});
  const error=(code,message,status=409)=>new HttpException({code,message},status),invalid=()=>{throw error('SYNTHETIC_INPUT_INVALID','合成试运行字段、数值、日期或修改原因不符合要求',400);};

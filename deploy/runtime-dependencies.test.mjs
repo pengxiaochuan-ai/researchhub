@@ -11,3 +11,6 @@ test('private core cannot be a relative path or absent in required mode',()=>{
  assert.throws(()=>coreLocation({coreRoot:'../app',digest:'a'.repeat(64)}),/CORE_PRIVATE_ROOT_REQUIRED/);
  assert.throws(()=>coreLocation({requirePrivate:true}),/CORE_PRIVATE_ROOT_REQUIRED/);
 });
+test('normal local dependency resolution stays inside Hub instead of reading the old project',()=>{
+ const root=coreLocation();assert(root.endsWith('/researchhub/.private/core/'));assert(!root.includes('/app/server/'));
+});

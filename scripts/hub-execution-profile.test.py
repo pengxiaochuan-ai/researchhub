@@ -2,6 +2,36 @@ import importlib.util,pathlib,unittest,json,tempfile,hashlib,types
 from unittest.mock import patch
 s=importlib.util.spec_from_file_location('execution',str(pathlib.Path(__file__).with_name('hub-execution-profile.py')));m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 class ProfileTests(unittest.TestCase):
+ def test_standard_transition_preserves_secrets_and_archived_state(self):
+  before=dict(self.enabled(),CUSTOM_SETTING='unchanged',DATABASE_URL='opaque',HUB_CHAT_BUDGET_EXTENSION='citation-review-v1')
+  after=m.proposed({'executionPolicy':{'profile':'standard'}},before)
+  self.assertEqual(before['HUB_EXECUTION_PROFILE'],m.PROFILE)
+  for key,value in before.items():
+   if key!='HUB_EXECUTION_PROFILE':self.assertEqual(after[key],value)
+  self.assertEqual(after['KB_DOC_PARSER_URL'],'http://researchhub-doc-parser:8200')
+  self.assertEqual(m.values(after)['HUB_PAID_AI_ENABLED'],'true')
+ def test_standard_uses_business_authorization_without_acceptance_files(self):
+  saved={'HUB_EXECUTION_PROFILE':'standard','HUB_EMBEDDING_MODE':'service','KB_DOC_PARSER_URL':'http://researchhub-doc-parser:8200','KB_EMBED_URL':'http://researchhub-embed:8199'}
+  state=m.values(saved)
+  self.assertEqual(state['HUB_PAID_AI_ENABLED'],'true')
+  self.assertEqual(state['ENABLED_WORKER_KINDS'],'knowledge-chat,knowledge-import')
+  self.assertEqual(state['HUB_EMBEDDING_MODE'],'service')
+  self.assertNotIn('HUB_CHAT_ADMISSION_FILE',state)
+  self.assertEqual(m.admitted_jobs(saved),{})
+  self.assertEqual(m.support({'coreDigest':m.KNOWLEDGE_CORE,'supportedExecutionProfiles':['standard']},saved),state)
+  with self.assertRaises(ValueError):m.support({'coreDigest':m.KNOWLEDGE_CORE,'supportedExecutionProfiles':[m.KNOWLEDGE_PROFILE]},saved)
+ def test_standard_preserves_archived_budget_settings_without_reactivating_them(self):
+  saved=dict(self.enabled(),HUB_EXECUTION_PROFILE='standard',HUB_CHAT_BUDGET_EXTENSION='citation-review-v1',HUB_EMBEDDING_MODE='service',KB_DOC_PARSER_URL='http://researchhub-doc-parser:8200',KB_EMBED_URL='http://researchhub-embed:8199')
+  before=dict(saved);state=m.values(saved)
+  self.assertEqual(saved,before)
+  self.assertNotIn('HUB_CHAT_BUDGET_EXTENSION',state)
+  self.assertNotIn('HUB_CHAT_LEDGER_DIR',state)
+  with self.assertRaises(ValueError):m.values(dict(saved,HUB_PAID_AI_ENABLED='false'))
+ def test_standard_requires_actual_parser_and_vector_configuration(self):
+  saved={'HUB_EXECUTION_PROFILE':'standard','HUB_EMBEDDING_MODE':'service','KB_DOC_PARSER_URL':'http://researchhub-doc-parser:8200','KB_EMBED_URL':'http://researchhub-embed:8199'}
+  for key in ['KB_DOC_PARSER_URL','KB_EMBED_URL']:
+   with self.assertRaises(ValueError):m.values(dict(saved,**{key:''}))
+  with self.assertRaises(ValueError):m.values(dict(saved,HUB_EMBEDDING_MODE='keyword-only'))
  def enabled(self):return {'HUB_EXECUTION_PROFILE':m.PROFILE,'HUB_CHAT_ADMISSION_SHA256':'a'*64,'HUB_CHAT_ADMISSION_FILE':'/run/researchhub-admission/admission.json','HUB_CHAT_LEDGER_DIR':'/run/researchhub-ai-ledger'}
  def test_old_disabled_configuration_remains_disabled(self):self.assertEqual(m.values({})['HUB_PAID_AI_ENABLED'],'false')
  def test_enabled_is_exact_and_rejects_other_workers(self):

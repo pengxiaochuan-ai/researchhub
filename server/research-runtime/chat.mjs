@@ -1,3 +1,5 @@
+import {authorizeKnowledgeEnqueue} from './knowledge-queue.mjs';
+import {createRuntimeChatStatus} from './chat-status.mjs';
 import {withDeploymentTransaction} from '../database/transactions.mjs';
 import {assertApprovedInTransaction} from '../admission/service.mjs';
 import {assertHubAgent} from '../hub-sources/visible-repository.mjs';
@@ -9,6 +11,7 @@ import {agentQuestionError} from '../../src/agent-question.js';
 import {createHubTurnRuntime,fenceHubQueue,bindHubTransactionScope} from './hub-turn.mjs';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {createRuntimeKnowledge}from'./knowledge-runtime.mjs';
+import {assembleKnowledgeModule}from'./knowledge-module.mjs';
 import {knowledgeContextId}from'./knowledge-evidence.mjs';
 
 export const HUB_CHAT=Symbol.for('researchhub.runtime.chat');
@@ -28,35 +31,7 @@ export function createRuntimeChat({config,env,transactionEnv,prisma,load,service
   if(user.studyGroupId&&user.researchProjectId)await tx.$executeRawUnsafe("SELECT set_config('app.study_group_id',$1,true),set_config('app.research_project_id',$2,true)",user.studyGroupId,user.researchProjectId);
   return fn(tx);
  },{readOnly:true});
- async function status(user){
-  let businessQuota={businessReady:false,requiredTokens:'0',effectiveRemainingTokens:'0'};
-  const reasons=await read(user,async tx=>{
-   const account=await tx.account.findFirst({where:{id:user.accountId,tenantId,status:'active',authVersion:user.authVersion,tenant:{status:'active'}},select:{id:true}});
-   if(!account)invalid();await assertApprovedInTransaction(tx,user,'lingshu-xinyu');
-   const agent=await tx.agent.findFirst({where:{id:agentId,tenantId,status:'active',type:'research'},select:{id:true}});
-   const result=[];
-   if(!agent)result.push('HUB_CHAT_AGENT_NOT_CONFIGURED');
-   else{
-    const access=await tx.agentAccess.findFirst({where:{tenantId,agentId,accountId:user.accountId,scopeKey:user.accountId,enabled:true},select:{id:true}});
-    if(!access)result.push('HUB_CHAT_ACCESS_NOT_GRANTED');
-    const model=await tx.agentConfig.findFirst({where:{tenantId,agentId,active:true,archivedAt:null},orderBy:{version:'desc'},select:{model:true,tools:true}});
-    let valid=false,configuredRoute;
-    if(model&&Array.isArray(model.tools)&&model.tools.includes('knowledge.search'))try{
-     const route=await load('common/model-route-resolver','resolveConfiguredDeepSeekModelRoute')(tx,tenantId,model.model);
-     configuredRoute=route;
-     valid=route.provider==='deepseek'&&typeof route.model==='string'&&route.model.trim().length>0&&Boolean(env[route.secretRef||'DEEPSEEK_API_KEY']);
-    }catch{valid=false;}
-    if(!valid)result.push('HUB_CHAT_MODEL_NOT_CONFIGURED');
-    if(valid){const required=load('billing/token-quota-policy','estimateRunTokenBudget')(Number(configuredRoute.maxTokens??4096)),quota=await services.billing.quotaSnapshotFrom(tx,tenantId,user.accountId);businessQuota={businessReady:quota.effectiveRemaining>=required,requiredTokens:required.toString(),effectiveRemainingTokens:quota.effectiveRemaining.toString()};}
-   }
-   if(env.HUB_PAID_AI_ENABLED!=='true')result.push('HUB_CHAT_MODEL_DISABLED');
-   if(!config.scope.enabledWorkerKinds.includes('knowledge-chat'))result.push('HUB_CHAT_CONSUMER_DISABLED');
-   return result;
-  });
-  if(chatBudget&&!chatBudget.admission.accounts.includes(user.accountId)&&!reasons.includes('HUB_CHAT_ACCESS_NOT_GRANTED'))reasons.push('HUB_CHAT_ACCESS_NOT_GRANTED');
-  const campaign=chatBudget?.quota(user.accountId)??{blocked:false},canStart=businessQuota.businessReady&&!campaign.blocked&&reasons.length===0;
-  return{enabled:reasons.length===0,readOnly:true,code:reasons.length?'HUB_CHAT_NOT_CONFIGURED':null,reasons,quota:{...businessQuota,...campaign,canStart,blocked:!canStart,message:!businessQuota.businessReady?'当前AI可用额度不足，请联系管理员。':campaign.message??'当前可用额度充足。'},materialUpload:{enabled:false,analysisReady:false}};
- }
+ const status=createRuntimeChatStatus({read,load,services,tenantId,agentId,env,config,chatBudget,invalid});
  async function requireReady(user){if(!(await status(user)).enabled)unavailable();}
  async function authorize(user,tx){
   // The native publication already holds official/tenant authorization locks;
@@ -65,14 +40,14 @@ export function createRuntimeChat({config,env,transactionEnv,prisma,load,service
   await requireReady(user);return read(user,db=>assertHubAgent(scope(db,user)));
  }
  const current=(user,sources,tx)=>tx?assertHubPublicationSources({...scope(tx,user),sources}):read(user,db=>assertCurrentAiSources({...scope(db,user),sources}));
- const knowledge=createRuntimeKnowledge({prisma,load,services,agentId,chatBudget,config});
+ const knowledge=config.executionProfile==='standard'?assembleKnowledgeModule({prisma,load,services,agentId,config,env,read}):createRuntimeKnowledge({prisma,load,services,agentId,chatBudget,config});
  const lock=load('common/worker-publication','lockAuthorizationMutation');
  const queueFence=fenceHubQueue(prisma,async(tx,user,sessionId)=>{
   await lock(tx,user.tenantId,{includeOfficial:true});
   const session=await tx.session.findFirst({where:{id:sessionId,tenantId:user.tenantId,studyGroupId:user.studyGroupId,researchProjectId:user.researchProjectId,accountId:user.accountId,agentId,channel:'knowledge',deletedAt:null}});
   if(!session)invalid();
   if(isHubConversation(session.contextKey))await authorize(user,tx);
-  else if(knowledge)await knowledge.evidence.authorize(user,knowledgeContextId(session.contextKey),tx);
+  else if(knowledge)await authorizeKnowledgeEnqueue({tx,user,sessionId,agentId,load,knowledge});
   else invalid();
  },async(tx,user,result)=>{
   if(!result?.id)invalid();
@@ -101,6 +76,7 @@ export function createRuntimeChat({config,env,transactionEnv,prisma,load,service
  const entryStatus=async(user,query={})=>{
   if(Object.keys(query).some(k=>k!=='kbId'))invalid();const result=await status(user);
   if(!query.kbId)return result;
+  if(knowledge?.status)return{...await knowledge.status(user,query.kbId),researchPlans:{enabled:false}};
   if(!knowledge)return{...result,enabled:false,code:'KNOWLEDGE_AI_NOT_CONFIGURED',message:'当前知识库尚未开放资料问答。',quota:{blocked:true}};
   const available=await knowledgeEntryAvailability(()=>knowledge.evidence.authorize(user,query.kbId));
   if(!available.enabled)return{...result,...available,quota:{...result.quota,canStart:false,blocked:true,message:available.message},researchPlans:{enabled:false}};

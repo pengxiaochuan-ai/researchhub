@@ -1,3 +1,4 @@
+import {coreSourcePath} from '../server/research-runtime/dependencies.mjs';
 import {pipeline} from 'node:stream/promises';
 import {createSessionMedia} from '../server/ai-agent/session-media.mjs';
 import {createLocalMaterialAccess} from './local-session-materials.mjs';
@@ -17,7 +18,7 @@ export async function createLocalSessionMedia({env,ids,load,require,storage,dire
   inspectMedia:createMediaInspection({parse:load('ingest/media-inspection','parseFfprobeOutput'),classify:load('ingest/media-inspection','classifyFfprobeFailure')}),
   parseRange:load('sessions/sessions.service','parseAttachmentByteRange')});
  const {Controller,Get,Post,Req,Res,Param,Body,Query,HttpException}=require('@nestjs/common');
- const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(new URL('../../app/server/src/common/decorators.ts',import.meta.url).pathname);
+ const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(coreSourcePath('common/decorators'));
  const only=(v,fields)=>{if(!v||Array.isArray(v)||Object.keys(v).some(k=>!fields.includes(k)))throw new HttpException({code:'MEDIA_INPUT',message:'视频请求无效，请核对后重试。'},400);};
  const messages={MEDIA_INPUT:'请选择MP4、MOV或WebM视频，单份不超过500MiB。',MEDIA_FILE_INVALID:'视频格式检查未通过，请核对文件后重新上传。',MEDIA_NOT_FOUND:'视频不存在或当前无权查看。',MEDIA_VERSION:'视频状态已变化，请重新核对。',MEDIA_REQUEST_CONFLICT:'本次操作对应的视频已不同，请核对原上传。',MEDIA_SOURCE_CHANGED:'视频原件或状态无法核对，当前未继续读取。',MEDIA_NOT_ARCHIVED:'视频尚未归档完成，请核对上传状态。',MEDIA_CHECK_RUNNING:'视频正在检查，请稍后核对。',MEDIA_ALREADY_ARCHIVED:'视频已归档，请核对已有结果。',HUB_MATERIAL_ACCESS_REJECTED:'当前会话或视频权限已变化，请核对后再操作。'};
  messages.MEDIA_UPLOAD_EXPIRED='视频上传已过期，未完成归档。请重新选择文件上传。';

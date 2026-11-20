@@ -1,0 +1,13 @@
+{
+  "purpose": "Hub owned knowledge dependencies",
+  "sources": {
+    "parser.py": {
+      "sha256": "e83576b3b04a3af55560dba9d9fe943f1d3a2bd5affee4963518dc3a86539d77",
+      "copiedFrom": "../app/kb-doc-parser/serve.py"
+    },
+    "embedding.py": {
+      "sha256": "8db4a8089c6b8a1c25e96e2cf1315201f0ec3109f0601d6d0b8c4cff8e0f6a06",
+      "copiedFrom": "../app/skills/kb_embed/serve.py"
+    }
+  }
+}

@@ -13,7 +13,7 @@ tar -xzf "${task_dir}/cli.tgz" -C "${task_dir}" aliyun
 node --input-type=module > "${task_dir}/payload" <<'JS'
 import{readFileSync}from'node:fs';import{catalogFingerprintSql}from'./deploy/migration-plan.mjs';
 const m=JSON.parse(readFileSync('deploy/migrations/researchhub-production-equivalence-v1/manifest.json'));
-const profiles={catalog:'scripts/production-readonly-probe.py','rds-demo':'scripts/rds-demo-readonly-probe.py'};
+const profiles={catalog:'scripts/production-readonly-probe.py','rds-demo':'scripts/rds-demo-readonly-probe.py','hub-runtime':'scripts/hub-runtime-readonly-probe.py'};
 const selected=profiles[process.env.HUB_READONLY_PROFILE||'catalog'];if(!selected)throw Error('READONLY_PROFILE_REJECTED');
 const source=readFileSync(selected,'utf8').replace('__FINGERPRINT_SQL_BASE64__',Buffer.from(catalogFingerprintSql(m.managedSchemas)).toString('base64'));
 const command='python3 - <<\'HUB_READONLY_PY\'\n'+source+'\nHUB_READONLY_PY\n';

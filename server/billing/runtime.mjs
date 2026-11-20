@@ -45,10 +45,10 @@ export function createAccountedRuntime({native,service,context,transaction,autho
   };
   const value=target[key];return typeof value==='function'?value.bind(target):value;
  }});
- async function dispatch(send){
+ async function dispatch(send,model='deepseek-v4-pro'){
   const turn=context.getStore(),s=turn?.tokenExecution;
   if(!s||!turn.execution?.claim)throw Error('HUB_TOKEN_CONTEXT_REQUIRED');
-  const binding={...s.binding,attemptId:randomUUID(),model:'deepseek-v4-pro'};
+  const binding={...s.binding,attemptId:randomUUID(),model};
   let callbackCompleted=false;
   try{await transaction(async tx=>{
     await authorize(tx,turn);

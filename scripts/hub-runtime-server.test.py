@@ -1,6 +1,28 @@
 import importlib.util,pathlib,unittest,json
 s=importlib.util.spec_from_file_location('m',str(pathlib.Path(__file__).with_name('hub-runtime-server.py')));m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 class ServerPlan(unittest.TestCase):
+ def test_standard_snapshot_semantics_survive_rollback_to_bounded(self):
+  from unittest.mock import patch
+  row=lambda status,h:{'hash':h,'status':status,'binding':{'tenantId':m.TENANT,'sessionId':'normal'}}
+  before={'knowledge_chat_job':{'job':row('queued','old')}};after={'knowledge_chat_job':{'job':row('completed','new')}}
+  with patch.object(m,'EXECUTION_SAVED',{'HUB_EXECUTION_PROFILE':m.execution.KNOWLEDGE_PROFILE}),patch.object(m.execution,'admitted_jobs',side_effect=AssertionError('must not use campaign')):
+   m.assert_task_snapshot(before,after,standard=True)
+ def test_standard_allows_normal_work_but_preserves_contract_and_terminal_history(self):
+  from unittest.mock import patch
+  def row(status,session='ordinary',hash='before'):
+   return {'hash':hash,'binding':{'tenantId':m.TENANT,'accountId':'new-authorized-member','sessionId':session,'requestKey':'request','createdAtMillis':1,'status':status}}
+  before={'knowledge_chat_job':{'fixture':row('queued','rh-aiq-contract'),'terminal':row('completed'),'normal':row('queued')},'processing_task':{}}
+  after={'knowledge_chat_job':dict(before['knowledge_chat_job'],normal=row('completed',hash='after'),new=row('queued',session='new-session')),'processing_task':{}}
+  with patch.object(m,'EXECUTION_SAVED',{'HUB_EXECUTION_PROFILE':'standard'}):
+   m.assert_task_snapshot(before,after)
+   for key in ['fixture','terminal']:
+    wrong={'knowledge_chat_job':dict(after['knowledge_chat_job'],**{key:row('failed',hash='changed')}),'processing_task':{}}
+    with self.assertRaises(m.Stop):m.assert_task_snapshot(before,wrong)
+   for patch_row in [None,row('completed',session='other-parent',hash='after')]:
+    wrong={'knowledge_chat_job':dict(after['knowledge_chat_job']),'processing_task':{}}
+    if patch_row is None:del wrong['knowledge_chat_job']['normal']
+    else:wrong['knowledge_chat_job']['normal']=patch_row
+    with self.assertRaises(m.Stop):m.assert_task_snapshot(before,wrong)
  def test_v2_only_new_k01_task_rows_can_change_and_original_failed_rows_stay_frozen(self):
   from unittest.mock import patch
   binding={'tenantId':'t','accountId':'a','sessionId':'s','requestKey':'r','createdAtMillis':1}

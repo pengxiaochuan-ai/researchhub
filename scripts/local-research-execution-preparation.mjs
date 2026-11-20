@@ -1,3 +1,4 @@
+import {coreSourcePath} from '../server/research-runtime/dependencies.mjs';
 // Own synthetic configuration drafts. Original authorization/ArtifactVersion remains the write boundary.
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {normalizePreparationConfig,preparationBasis,preparationCurrent,readPreparationBlock,nextPreparation,preparationRules,preparationPreview,preparationDigest,assertPreparationRequestSize,preparationTaskBinding,preparationInputBinding,assertPreparationBinding,assertPreparationIdle,preparationPaths,preparationModelConfig,preparationModelRules,parsePreparationCheck,preparationResultCurrent,applyPreparationDecisions,rebindPreparation} from './research-execution-preparation-contract.mjs';
@@ -6,11 +7,11 @@ import {hashText,sourceState} from './knowledge-ai-contract.mjs';
 import {PLAN_MARKER,editablePlanContent} from './research-plan-contract.mjs';
 export async function createLocalResearchExecutionPreparation({root,ids,prisma,plans,storage,load,require,quota,own}){
  const {Controller,Get,Post,Req,Body,Param,HttpException,HttpCode}=require('@nestjs/common');
- const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(root+'app/server/src/common/decorators.ts');
- const {canonicalArtifactJson}=require(root+'app/server/src/research-artifacts/research-artifact-integrity.ts');
+ const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(coreSourcePath('common/decorators'));
+ const {canonicalArtifactJson}=require(coreSourcePath('research-artifacts/research-artifact-integrity'));
  const normalizeFormSchema=load('study-operations/study-forms-policy','normalizeFormSchema'),normalizeAndValidateAnswers=load('study-operations/study-forms-policy','normalizeAndValidateAnswers');
  const Artifacts=load('research-artifacts/research-artifacts.service','ResearchArtifactsService');
- const {lockAuthorizationMutation}=require(root+'app/server/src/common/worker-publication.ts'),enqueue=new AsyncLocalStorage();let queue;
+ const {lockAuthorizationMutation}=require(coreSourcePath('common/worker-publication')),enqueue=new AsyncLocalStorage();let queue;
  const requestText='请依据当前合成资料和本人执行准备草稿，解释配置检查发现并提出待研究者确认的问题，标注本轮来源。';
  const fail=(code,message,status=409)=>{throw new HttpException({code,message},status);};
  function input(body,keys,kind,bytes){if(!body||Array.isArray(body)||typeof body!=='object'||Object.keys(body).length!==keys.length||!keys.every(k=>Object.hasOwn(body,k)))fail('PREPARATION_INPUT_INVALID','请求字段不符合当前配置契约。',400);try{assertPreparationRequestSize(kind,body,bytes);}catch{fail('PREPARATION_REQUEST_TOO_LARGE','请求超过执行准备字节上限。',400);}if(!Number.isSafeInteger(body.baseVersionNo)||body.baseVersionNo<1)fail('PREPARATION_INPUT_INVALID','草稿版本无效。',400);if(keys.includes('requestKey')&&(typeof body.requestKey!=='string'||!/^[A-Za-z0-9_-]{8,128}$/.test(body.requestKey)))fail('PREPARATION_INPUT_INVALID','请求标识无效。',400);}

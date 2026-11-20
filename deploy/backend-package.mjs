@@ -1,4 +1,4 @@
-import {readFileSync,writeFileSync,mkdirSync,readdirSync,existsSync,rmSync} from 'node:fs';
+import {readFileSync,writeFileSync,mkdirSync,readdirSync,existsSync,rmSync,lstatSync} from 'node:fs';
 import {resolve,join,dirname} from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {execFileSync} from 'node:child_process';
@@ -40,6 +40,13 @@ function copyCode(source,target){
  }
 }
 
+const knowledgeFiles=['parser.py','embedding.py','run.py','verify_model.py','parser.Dockerfile','embedding.Dockerfile','dependencies.json','model.json','source-manifest.json'];
+function copyKnowledgeServices(source,target){
+ const root=join(source,'services/knowledge');if(!existsSync(root))return;
+ if(lstatSync(root).isSymbolicLink()||lstatSync(join(source,'services')).isSymbolicLink())throw Error('BACKEND_CODE_SYMLINK_REJECTED');
+ for(const name of knowledgeFiles){const path=join(root,name);if(!lstatSync(path).isFile()||lstatSync(path).isSymbolicLink())throw Error('BACKEND_KNOWLEDGE_SOURCE_REQUIRED');save(join(target,'services/knowledge',name),readFileSync(path));}
+}
+
 // Refresh only Hub code. The sealed, already-adapted private core is immutable.
 export function refreshBackendHub({context,source=repository,sourceGit}){
  context=resolve(context);source=resolve(source);
@@ -50,7 +57,8 @@ export function refreshBackendHub({context,source=repository,sourceGit}){
  const resources=['pages/h01/src/china.json','docs/reference/china-administrative-divisions/mca-2024.html','docs/reference/city-map-2026-11-10/manifest.json',...['Q74881-2548806680','Q956-2565775546','Q8686-2554225580'].map(id=>'docs/reference/city-map-2026-11-10/wikidata/'+id+'.json')];
  const bytes=resources.map(path=>({path,bytes:readFileSync(join(existsSync(join(source,path))?source:join(context,'hub'),path))}));
  rmSync(join(context,'hub'),{recursive:true});
- for(const dir of ['server','src','scripts','integrations','skill','deploy'])copyCode(join(source,dir),join(context,'hub',dir));
+ for(const dir of ['server','src','scripts','integrations','skill','deploy'])if(existsSync(join(source,dir)))copyCode(join(source,dir),join(context,'hub',dir));
+ copyKnowledgeServices(source,join(context,'hub'));
  for(const file of bytes)save(join(context,'hub',file.path),file.bytes);
  save(join(context,'hub/package.json'),JSON.stringify({name:'researchhub-backend',private:true,type:'module',version:'1.0.0'})+'\n');
  save(join(context,'Dockerfile'),readFileSync(join(source,'deploy/backend.Dockerfile')));
@@ -74,8 +82,9 @@ export function prepareBackendPackage({core,expectedDigest,output}){
  const npmrc=join(output,'build.npmrc');save(npmrc,'registry=https://registry.npmjs.org\nignore-scripts=true\naudit=false\nfund=false\nfetch-timeout=15000\nfetch-retries=1\n');
  execFileSync('npm',['install','--package-lock-only','--ignore-scripts','--no-audit','--no-fund','--userconfig='+npmrc],{cwd:join(output,'core'),stdio:['ignore','pipe','pipe'],timeout:180000});
  const result=sealCoreBundle(join(output,'core'));
- for(const dir of ['server','src','scripts','integrations','skill','deploy'])copyCode(join(repository,dir),join(output,'hub',dir));
+ for(const dir of ['server','src','scripts','integrations','skill','deploy'])if(existsSync(join(repository,dir)))copyCode(join(repository,dir),join(output,'hub',dir));
  const resources=['pages/h01/src/china.json','docs/reference/china-administrative-divisions/mca-2024.html','docs/reference/city-map-2026-11-10/manifest.json',...['Q74881-2548806680','Q956-2565775546','Q8686-2554225580'].map(id=>'docs/reference/city-map-2026-11-10/wikidata/'+id+'.json')];
+ copyKnowledgeServices(repository,join(output,'hub'));
  for(const path of resources)save(join(output,'hub',path),readFileSync(join(repository,path)));
  save(join(output,'hub/package.json'),JSON.stringify({name:'researchhub-backend',private:true,type:'module',version:'1.0.0'})+'\n');
  save(join(output,'Dockerfile'),readFileSync(new URL('./backend.Dockerfile',import.meta.url)));

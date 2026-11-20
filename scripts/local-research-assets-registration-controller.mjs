@@ -1,3 +1,4 @@
+import {coreSourcePath} from '../server/research-runtime/dependencies.mjs';
 import{assertDeploymentRequest}from'../server/http/deployment-request.mjs';
 import {catalogError} from './research-assets-catalog-contract.mjs';
 import {REPORT_CONTEXT} from './research-assets-report-context.mjs';
@@ -13,7 +14,7 @@ export function assertAssetHttpContext(req,{origin,mutation=false}={}){
 export function createAssetRegistrationController({root,require,registration,reportContext,reportSource,materialBasis,governance,usage,lifecycle,uploads,afterCommit,afterGovernanceCommit,afterUsageCommit,afterLifecycleCommit,scopedUser,load,runtimePolicy,origin='http://127.0.0.1:19501'}){
  const {Controller,Get,Post,Req,Param,Body,UploadedFile,UseInterceptors,HttpException,SetMetadata}=require('@nestjs/common');
  const {FileInterceptor}=require('@nestjs/platform-express');
- const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=(load?Object.fromEntries(['RequireStudyGroup','RequireResearchProject','RequireStudyGroupMenu','RequireStudyGroupPermission'].map(name=>[name,load('common/decorators',name)])):require(root+'app/server/src/common/decorators.ts'));
+ const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=(load?Object.fromEntries(['RequireStudyGroup','RequireResearchProject','RequireStudyGroupMenu','RequireStudyGroupPermission'].map(name=>[name,load('common/decorators',name)])):require(coreSourcePath('common/decorators')));
  const assertContext=(req,options={})=>{if(runtimePolicy)assertDeploymentRequest(req,runtimePolicy,{json:false});return assertAssetHttpContext(req,options);};
  class AssetRegistrationController{
   async run(req,mutation,execute){

@@ -1,3 +1,4 @@
+import {coreSourcePath} from '../server/research-runtime/dependencies.mjs';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
@@ -18,8 +19,8 @@ export async function saveDefaultSkillEvidence(directory,summary){
 
 export async function createLocalDefaultSkills({env,ids,scope}){
  const require=createRequire(import.meta.url);
- const {lockAuthorizationMutation}=require('../../app/server/dist/common/worker-publication.js');
- const {resolveEffectiveSkillCatalog}=require('../../app/server/dist/agents/effective-skills-policy.js');
+ const {lockAuthorizationMutation}=require(coreSourcePath('common/worker-publication'));
+ const {resolveEffectiveSkillCatalog}=require(coreSourcePath('agents/effective-skills-policy'));
  return createHubDefaultSkills({tenantId:ids.tenant,agentId:ids.tenant+'-kb-research',scope,
   catalog:await loadSkillCatalog(new URL('../',import.meta.url)),lockAuthorization:lockAuthorizationMutation,resolveEffectiveSkillCatalog,
   transaction:fn=>withFixtureTransaction(env,'app',async tx=>{

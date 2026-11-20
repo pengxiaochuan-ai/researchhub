@@ -1,3 +1,4 @@
+import {coreSourcePath} from '../server/research-runtime/dependencies.mjs';
 import {readFile,unlink} from 'node:fs/promises';import {randomUUID} from 'node:crypto';
 import {createLocalMaterialAccess} from './local-session-materials.mjs';import {createNativeResearchDataPreflight} from './ai-research-data-preflight.mjs';
 import {createResearchDataStaging} from '../server/ai-agent/research-data-staging.mjs';
@@ -10,7 +11,7 @@ export function createLocalResearchData({env,ids,load,require,storage}){
  if(typeof imports.assertSourceCancellationInTx!=='function')throw Error('DATA_IMPORT_CANCEL_GUARD_REQUIRED');
  const service=createResearchDataStaging({access:createLocalMaterialAccess({env,ids,load}),engine:createNativeResearchDataPreflight({load,require}),storage,assertCancellation:async(...args)=>{await imports.assertSourceCancellationInTx(...args);await profiles.assertSourceCancellationInTx(...args);}});
  const {Controller,Get,Post,Req,Param,Query,Body,UploadedFile,UseInterceptors,HttpException}=require('@nestjs/common'),{FileInterceptor}=require('@nestjs/platform-express'),{diskStorage}=require('multer');
- const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(new URL('../../app/server/src/common/decorators.ts',import.meta.url).pathname);
+ const {RequireStudyGroup,RequireResearchProject,RequireStudyGroupMenu,RequireStudyGroupPermission}=require(coreSourcePath('common/decorators'));
  const only=(v,keys)=>{if(!v||Array.isArray(v)||Object.keys(v).some(k=>!keys.includes(k)))throw new HttpException({code:'DATA_INPUT_INVALID',message:'请求内容无效，请核对后重试。'},400);};
  async function invoke(req,fn){
   req.res?.setHeader('Cache-Control','no-store');const h=req.headers??{};

@@ -1,7 +1,10 @@
+import {createKnowledgeServices} from '../server/research-runtime/knowledge-services.mjs';
+import {runtimeDependencies,coreSourcePath} from '../server/research-runtime/dependencies.mjs';
+import {createHubStudyScopeGuard} from '../server/auth/study-scope-guard.mjs';
 import{createLocalMediaContent}from'./local-session-media-content.mjs';
 import{createLocalSessionMediaIngests}from'./local-session-media-ingests.mjs';
 import{assembleMediaRegistration}from'./ai-session-media-ingest-assembly.mjs';
-// Local-only assembly of the already verified Auth/Knowledge services. No AppModule or recovery scan.
+// Existing Hub development entry: shared K01 services and native queue lifecycle; other business adapters retained.
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { randomBytes, randomUUID, createHmac } from 'node:crypto';
@@ -114,9 +117,10 @@ if(action==='status'){
     return new Proxy(target.message,{get(model,method){if(method!=='create')return model[method];return async args=>{if(args.data.role==='assistant')await ai?.beforeAssistant(tx);return model.create(args);};}});
   }});
   const direct=cb=>withFixtureTransaction(env,'direct',tx=>cb(fence(tx)));
-  const require=createRequire(root+'app/server/package.json');
-  require('ts-node').register({project:root+'app/server/tsconfig.json',transpileOnly:true});
-  const load=(path,name)=>require(root+'app/server/src/'+path+'.ts')[name];
+  process.env.HUB_CORE_DIR=root+'researchhub/.private/core';
+  process.env.HUB_CORE_MANIFEST_SHA256=JSON.parse(readFileSync(root+'researchhub/deploy/release-policy.json','utf8')).coreDigest;
+  process.env.HUB_REQUIRE_PRIVATE_CORE='true';process.env.DEPLOYMENT_PRODUCT='researchhub';
+  const {require,load}=runtimeDependencies({coreRoot:process.env.HUB_CORE_DIR,digest:process.env.HUB_CORE_MANIFEST_SHA256,requirePrivate:true});
   const {Module,ValidationPipe,Logger}=require('@nestjs/common');Logger.overrideLogger(false);
   const {NestFactory,Reflector}=require('@nestjs/core'),{JwtService}=require('@nestjs/jwt');
   const ids=state?.ids??Object.fromEntries(['tenant','owner','admin','uninvited','viewer','group','project','role','viewRole'].map(name=>[name,key+'-'+name]));
@@ -125,7 +129,7 @@ if(action==='status'){
   const current={key,ids,password,secret,pid:process.pid,started:observe(process.pid).started,ready:false};
   save(stateFile,current);
   const children=[];let app,vite,mediaContent,stopping=false;
-  async function shutdown(code=0){if(stopping)return;stopping=true;current.ready=false;save(stateFile,current);ai?.stop();mediaContent?.close?.();await vite?.close();await app?.close();await accounts?.close();await stopOwnedChildren(children);process.exit(code);}
+  async function shutdown(code=0){if(stopping)return;stopping=true;current.ready=false;save(stateFile,current);ai?.stop();mediaContent?.close?.();await vite?.close();app?.getHttpServer()?.closeIdleConnections?.();await app?.close();await accounts?.close();await stopOwnedChildren(children);process.exit(code);}
   process.once('SIGTERM',()=>void shutdown());process.once('SIGINT',()=>void shutdown());
   try{
     const existing=await direct(tx=>tx.tenant.findUnique({where:{id:ids.tenant}}));
@@ -148,11 +152,11 @@ if(action==='status'){
     await assertHubSchema();
     writeFileSync(dir+'体验账号.txt',`仅限本机合成体验，禁止上传真实数据。\n登录：http://127.0.0.1:19501/pages/p003/\n登录成功后打开：http://127.0.0.1:19501/pages/k01/\n科研人员：owner@example.org\n管理员：admin@example.org\n只读：viewer@example.org\n未邀请：uninvited@example.org\n以上账号共用本次随机密码：${password}\n上传样例：${root}researchhub/docs/testing/synthetic-knowledge-sample.html\n流程：新建库→上传→抽取预览→审核通过→检索“针灸辅助抑郁障碍”→编辑保存→历史版本→删除/回收站恢复。编辑后须重新审核才可检索。\n科研 Agent 问答已接通：仅 owner/admin，当前库已审核合成资料；可展开来源版本、摘录和 SHA256。本轮新增费用合计上限5元，不充值/续额；报价24小时后需重新核对，不清空账本。账号注册/找回/邀请不在本环境开放。\n`,{mode:0o600});
     const systemState={};
-    for(const[kind,port,python]of [['parser',19503,'app/.tmp/kb-doc-parser-runtime/venv/bin/python'],['embed',19504,'app/skills/.venv/bin/python']]){
-      const child=spawn(root+python,[root+'docs/test/evidence/2026-10-22-researchhub-synthetic-ai-trial/isolated-service.py',kind,String(port)],{cwd:root,env:{PATH:process.env.PATH,LANG:'en_US.UTF-8',PYTHONDONTWRITEBYTECODE:'1'},stdio:'inherit'});children.push(child);
+    for(const[kind,port,python]of [['parser',19503,'researchhub/.private/python/parser/bin/python'],['embedding',19504,'researchhub/.private/python/embedding/bin/python']]){
+      const child=spawn(root+python,[root+'researchhub/services/knowledge/run.py',kind,'--port',String(port)],{cwd:root,env:{PATH:process.env.PATH,LANG:'en_US.UTF-8',PYTHONDONTWRITEBYTECODE:'1',KB_DOC_PARSER_OCR_ENGINE:'tesseract',KB_EMBED_MODEL_PATH:root+'researchhub/.private/models/bge-small-zh-v1.5'},stdio:'inherit'});children.push(child);
       child.once('exit',()=>{if(!stopping){console.error('LOCAL_DEPENDENCY_EXIT:'+kind);void shutdown(1);}});
       let ready=false;for(let n=0;n<160;n++){try{if((await fetch('http://127.0.0.1:'+port+'/health',{signal:AbortSignal.timeout(500)})).ok){ready=true;break;}}catch{}await new Promise(ok=>setTimeout(ok,200));}assert.ok(ready,kind+' not ready');
-      systemState[kind==='embed'?'vector':'parser']={configured:true,check:{status:'passed',checkedAt:new Date().toISOString()}};
+      systemState[kind==='embedding'?'vector':'parser']={configured:true,check:{status:'passed',checkedAt:new Date().toISOString()}};
     }
     const qualityFile=dir+'quality-worker.json';
     if(!existsSync(qualityFile))save(qualityFile,{token:randomBytes(32).toString('hex')});
@@ -169,20 +173,29 @@ if(action==='status'){
     const allowed=new Set(['tenant','tenantTheme','account','auditLog','studyGroupMembership','researchProjectMembership','researchProject','researchArtifact','studyTask','permissionRole','knowledgeBase','knowledgeDoc','knowledgeDocVersion','knowledgeChunk','knowledgeAssignment','knowledgeSourceFile','knowledgeImportTask','knowledgeDeduplicationPlan','accountCapability','agent','agentConfig','agentAccess','session','message','knowledgeChatJob','skillAssignment','modelProfile','tokenQuotaGrant','tokenQuotaReservation','usageRecord','artifact','terminologyProjectReference','terminologyEntry']);
     const db=transaction=>new Proxy({}, {get(_,name){if(name==='then')return undefined;if(name==='$transaction')return cb=>transaction(cb);if(['$queryRaw','$queryRawUnsafe','$executeRaw','$executeRawUnsafe'].includes(name))return(...args)=>transaction(tx=>tx[name](...args));assert.ok(allowed.has(name),'LOCAL_MODEL_REJECTED');return new Proxy({}, {get:(_inner,method)=>(...args)=>transaction(tx=>tx[name][method](...args))});}});
     const prisma={elevated:db(direct),app:db(scoped),forTenant(t,g,p){assertLocalScope(ids,t,g,p);return db(scoped);},withTenantTransaction(t,g,p,cb){assertLocalScope(ids,t,g,p);return scoped(cb);}};
-    const {parseDeploymentScope,AUTH_COOKIE_NAME}=require(root+'app/server/src/common/deployment-scope.ts');
+    // K01 uses the same real scope as production. Legacy workflow adapters keep
+    // their existing scoped facade until their own module is unified.
+    const knowledgeScope=(t,g,p,cb)=>{
+      assert.equal(t,ids.tenant,'KNOWLEDGE_TENANT_REJECTED');
+      return withFixtureTransaction(env,'app',async tx=>{
+        await tx.$executeRaw`SELECT set_config('app.tenant_id',${t},true),set_config('app.study_group_id',${g??''},true),set_config('app.research_project_id',${p??''},true)`;
+        return cb(fence(tx));
+      });
+    };
+    const knowledgePrisma={elevated:db(direct),app:db(cb=>knowledgeScope(ids.tenant,undefined,undefined,cb)),forTenant(t,g,p){return db(cb=>knowledgeScope(t,g,p,cb));},withTenantTransaction:knowledgeScope};
+
+    const {parseDeploymentScope,AUTH_COOKIE_NAME}=require(coreSourcePath('common/deployment-scope'));
+    process.env.HUB_EXECUTION_PROFILE='standard';process.env.HUB_PAID_AI_ENABLED='true';
     const scope=parseDeploymentScope({DEPLOYMENT_ID:key,DEPLOYMENT_PRODUCT:'researchhub',ALLOWED_TENANT_IDS:ids.tenant,DEFAULT_TENANT_ID:ids.tenant,ENABLED_WORKER_KINDS:'knowledge-import,knowledge-chat'});
     const storage=new(load('storage/storage.service','StorageService'))();storage.onModuleInit();for(let n=0;n<50&&!storage.available;n++)await new Promise(ok=>setTimeout(ok,100));assert.ok(storage.available,'LOCAL_STORAGE_NOT_READY');
-    const embedding=new(load('knowledge/embedding.service','EmbeddingService'))(),ingestion=new(load('knowledge/ingestion.service','IngestionService'))(prisma,embedding),extract=new(load('knowledge/doc-extract.service','DocExtractService'))();
-    const queue=new(load('knowledge/knowledge-import.service','KnowledgeImportService'))(prisma,storage,extract,ingestion,scope); // Deliberately NOT registered as Nest provider: no historical resume.
-    const grounding=new(load('knowledge/grounding.service','GroundingService'))(new(load('knowledge/retrieval.service','RetrievalService'))(prisma,embedding));
-    const knowledge=new(load('knowledge/knowledge.service','KnowledgeService'))(prisma,ingestion,grounding,extract,queue,storage);
+    const {embedding,ingestion,extract,queue,grounding,knowledge,retrieval,tools}=createKnowledgeServices({load,require,prisma:knowledgePrisma,storage,scope,embeddingMode:'service',parserConfigured:Boolean(process.env.KB_DOC_PARSER_URL)});
     const materials=createLocalSessionMaterials({env,ids,load,require,queue,storage,scope,ingestion,extract,grounding});
     const researchData=createLocalResearchData({env,ids,load,require,storage});
     const media=await createLocalSessionMedia({env,ids,load,require,storage,directory:dir+'session-media-chunks'});
     const mediaIngest=await assembleMediaRegistration({create:createLocalSessionMediaIngests,options:{env,ids,load,require,storage}});media.ingests=mediaIngest.service;media.registrationState=mediaIngest.status;
     try{mediaContent=await createLocalMediaContent({env,ids,load,require,storage,directory:root+'researchhub/.tmp/ai-media-content-implementation-2026-11-17'});media.content=mediaContent.service;media.contentState='ready';}
     catch(e){media.contentState='unavailable';console.error('LOCAL_MEDIA_CONTENT_UNAVAILABLE',e.code??e.message??'Error');}
-    ai=await createLocalKnowledgeAi({root,dir,env,ids,prisma,knowledge,storage,scope,load,require,nativeFetch,researchData,media});
+    ai=await createLocalKnowledgeAi({root,dir,env,ids,prisma,knowledgePrisma,knowledge,retrieval,grounding,tools,storage,scope,load,require,nativeFetch,researchData,media});
     const jwt=new JwtService({secret,signOptions:{expiresIn:'12h'}}),cookie='rh_kb_local_'+key.slice(-8);
     const hubAuth=createHubAuth({require,load,jwt,prisma,scope,cookieName:cookie,origin:'http://127.0.0.1:19501',secureCookie:()=>false});
     const admission=assembleAdmission({prisma,scope,require,load,origin:'http://127.0.0.1:19501'});
@@ -205,7 +218,7 @@ if(action==='status'){
     assert.equal(typeof ai.AssetCatalogController,'function','RESEARCH_ASSET_CATALOG_CONTROLLER_REQUIRED');
     assert.equal(typeof ai.AssetRegistrationController,'function','RESEARCH_ASSET_REGISTRATION_CONTROLLER_REQUIRED');
     class LocalRoot{}
-    Module({controllers:[hubAuth.Controller,admission.Controller,...academic.Controllers,load('knowledge/knowledge.controller','KnowledgeController'),materials.Controller,...media.Controllers,...mediaIngest.Controllers,...(mediaContent?.Controllers??[]),researchData.Controller,MyResearchController,StudyTaskController,ResearchIdentityController,DirectoryController,ReferenceController,GovernanceAuditController,GovernanceSystemController,ResearchStudiesController,H5QuestionnaireController,createHubController({env,ids,require}),createHubSourceReviewController({env,ids,require}),createHubSourceReadController({env,ids,require,secret}),createHubSourceAgentController({env,ids,require}),ai.Controller,ai.BillingController,ai.DefaultSkillsController,ai.PlansController,ai.AssetRegistrationController,ai.AssetCatalogController,ai.ResearchAssetsReadController,ai.GuidanceCitationsController,ai.DesignController,ai.PreparationController,ai.EdcController,ai.CrfMethodsController,ai.CrfMethodAssetsController,ai.AssetApplicabilityController,ai.SyntheticController,ai.AssetsController,...accounts.Controllers],providers:[{provide:load('auth/auth.service','AuthService'),useValue:new(load('auth/auth.service','AuthService'))(prisma,jwt,scope)},{provide:load('knowledge/knowledge.service','KnowledgeService'),useValue:knowledge},{provide:AUTH_COOKIE_NAME,useValue:cookie}]})(LocalRoot);
+    Module({controllers:[hubAuth.Controller,admission.Controller,...academic.Controllers,load('knowledge/knowledge.controller','KnowledgeController'),materials.Controller,...media.Controllers,...mediaIngest.Controllers,...(mediaContent?.Controllers??[]),researchData.Controller,MyResearchController,StudyTaskController,ResearchIdentityController,DirectoryController,ReferenceController,GovernanceAuditController,GovernanceSystemController,ResearchStudiesController,H5QuestionnaireController,createHubController({env,ids,require}),createHubSourceReviewController({env,ids,require}),createHubSourceReadController({env,ids,require,secret}),createHubSourceAgentController({env,ids,require}),ai.Controller,ai.BillingController,ai.DefaultSkillsController,ai.PlansController,ai.AssetRegistrationController,ai.AssetCatalogController,ai.ResearchAssetsReadController,ai.GuidanceCitationsController,ai.DesignController,ai.PreparationController,ai.EdcController,ai.CrfMethodsController,ai.CrfMethodAssetsController,ai.AssetApplicabilityController,ai.SyntheticController,ai.AssetsController,...accounts.Controllers],providers:[{provide:load('auth/auth.service','AuthService'),useValue:new(load('auth/auth.service','AuthService'))(prisma,jwt,scope)},{provide:load('knowledge/knowledge.service','KnowledgeService'),useValue:knowledge},{provide:load('knowledge/knowledge-import.service','KnowledgeImportService'),useValue:queue},{provide:load('sessions/knowledge-chat-queue.service','KnowledgeChatQueueService'),useValue:ai.worker},{provide:AUTH_COOKIE_NAME,useValue:cookie}]})(LocalRoot);
     app=await NestFactory.create(LocalRoot,{logger:false});app.setGlobalPrefix('api');
     installAcademicContentBodyPolicy(app,{require});
     const express=createRequire(require.resolve('@nestjs/platform-express/package.json'))('express');
@@ -250,7 +263,7 @@ if(action==='status'){
     // parser. Explicitly preserve the legacy 100kb parser for the other APIs.
     app.use(express.json());
     app.useGlobalPipes(new ValidationPipe({whitelist:true,transform:true,forbidNonWhitelisted:true}));
-    const reflector=new Reflector();app.useGlobalGuards(hubAuth.guard(reflector),admission.guard(reflector),new(load('common/guards/roles.guard','RolesGuard'))(reflector,prisma),new(load('common/guards/study-group.guard','StudyGroupGuard'))(reflector,prisma));await app.listen(19502,'127.0.0.1');
+    const reflector=new Reflector();app.useGlobalGuards(hubAuth.guard(reflector),admission.guard(reflector),new(load('common/guards/roles.guard','RolesGuard'))(reflector,prisma),createHubStudyScopeGuard({native:new(load('common/guards/study-group.guard','StudyGroupGuard'))(reflector,prisma),reflector,prisma,load,allowedTenantIds:scope.allowedTenantIds}));await app.listen(19502,'127.0.0.1');
     const {createServer}=await import(root+'researchhub/node_modules/vite/dist/node/index.js');
     const priorTermHandlers=new Set(process.listeners('SIGTERM'));
     vite=await createServer({root:root+'researchhub',configFile:root+'researchhub/vite.config.js',cacheDir:root+'researchhub/.tmp/vite-runtime-'+key,define:{'import.meta.env.VITE_AUTH_TENANT_SLUG':JSON.stringify(ids.tenant)},server:{host:'127.0.0.1',port:19501,strictPort:true,proxy:{'/api':{target:'http://127.0.0.1:19502',changeOrigin:true,configure:configureAnalysisListProxy}}},logLevel:'error'});await vite.listen();
