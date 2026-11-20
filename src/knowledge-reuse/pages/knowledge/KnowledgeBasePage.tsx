@@ -673,7 +673,7 @@ export default function KnowledgeBasePage({
       const queued = r.results.filter(
         (item): item is ImportResult & { taskId: string } => item.ok && !!item.taskId,
       );
-      setBanner(`已上传 ${r.queued} 篇，正在解析${r.failed ? `；${r.failed} 篇未进入队列` : ''}`);
+      setBanner(`已上传 ${r.queued} 篇，等待处理${r.failed ? `；${r.failed} 篇未进入队列` : ''}`);
       let finalTasks: ImportTaskView[] = queued.map((item) => ({
         id: item.taskId,
         filename: item.filename,
@@ -912,7 +912,7 @@ export default function KnowledgeBasePage({
           <div className="shrink-0 border-b border-brand-100 bg-brand-50/70 px-3 py-2 text-xs text-brand-800">
             <div className="mb-1 flex items-center justify-between gap-2">
               <span className="font-medium">
-                {uploadProgress ? '正在上传原始文献' : '正在解析、OCR 与建立索引'}
+                {uploadProgress ? '正在上传原始文献' : '正在解析与建立索引'}
               </span>
               <span>
                 {uploadProgress?.percent !== null && uploadProgress?.percent !== undefined

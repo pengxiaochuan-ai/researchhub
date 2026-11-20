@@ -1,6 +1,6 @@
 import{bindRuntimeTransactions,verifyRuntimeSchema,withDeploymentTransaction}from'../database/transactions.mjs';
 import{deploymentRequestPolicy}from'../http/deployment-request.mjs';
-import{storageSettings,createRuntimeStorage}from'./storage.mjs';
+import{storageSettings,createReadyRuntimeStorage}from'./storage.mjs';
 import{createRuntimeProviders}from'./providers.mjs';
 import{createHubController}from'../hub/controller.mjs';
 import{createHubSourceReadController}from'../hub-sources/read-controller.mjs';
@@ -42,7 +42,7 @@ export async function createRuntimeFoundation({config,env,load,require,prisma,jw
    config.executionProfile==='bounded-hub-knowledge-v2'&&admission.schema!=='hub-chat-admission.v2'||config.executionProfile==='bounded-hub-chat-v1'&&admission.schema!=='hub-chat-admission.v1')throw Error('HUB_CHAT_ADMISSION_BINDING_CHANGED');
   chatBudget=createChatBudget({admission,admissionSha:env.HUB_CHAT_ADMISSION_SHA256,directory:env.HUB_CHAT_LEDGER_DIR});
  }
- const storage=createRuntimeStorage({load,require,settings:storageSettings(env)});
+ const storage=await createReadyRuntimeStorage({load,require,settings:storageSettings(env)});
  const lock=load('common/worker-publication','lockAuthorizationMutation');
  const bound=(tx,tenant)=>({withTenantTransaction:(t,_g,_p,fn)=>{if(t!==tenant)throw Error('RESEARCH_RUNTIME_TENANT_REJECTED');return fn(tx);}});
  const users=createGovernanceUsers({transact:(p,fn)=>{

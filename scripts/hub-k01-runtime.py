@@ -47,6 +47,31 @@ import {bindRuntimeTransactions,withDeploymentTransaction}from'./server/database
 import {prepareKnowledgeAdmission}from'./server/research-runtime/knowledge-admission-preparation.mjs';
 let prisma;try{const config=readResearchRuntimeConfig(process.env);if(config.identity.database!=='researchhub'||config.core.digest!=='55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669'||config.executionProfile!=='bounded-hub-chat-v1')throw Error('K01_BASELINE_REJECTED');const{load}=runtimeDependencies(config.core);prisma=new(load('prisma/prisma.service','PrismaService'))();await prisma.app.$connect();await prisma.elevated.$connect();const env=bindRuntimeTransactions({prisma,expected:config.identity});const result=await withDeploymentTransaction(env,'direct',tx=>prepareKnowledgeAdmission({tx,oldAdmissionRaw:fs.readFileSync('/run/researchhub-admission/admission.json'),oldLedgerRaw:fs.readFileSync('/run/researchhub-ai-ledger/budget.json'),input:JSON.parse(process.env.HUB_K01_INPUT)}),{readOnly:true});console.log(JSON.stringify({status:'k01-migration-validated',...result}));}catch(e){console.log(JSON.stringify({status:'stopped',code:/^K01_[A-Z_]+$/.test(e.message??'')?e.message:'K01_READONLY_PREPARATION_FAILED'}));process.exitCode=1;}finally{if(prisma)await prisma.onModuleDestroy();}
 '''
+PDF_PREFLIGHT=r'''
+import fs from'node:fs';import{createHash}from'node:crypto';
+import{readResearchRuntimeConfig}from'./server/research-runtime/config.mjs';
+import{runtimeDependencies}from'./server/research-runtime/dependencies.mjs';
+import{bindRuntimeTransactions,withDeploymentTransaction}from'./server/database/transactions.mjs';
+import{loadChatAdmission}from'./server/research-runtime/chat-budget.mjs';
+import{storageSettings,createReadyRuntimeStorage}from'./server/research-runtime/storage.mjs';
+import{createRuntimeDocExtractor}from'./server/research-runtime/knowledge-parser.mjs';
+let prisma;try{
+ const config=readResearchRuntimeConfig(process.env),admission=loadChatAdmission(process.env.HUB_CHAT_ADMISSION_FILE,process.env.HUB_CHAT_ADMISSION_SHA256);
+ if(config.identity.database!=='researchhub'||config.executionProfile!=='bounded-hub-knowledge-v2'||admission.schema!=='hub-chat-admission.v2'||process.env.KB_DOC_PARSER_URL)throw Error('K01_PDF_PREFLIGHT_CONFIGURATION_REJECTED');
+ const{load,require}=runtimeDependencies(config.core);prisma=new(load('prisma/prisma.service','PrismaService'))();await prisma.app.$connect();await prisma.elevated.$connect();const env=bindRuntimeTransactions({prisma,expected:config.identity});
+ const storage=await createReadyRuntimeStorage({load,require,settings:storageSettings(process.env)}),extract=createRuntimeDocExtractor({Native:load('knowledge/doc-extract.service','DocExtractService'),PDFParse:require('pdf-parse').PDFParse,resolveMetadata:load('knowledge/knowledge-literature-metadata','resolveLiteratureMetadata'),parserConfigured:false}),results=[];
+ const hashes={'rh-kb-local-b0e2af9d-admin':'3b83d035edc68e9c2593a400dee1168a535ab1c87bae741cc4be52d927ce1988','rh-kb-local-b0e2af9d-owner':'edc10bafa65d30529aa9122d6bd9dee5a27a4be059aea857281b924d249dd2dc'};
+ for(const b of admission.k01.bindings){
+  const task=await withDeploymentTransaction(env,'direct',async tx=>{await load('common/worker-authorization','assertWorkerAuthorized')(tx,config.scope,{kind:'knowledge-import',taskId:b.importTaskId,tenantId:admission.tenantId});return tx.knowledgeImportTask.findFirst({where:{id:b.importTaskId,tenantId:admission.tenantId,kbId:b.kbId,createdBy:b.accountId,status:'failed',docId:null,errorCode:'IMPORT_FAILED',errorMessage:'对象存储不可用'},include:{sourceFile:true}});},{readOnly:true});
+  if(!task||task.sourceFile.sha256!==hashes[b.accountId]||task.sourceFile.kbId!==b.kbId||task.sourceFile.createdBy!==b.accountId||task.sourceFile.docId!==null||Number(task.sourceFile.size)>70000)throw Error('K01_PDF_PREFLIGHT_SOURCE_REJECTED');
+  const bytes=await storage.getBuffer(task.sourceFile.storageKey,Number(task.sourceFile.size));if(createHash('sha256').update(bytes).digest('hex')!==task.sourceFile.sha256)throw Error('K01_PDF_PREFLIGHT_HASH_CHANGED');
+  const parsed=await extract.extract(task.sourceFile.filename,bytes);if(parsed.extractor!=='node-local'||parsed.usedOcr!==false||parsed.pageCount!==1||!parsed.contentMd.includes('# 第1页')||!parsed.contentMd.includes('核对来源')||parsed.contentMd.includes('\uFFFD')||!parsed.title.includes('原创合成'))throw Error('K01_PDF_PREFLIGHT_TEXT_INVALID');
+  const unchanged=await withDeploymentTransaction(env,'direct',tx=>tx.knowledgeImportTask.findFirst({where:{id:task.id,status:'failed',docId:null,updatedAt:task.updatedAt},select:{id:true}}),{readOnly:true});if(!unchanged)throw Error('K01_PDF_PREFLIGHT_TASK_CHANGED');
+  results.push({accountId:b.accountId,taskId:task.id,sourceSha256:task.sourceFile.sha256,readableChinese:true,readableTitle:true,pageCount:1,usedOcr:false,extractor:'node-local',originalFailureUnchanged:true});
+ }
+ console.log(JSON.stringify({status:'k01-original-pdfs-readonly-verified',results,objectWrites:0,databaseWrites:0,modelCalls:0,importJobsExecuted:0}));
+}catch(e){console.log(JSON.stringify({status:'stopped',code:/^K01_[A-Z_]+$/.test(e.message??'')?e.message:'K01_PDF_PREFLIGHT_FAILED'}));process.exitCode=1;}finally{if(prisma)await prisma.onModuleDestroy();}
+'''
 def old_services():return run(['docker','ps','-a','--filter','label=com.docker.compose.project=ops','--filter','label=com.docker.compose.project=official-site','--format','{{.ID}} {{.Image}} {{.State}}'])
 def snapshot(server,helper,saved,imports):
  rows=server.task_snapshot(helper,saved)
@@ -91,6 +116,8 @@ def main(action):
   exclusive(STAGE/'activated.json',(json.dumps({'state':'activated','checkpointSha256':digest,'tag':tag,'admissionSha256':receipt['admissionSha256']})+'\n').encode())
  elif action!='inspect':raise ValueError('K01_ACTION_REJECTED')
  live=current();values=dict(line.split('=',1) for line in live['Config']['Env'] if '=' in line);need(values.get('HUB_EXECUTION_PROFILE')=='bounded-hub-knowledge-v2' and values.get('HUB_CHAT_ADMISSION_SHA256')==receipt['admissionSha256'] and values.get('HUB_PAID_AI_ENABLED')=='true' and values.get('ENABLED_WORKER_KINDS')=='knowledge-chat,knowledge-import','K01_LIVE_PROFILE_MISMATCH')
+ if action=='inspect' and os.environ.get('HUB_K01_PDF_PREFLIGHT')=='true':
+  parsed=json.loads(run(['docker','exec','-i',live['Id'],'node','--input-type=module','-'],PDF_PREFLIGHT).splitlines()[-1]);need(parsed.get('status')=='k01-original-pdfs-readonly-verified','K01_PDF_PREFLIGHT_FAILED');print(json.dumps(parsed))
  need(old_services()==services,'K01_OLD_SERVICES_CHANGED');ledger=json.loads(private(ROOT/'ledger/budget.json',1000));need(ledger['schema']=='hub-chat-budget.v2' and ledger['admissionSha']==receipt['admissionSha256'],'K01_LEDGER_CHANGED')
  print(json.dumps({'status':'k01-runtime-active','tag':tag,'admissionSha256':receipt['admissionSha256'],'modelsEnabled':True,'workerKinds':['knowledge-chat','knowledge-import'],'sessions':len(ledger['sessions']),'jobs':len(ledger['jobs']),'actualRequests':len(ledger['dispatches']),'feeUpperMicros':sum(d.get('feeUpperMicros',d['reservedMicros']) for d in ledger['dispatches']),'oldServicesUnchanged':True,'operatorModelCalls':0,'operatorDatabaseWrites':0,'approvedImportTasks':2}))
 

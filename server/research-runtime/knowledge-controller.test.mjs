@@ -1,6 +1,11 @@
 import test from 'node:test';import assert from'node:assert/strict';
-import {createRuntimeChatController}from'./chat.mjs';import{runtimeDependencies}from'./dependencies.mjs';
+import {createRuntimeChatController,knowledgeEntryAvailability}from'./chat.mjs';import{runtimeDependencies}from'./dependencies.mjs';
 const{require,load}=runtimeDependencies();
+test('an unadmitted AI purpose disables only QA, while actual read-permission errors remain forbidden',async()=>{
+ assert.deepEqual(await knowledgeEntryAvailability(async()=>{}),{enabled:true});
+ const missing=await knowledgeEntryAvailability(async()=>{throw Object.assign(Error('private purpose'),{code:'KNOWLEDGE_AI_SCOPE_NOT_ADMITTED'});});assert.equal(missing.enabled,false);assert.match(missing.message,/尚未开放/);
+ const revoked=Object.assign(Error('current read revoked'),{status:403});await assert.rejects(knowledgeEntryAvailability(async()=>{throw revoked;}),error=>error===revoked);
+});
 function harness(){
  const user={tenantId:'tenant',accountId:'owner',studyGroupId:'group',researchProjectId:'project'},session={id:'session',agentId:'agent',contextKey:'kb:private'},calls=[];let restricted=false;
  const source={docId:'doc',kbId:'private',chunkId:'chunk',version:2};

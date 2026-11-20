@@ -46,11 +46,12 @@ jobs:
           if action=='stage':assert set(x)=={'bindings','issuedAt'}
           elif action=='activate':assert set(x)=={'controlSha256'} and re.fullmatch('[a-f0-9]{64}',x['controlSha256'])
           elif action=='checkpoint':assert set(x)=={'tag','manifestSha256','admissionSha256'} and re.fullmatch('hub-runtime-[a-f0-9]{8}-[0-9]+',x['tag']) and all(re.fullmatch('[a-f0-9]{64}',x[k]) for k in ('manifestSha256','admissionSha256'))
-          else:assert action=='inspect' and not x
+          else:assert action=='inspect' and (not x or x=={'verifyTextPdfs':True})
           with open(os.environ['GITHUB_ENV'],'a') as f:
            f.write('HUB_K01_ACTION='+action+'\n')
            if action=='stage':f.write('HUB_K01_INPUT='+json.dumps(x,separators=(',',':'))+'\n')
            if action=='activate':f.write('HUB_K01_CHECKPOINT_SHA='+x['controlSha256']+'\n')
+           if action=='inspect' and x:f.write('HUB_K01_PDF_PREFLIGHT=true\n')
           PY
       - name: Seal current bridge as both sides of exact V2 checkpoint
         if: env.ACTION == 'checkpoint'

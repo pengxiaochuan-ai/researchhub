@@ -14,6 +14,10 @@ import {knowledgeContextId}from'./knowledge-evidence.mjs';
 export const HUB_CHAT=Symbol.for('researchhub.runtime.chat');
 const unavailable=()=>{throw Object.assign(Error('科研问答尚未配置，请联系管理员。'),{status:503,code:'HUB_CHAT_NOT_CONFIGURED'});};
 const invalid=()=>{throw Object.assign(Error('问答参数或会话范围无效，请重新打开。'),{status:400,code:'HUB_CHAT_INPUT_INVALID'});};
+export async function knowledgeEntryAvailability(authorize){
+ try{await authorize();return{enabled:true};}
+ catch(error){if(error?.code!=='KNOWLEDGE_AI_SCOPE_NOT_ADMITTED')throw error;return{enabled:false,code:'KNOWLEDGE_AI_NOT_CONFIGURED',message:'当前知识库尚未开放资料问答。'};}
+}
 export function createRuntimeChat({config,env,transactionEnv,prisma,load,services,chatBudget}){
  const tenantId=config.scope.defaultTenantId,agentId=tenantId+'-kb-research';
  const scope=(db,principal)=>({db,principal,tenantId,hubKey:'lingshu-xinyu'});
@@ -98,7 +102,8 @@ export function createRuntimeChat({config,env,transactionEnv,prisma,load,service
   if(Object.keys(query).some(k=>k!=='kbId'))invalid();const result=await status(user);
   if(!query.kbId)return result;
   if(!knowledge)return{...result,enabled:false,code:'KNOWLEDGE_AI_NOT_CONFIGURED',message:'当前知识库尚未开放资料问答。',quota:{blocked:true}};
-  await knowledge.evidence.authorize(user,query.kbId);
+  const available=await knowledgeEntryAvailability(()=>knowledge.evidence.authorize(user,query.kbId));
+  if(!available.enabled)return{...result,...available,quota:{...result.quota,canStart:false,blocked:true,message:available.message},researchPlans:{enabled:false}};
   const campaign=knowledge.quota(user,query.kbId),canStart=result.enabled&&result.quota.businessReady&&!campaign.blocked;
   return{...result,quota:{...result.quota,...campaign,canStart,blocked:!canStart,message:!result.quota.businessReady?'当前AI可用额度不足，请联系管理员。':campaign.message??'当前可用额度充足。'},researchPlans:{enabled:false}};
  };

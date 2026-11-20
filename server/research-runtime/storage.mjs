@@ -9,7 +9,13 @@ export function storageSettings(env){
 export function createRuntimeStorage({load,require,settings}){
  const Base=load('storage/storage.service','StorageService'),{Client}=require('minio');
  class RuntimeStorage extends Base{
-  async onModuleInit(){
+  initializing;
+  onModuleInit(){
+   if(this.ready)return Promise.resolve();
+   if(!this.initializing)this.initializing=this.initializeStorage().finally(()=>{this.initializing=undefined;});
+   return this.initializing;
+  }
+  async initializeStorage(){
    const url=settings.endpoint;
    this.bucket=settings.bucket;this.ready=false;
    this.client=new Client({endPoint:url.hostname,port:Number(url.port)||(url.protocol==='https:'?443:80),useSSL:url.protocol==='https:',accessKey:settings.accessKey,secretKey:settings.secretKey,region:settings.region,pathStyle:!url.hostname.endsWith('.aliyuncs.com')});
@@ -17,4 +23,7 @@ export function createRuntimeStorage({load,require,settings}){
   }
  }
  return new RuntimeStorage();
+}
+export async function createReadyRuntimeStorage(options){
+ const storage=createRuntimeStorage(options);await storage.onModuleInit();return storage;
 }
