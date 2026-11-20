@@ -18,10 +18,16 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch the approved private temporary payload
+      - name: Decode the encrypted one-object transport payload
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release download hub-article-original-transfer-20261120 --pattern original.zlib --dir "$RUNNER_TEMP/article-original"
+          ORIGINAL_PAYLOAD: ${{ secrets.HUB_APPROVED_ORIGINAL_20261120 }}
+        run: |
+          python3 - <<'PY_PAYLOAD'
+          import base64,os,pathlib
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])/'article-original';root.mkdir(mode=0o700)
+          payload=base64.b64decode(os.environ['ORIGINAL_PAYLOAD'],validate=True)
+          p=root/'original.zlib';p.write_bytes(payload);p.chmod(0o600)
+          PY_PAYLOAD
       - name: Verify payload and bounded commands without cloud access
         env:
           ARTICLE_TRANSFER_DRY_RUN: 'true'
