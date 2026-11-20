@@ -1,3 +1,7 @@
+## 2026-11-20 · 生产首页已统一P002
+
+https://hub.pengxc.com/默认进入P002，账号图片/演示入口清理同批上线。[上线验收](testing/portal-home-production-2026-11-20.md) · [规格](product/portal-home-production-2026-11-20.md)。
+
 ## 2026-11-20 · 正式登录入口与公开Logo
 
 [规格](product/p003-production-entry-2026-11-20.md) · [验收](testing/p003-production-entry-2026-11-20.md)，本机通过，生产未发布。
