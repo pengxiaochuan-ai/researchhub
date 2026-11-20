@@ -5,3 +5,9 @@
 现行pair流程即使backend=false仍重标记后端并stop/up API，不能满足本次前端独立切换。发布控制最小适配：backend未变时保留原backend镜像引用、Config ID、源Git和原镜像归档字节；只替换frontend，配置.env.prod、后台容器ID/镜像/core保持；正常成功指针和失败回退仍沿统一pair流程维护，不绕开指针。精确控制文件与CI辅助调整不当作后台运行代码变更，未知路径仍保守双端；数据库检查不豁免。
 
 先隔离快照/分类plan与本地测试，再远端plan验证frontend=true/backend=false/databaseChanged=false，再release。失败仅回退本次前端。真实HTTPS首访/整页/缓存/图片200、旧API健康和无新业务写留证；发布未成功前不宣称上线。
+
+## 上线回填
+
+成功发布44674219803，代码fce3375。backend复用时保持原tag/Config ID/归档字节/来源/core；配置校验仅使用已核验的当前后端状态，不把新前端tag或陈旧控制策略当成新后端启动要求。后端变更路径保持原策略门禁，所有路径继续执行sealed任务和后台/env摘要保全。
+
+实际HTTPS首屏17.51MB→2.34MB，复访17/17新图缓存0传输，47裁片/七区与footer可读。计划、隔离演练、实际切换、认证/只读业务、成功指针均有回执，后台容器/镜像/配置/启动时间未变，无数据库迁移。[完整线上验收](../testing/p002-image-live-release-2026-11-20.md)。
