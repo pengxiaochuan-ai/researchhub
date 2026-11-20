@@ -46,4 +46,8 @@ print('{"status":"original-transfer-cleaned","containerIdentitiesUnchanged":true
  for _,script in scripts:encode(script)
  if os.environ.get('ARTICLE_TRANSFER_DRY_RUN')=='true':print(json.dumps({'status':'prepared','commands':len(scripts),'bytes':len(raw),'sha256':SHA,'maxCommandBytes':max(len(encode(s)) for _,s in scripts)}));return
  for label,script in scripts:run(cli,script,label)
-if __name__=='__main__':main()
+if __name__=='__main__':
+ try:main()
+ except Exception as error:
+  code=str(error) if isinstance(error,ValueError) and str(error).startswith('ARTICLE_') else 'ARTICLE_TRANSFER_FAILED'
+  print(json.dumps({'status':'stopped','code':code,'automaticRetry':False}));raise SystemExit(1)

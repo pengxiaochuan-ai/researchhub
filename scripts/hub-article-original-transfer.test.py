@@ -8,5 +8,5 @@ class TransferTests(unittest.TestCase):
   with tempfile.TemporaryDirectory() as d:
    p=pathlib.Path(d)/'bad.zlib';p.write_bytes(zlib.compress(b'not the approved original'))
    result=subprocess.run(['python3',str(pathlib.Path(__file__).with_name('hub-article-original-transfer.py')),'/must-not-be-called',str(p)],stdout=subprocess.PIPE,stderr=subprocess.PIPE,env=dict(os.environ,ARTICLE_TRANSFER_DRY_RUN='true'))
-   self.assertNotEqual(result.returncode,0);self.assertIn(b'ARTICLE_PAYLOAD_REJECTED',result.stderr);self.assertNotIn(b'FileNotFoundError',result.stderr)
+   self.assertNotEqual(result.returncode,0);self.assertIn(b'ARTICLE_PAYLOAD_REJECTED',result.stdout);self.assertEqual(result.stderr,b'')
 if __name__=='__main__':unittest.main()
