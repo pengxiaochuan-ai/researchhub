@@ -7,3 +7,13 @@
 免费验证检查规则确实进入最终Provider输入、旧提示词格式漂移仍拒绝、真实原生编排/当前授权/引用/额度回归。提示词检查与Mock不证明回答忠实，最终对两个真实回答逐句核来源：一例重放原问题，一例诱导补充材料未写的具体技术做法；应说明缺失，不虚构做法或错误引用。固定v1与页1来源、旧数据及费用仍核对。请求失败或超限即停，不继续试错。
 
 按当前目录串行实施、独立总评；配对流水线发布后一次两角色模型验收。预算扩展只服务本轮追加两次原生问答，保留旧账本，不直调模型绕过Billing。预算兼容具体代码差额核清后随本规格补记，不做共享底座扩展。当前状态：准备中，尚未新增模型调用。
+
+## 准确扩展与发布路径
+
+继续v2准入/core55/profile，不新增schema。citationReview绑定原646准入SHA和原4会话/6任务/4请求完整规范化hash；原记录逐字冻结，只允许各账号在原会话再1任务/1请求。只认领jobs[6:]，只结算dispatches[4:]，总费用仍1元。原有646路径不变，未知用量、历史篡改、新会话、重复激活、原请求重新结算均拒绝。
+
+兼容发布92b11ba保留原准入，不开放新名额。新镜像由实际打包源码双标记声明citation-review-v1能力，复用后端继承原能力；扩展env标记与准入双向绑定，旧镜像和不支持扩展的checkpoint拒绝。普通CI目前已通过构建，生产结果待回执。
+
+独立operator scripts/hub-citation-review.py：advice-stage在既有发布/预算锁下用旧原生预算snapshot完整校验，归档原准入/账本及候选到citation-review-20261120，不覆盖原k01 stage。advice-activate只接受同一backendImage/hubDigest、准确新SHA的双边checkpoint，以同一issuedAt重算候选字节并重核旧ledgerSHA；先不可覆盖地记activation-started，再原子替换两个控制文件、合并现有Hub .env.prod中的SHA/精确扩展标记，仅重建Hub API。成功前检查实际新容器env、原只读/可写挂载、新预算原4/6/4前缀及已知用量、API401、完整旧任务快照与旧服务。任一状态不明即停，不重复激活、不重置账本。只有这两个新任务可以发起额外Provider，operator本身不执行模型或DB写。
+
+免费证据：规则先红后绿，相关Node53项及sealed原生编排3例通过；预算旧7例＋新增2例通过；profile9、bootstrap5、artifacts7、release4、pair10、前端复用16、runtime-server14通过（组间有交集，不相加报唯一数量）。独立operator4例覆盖原字节归档不改active文件、重复stage、账本漂移/旧镜像、重复activation/错误checkpoint，以及同镜像仍旧SHA/缺扩展标记/挂载错误不得通过。真实答案逐句忠实度仍待本轮两次验证，不以这些免费结果冒称解决。

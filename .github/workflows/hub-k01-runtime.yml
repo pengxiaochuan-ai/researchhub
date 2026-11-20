@@ -4,7 +4,7 @@ on:
     inputs:
       action:
         type: choice
-        options: [stage, checkpoint, activate, inspect, repair]
+        options: [stage, checkpoint, activate, inspect, repair, advice-stage, advice-activate]
         default: inspect
         required: true
       spec_json:
@@ -38,13 +38,15 @@ jobs:
       - name: Validate public input and operator tests
         run: |
           python3 scripts/hub-k01-runtime.test.py
+          python3 scripts/hub-citation-review.test.py
           python3 scripts/hub-runtime-bootstrap.test.py
           python3 - <<'PY'
           import json,os,re
           x=json.loads(os.environ['SPEC']);action=os.environ['ACTION']
           assert isinstance(x,dict)
           if action=='stage':assert set(x)=={'bindings','issuedAt'}
-          elif action=='activate':assert set(x)=={'controlSha256'} and re.fullmatch('[a-f0-9]{64}',x['controlSha256'])
+          elif action in ('activate','advice-activate'):assert set(x)=={'controlSha256'} and re.fullmatch('[a-f0-9]{64}',x['controlSha256'])
+          elif action=='advice-stage':assert x=={}
           elif action=='repair':assert set(x)=={'approvalRef'} and re.fullmatch('K01_TWO_IMPORTS_APPROVED_[A-Za-z0-9_-]{12,160}',x['approvalRef'])
           elif action=='checkpoint':assert set(x)=={'tag','manifestSha256','admissionSha256'} and re.fullmatch('hub-runtime-[a-f0-9]{8}-[0-9]+',x['tag']) and all(re.fullmatch('[a-f0-9]{64}',x[k]) for k in ('manifestSha256','admissionSha256'))
           else:assert action=='inspect' and (not x or x=={'verifyTextPdfs':True})
@@ -52,7 +54,7 @@ jobs:
            f.write('HUB_K01_ACTION='+action+'\n')
            if action=='repair':f.write('HUB_K01_APPROVAL_REF='+x['approvalRef']+'\n')
            if action=='stage':f.write('HUB_K01_INPUT='+json.dumps(x,separators=(',',':'))+'\n')
-           if action=='activate':f.write('HUB_K01_CHECKPOINT_SHA='+x['controlSha256']+'\n')
+           if action in ('activate','advice-activate'):f.write('HUB_K01_CHECKPOINT_SHA='+x['controlSha256']+'\n')
            if action=='inspect' and x:f.write('HUB_K01_PDF_PREFLIGHT=true\n')
           PY
       - name: Seal current bridge as both sides of exact V2 checkpoint
