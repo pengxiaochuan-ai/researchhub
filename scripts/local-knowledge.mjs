@@ -15,6 +15,7 @@ import { createServer as netServer, createConnection } from 'node:net';
 import { loadFixtureInput } from '../../app/server/scripts/wp01/local-config.mjs';
 import { withFixtureTransaction, assertFixtureTarget } from '../../app/server/scripts/wp01/fixture-guard.mjs';
 import { assertLocalScope, assertOwnProcess, allowedFetchUrl, stopOwnedChildren, guardViteSignalOwnership } from './local-knowledge-config.mjs';
+import { bindRuntimeTransactionsInto } from '../server/database/transactions.mjs';
 import {configureAnalysisListProxy} from '../server/http/analysis-list-lifetime.mjs';
 import {isOwnedOpenCodeRequest} from '../server/ai-agent/opencode-runtime.mjs';
 import {parseAssetJson} from './research-assets-json.mjs';
@@ -108,7 +109,7 @@ if(action==='status'){
   await vacant();
   const {env}=loadFixtureInput(root+'.superpowers/sdd/implementation-plan/wp01-full-baseline-target.json');
   await assertFixtureTarget(env);
-  let ai,accounts;
+  let ai,accounts,runtimeApp,runtimeDirect;
   // The old Sessions publication transaction owns its authorization lock. Add
   // our source-version fence on the SAME transaction before assistant creation.
   const fence=tx=>new Proxy(tx,{get(target,name){
@@ -125,11 +126,21 @@ if(action==='status'){
   const {NestFactory,Reflector}=require('@nestjs/core'),{JwtService}=require('@nestjs/jwt');
   const ids=state?.ids??Object.fromEntries(['tenant','owner','admin','uninvited','viewer','group','project','role','viewRole'].map(name=>[name,key+'-'+name]));
   const password=state?.password??randomBytes(18).toString('base64url'),secret=state?.secret??randomBytes(48).toString('hex');
+  // Hub transactions must use the bundled core Prisma: server modules build
+  // Prisma.Sql fragments with core's copy, while the legacy fixture client is a
+  // separate install, so mixing them binds fragments as jsonb parameters.
+  const identitySql=`SELECT current_database() AS database,current_user AS role,r.rolsuper AS superuser,r.rolbypassrls AS "bypassRls",encode(sha256(convert_to(coalesce(shobj_description(d.oid,'pg_database'),''),'UTF8')),'hex') AS "markerDigest" FROM pg_database d JOIN pg_roles r ON r.rolname=current_user WHERE d.datname=current_database()`;
+  const {PrismaClient}=require('@prisma/client');
+  runtimeApp=new PrismaClient({datasources:{db:{url:env.WP01_TEST_DATABASE_URL}}});
+  runtimeDirect=new PrismaClient({datasources:{db:{url:env.WP01_TEST_DIRECT_URL}}});
+  await runtimeApp.$connect();await runtimeDirect.$connect();
+  const [runtimeAppIdentity]=await runtimeApp.$queryRawUnsafe(identitySql),[runtimeDirectIdentity]=await runtimeDirect.$queryRawUnsafe(identitySql);
+  bindRuntimeTransactionsInto(env,{prisma:{app:runtimeApp,elevated:runtimeDirect},expected:{database:runtimeAppIdentity.database,appRole:runtimeAppIdentity.role,directRole:runtimeDirectIdentity.role,markerDigest:runtimeAppIdentity.markerDigest,deploymentId:key,tenantId:ids.tenant}});
   process.env.CONTACT_ENCRYPTION_KEY=createHmac('sha256',secret).update('researchhub:local-contact:v1').digest('hex');
   const current={key,ids,password,secret,pid:process.pid,started:observe(process.pid).started,ready:false};
   save(stateFile,current);
   const children=[];let app,vite,mediaContent,stopping=false;
-  async function shutdown(code=0){if(stopping)return;stopping=true;current.ready=false;save(stateFile,current);ai?.stop();mediaContent?.close?.();await vite?.close();app?.getHttpServer()?.closeIdleConnections?.();await app?.close();await accounts?.close();await stopOwnedChildren(children);process.exit(code);}
+  async function shutdown(code=0){if(stopping)return;stopping=true;current.ready=false;save(stateFile,current);ai?.stop();mediaContent?.close?.();await vite?.close();app?.getHttpServer()?.closeIdleConnections?.();await app?.close();await accounts?.close();await runtimeApp?.$disconnect();await runtimeDirect?.$disconnect();await stopOwnedChildren(children);process.exit(code);}
   process.once('SIGTERM',()=>void shutdown());process.once('SIGINT',()=>void shutdown());
   try{
     const existing=await direct(tx=>tx.tenant.findUnique({where:{id:ids.tenant}}));

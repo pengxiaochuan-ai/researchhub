@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {bindRuntimeTransactions,withFixtureTransaction,validateRuntimeIdentity,verifyRuntimeSchema,assertVerifiedRuntimeSchema} from './transactions.mjs';
+import {bindRuntimeTransactions,bindRuntimeTransactionsInto,withFixtureTransaction,validateRuntimeIdentity,verifyRuntimeSchema,assertVerifiedRuntimeSchema} from './transactions.mjs';
 const expected={database:'rh_deploy_unit',appRole:'unit_app',directRole:'unit_owner',markerDigest:'a'.repeat(64),deploymentId:'unit-deployment',tenantId:'unit-tenant'};
 const identity=kind=>({database:expected.database,role:kind==='app'?expected.appRole:expected.directRole,superuser:false,bypassRls:kind!=='app',markerDigest:expected.markerDigest});
 test('runtime transactions validate the same connection before any business callback',async()=>{
@@ -20,6 +20,16 @@ test('runtime schema proof requires the bound target and exact full catalog fing
  assert.throws(()=>assertVerifiedRuntimeSchema(env),/RUNTIME_SCHEMA_NOT_VERIFIED/);
  await verifyRuntimeSchema(env,{fingerprint,schemas:['public']});assertVerifiedRuntimeSchema(env);
  assert.throws(()=>assertVerifiedRuntimeSchema({...env}),/RUNTIME_SCHEMA_NOT_VERIFIED/);
+});
+test('fixture env can be bound to the bundled runtime client without replacing legacy fields',async()=>{
+ const fixture={WP01_TEST_DATABASE_URL:'postgresql://app@localhost/db',WP01_TEST_DB_NAME:'wp01_test_db',WP01_FIXTURE_RUN_ID:'run-1234',WP01_TEST_DIRECT_URL:'postgresql://owner@localhost/db'};
+ const tx={$executeRawUnsafe:async()=>{},$queryRawUnsafe:async()=>[identity('app')]};
+ const client={$transaction:async fn=>fn(tx)},prisma={app:client,elevated:client};
+ assert.equal(bindRuntimeTransactionsInto(fixture,{prisma,expected}),fixture);
+ assert.equal(fixture.WP01_TEST_DB_NAME,'wp01_test_db');
+ let visited=0;await withFixtureTransaction(fixture,'app',async current=>{assert.equal(current,tx);visited++;});assert.equal(visited,1);
+ assert.throws(()=>bindRuntimeTransactionsInto(fixture,{prisma,expected}),/RUNTIME_DATABASE_CONFIG_REJECTED/);
+ assert.throws(()=>bindRuntimeTransactionsInto(null,{prisma,expected}),/RUNTIME_DATABASE_CONFIG_REJECTED/);
 });
 test('deployment transaction contexts cannot be forged or serialized into a request body',async()=>{
  assert.throws(()=>bindRuntimeTransactions({prisma:{},expected:{...expected,markerDigest:''}}),/RUNTIME_DATABASE_CONFIG_REJECTED/);

@@ -10,9 +10,18 @@ export function validateRuntimeIdentity(expected,kind,observed){
  if(!['app','direct'].includes(kind))fail('RUNTIME_TRANSACTION_ROLE_REJECTED');
  if(!observed||observed.database!==expected.database||observed.role!==(kind==='app'?expected.appRole:expected.directRole)||observed.markerDigest!==expected.markerDigest||kind==='app'&&(observed.superuser!==false||observed.bypassRls!==false))fail('RUNTIME_DATABASE_IDENTITY_REJECTED');
 }
+const configurable=(prisma,expected)=>Boolean(prisma?.app&&prisma?.elevated&&expected&&['database','appRole','directRole','deploymentId','tenantId'].every(k=>typeof expected[k]==='string'&&expected[k].length>0&&expected[k].length<=160&&!/[\r\n\0]/.test(expected[k]))&&/^[a-f0-9]{64}$/.test(expected.markerDigest??'')&&expected.markerDigest!==emptyMarker);
 export function bindRuntimeTransactions({prisma,expected}){
- if(!prisma?.app||!prisma?.elevated||!expected||!['database','appRole','directRole','deploymentId','tenantId'].every(k=>typeof expected[k]==='string'&&expected[k].length>0&&expected[k].length<=160&&!/[\r\n\0]/.test(expected[k]))||!/^[a-f0-9]{64}$/.test(expected.markerDigest??'')||expected.markerDigest===emptyMarker)fail('RUNTIME_DATABASE_CONFIG_REJECTED');
+ if(!configurable(prisma,expected))fail('RUNTIME_DATABASE_CONFIG_REJECTED');
  const env=Object.freeze({runtimeDatabase:true});contexts.set(env,{prisma,expected:Object.freeze({...expected})});return env;
+}
+// Local development keeps the legacy fixture env (validated by the WP01 guard)
+// while routing Hub transactions through the same bundled Prisma copy the Hub
+// code builds Prisma.Sql fragments with. Two copies treat each other's Sql
+// objects as jsonb parameters, which breaks parameterized raw queries.
+export function bindRuntimeTransactionsInto(env,{prisma,expected}){
+ if(!env||typeof env!=='object'||contexts.has(env)||!configurable(prisma,expected))fail('RUNTIME_DATABASE_CONFIG_REJECTED');
+ contexts.set(env,{prisma,expected:Object.freeze({...expected})});return env;
 }
 export async function withFixtureTransaction(env,kind,operation,{readOnly=false,requireRuntime=false}={}){
  const bound=contexts.get(env);
