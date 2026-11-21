@@ -753,7 +753,8 @@ def _render_pdf_page(
                 warnings.append(f"第 {page_no} 页文字层或字体映射异常，已使用本地 OCR，题名、正文及数值请对照原件核对")
             return f"## 第 {page_no} 页\n\n{recognized.strip()}", True, warnings
         if text_issue or text_char_count == 0:
-            raise HTTPException(422, f"第 {page_no} 页 OCR 未识别到可用文字，请核对原件后重试")
+            warnings.append(f"第 {page_no} 页未识别到可用文字，未纳入解析正文，请对照原件核对")
+            return f"## 第 {page_no} 页", False, warnings
 
     tables: list[dict[str, Any]] = []
     try:
