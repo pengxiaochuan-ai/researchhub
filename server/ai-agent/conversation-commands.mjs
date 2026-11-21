@@ -105,7 +105,7 @@ export function createConversationCommands({tenantId,transaction,authorize,admit
    if(c.authVersion!==(current.authVersion??null)){await change(tx,m,{status:'paused',errorMessage:'当前身份已变化，请核对后继续队列。'});return null;}
    let payload;try{payload=await prepare(m);}
    catch(reason){if(!reason.status&&!reason.getStatus)throw reason;const r=reason.getResponse?.();
-    if(reason.code==='HUB_PRIVATE_MATERIAL_PARSING'){
+    if(['HUB_PRIVATE_MATERIAL_PARSING','HUB_PRIVATE_WAITING_PREVIOUS'].includes(reason.code)){
      if(c.pauseCode!==reason.code)await change(tx,m,{status:'waiting',pauseCode:reason.code,errorMessage:reason.publicMessage});
      return null;
     }

@@ -1,3 +1,5 @@
+import {createRuntimePrivateMaterials} from '../server/research-runtime/private-material-runtime.mjs';
+import {isPrivateMaterialSession} from '../server/ai-agent/private-material-context.mjs';
 import {ARTICLE_ORIGINAL_MISSING_MESSAGE} from '../server/hub-sources/article-asset-reader.mjs';
 import {createRuntimeArticle} from '../server/research-runtime/article-runtime.mjs';
 import {withQueueBranches} from '../server/research-runtime/queue-branches.mjs';
@@ -39,7 +41,7 @@ import {createCrfMethodAssets} from './local-crf-method-assets.mjs';
 import {createAssetApplicability} from './local-asset-applicability.mjs';
 import {applicabilityTurnMessages,applicabilityTurnOptions,acceptAuthorizedApplicabilityResult,applicabilityToolEvidence,buildApplicabilityModel} from './asset-applicability-ai-contract.mjs';
 import {crfProviderMessages} from './synthetic-crf-methods-ai-contract.mjs';
-import {withFixtureTransaction} from '../../app/server/scripts/wp01/fixture-guard.mjs';
+import {withFixtureTransaction} from '../server/database/transactions.mjs';
 import {runHubSourceSearch,assertCurrentAiSources,assertHubPublicationSources} from '../server/hub-sources/agent-retrieval.mjs';
 import {assertHubAgent} from '../server/hub-sources/visible-repository.mjs';
 import {HUB_CONTEXT_KEY,HUB_TOOL_KB_ID,isHubSession,assertHubToolResult,hubAnswerProvenance,projectHubMessages,hubCoreQuestion,bindHubSynthesisQuestion} from './hub-agent-contract.mjs';
@@ -313,6 +315,12 @@ export async function createLocalKnowledgeAi({root,dir,env,ids,prisma:legacyPris
 
   const articleRuntime=createRuntimeArticle({config:{executionProfile:'standard',scope},prisma:knowledgePrisma,load,agentId,status:normalStatus,readPmcAsset:asset=>Promise.resolve(readFileSync(root+'researchhub/.tmp/researchhub-pmc-local/'+asset.localObjectKey)),services:{knowledge,retrieval,tools,grounding,storage,billing:normalBilling,ingest:unused,pool:unused,provider:normalExecution.provider,modelExecution:normalExecution.withExecution,knownUsageSample:usage=>({...usage,cost:load('orchestrator/pricing','estimateCost')(usage.model,usage.promptTokens,usage.completionTokens,usage.cacheHitTokens||0)})}});
 
+  const privateMaterials=await createRuntimePrivateMaterials({config:{executionProfile:'standard',scope},prisma:knowledgePrisma,load,agentId,services:{
+    tools,grounding,storage,billing:normalBilling,ingest:unused,pool:unused,provider:normalExecution.provider,modelExecution:normalExecution.withExecution,
+    knownUsageSample:usage=>({...usage,cost:load('orchestrator/pricing','estimateCost')(usage.model,usage.promptTokens,usage.completionTokens,usage.cacheHitTokens||0)})
+  }});
+
+  const attachmentStatus=createRuntimeChatStatus({read:(user,fn)=>knowledgePrisma.app.$transaction(async tx=>{await tx.$executeRawUnsafe("SELECT set_config('app.tenant_id',$1,true),set_config('app.account_id',$2,true),set_config('app.auth_version',$3,true)",user.tenantId,user.accountId,String(user.authVersion));return fn(tx)}),load,services:{billing:normalBilling},tenantId:ids.tenant,agentId,env:process.env,config:{scope,profile:'full'},privateMaterials,invalid:()=>{throw new ForbiddenException('当前问答身份无法核对');}});
   const hubBilling=createHubBilling({scope,transaction:direct,billing:nativeBilling});
   const BillingController=createHubBillingController({require,origin:'http://127.0.0.1:19501',service:hubBilling});
   accountRuntime=createAccountedRuntime({native:nativeBilling,service:hubBilling,context,transaction:direct,
@@ -378,11 +386,12 @@ export async function createLocalKnowledgeAi({root,dir,env,ids,prisma:legacyPris
     }});
   const Queue=load('sessions/knowledge-chat-queue.service','KnowledgeChatQueueService');
   const normalQueueFence=normalKnowledge.queueFence;
-  const queuePrisma=withQueueBranches(knowledgePrisma,[articleRuntime.queueFence,normalQueueFence]);
+  const queuePrisma=withQueueBranches(knowledgePrisma,[articleRuntime.queueFence,normalQueueFence,privateMaterials.queueFence]);
   const queue=new Queue(queuePrisma,{
     ensureKnowledgeSession:normalKnowledge.sessions.ensureKnowledgeSession.bind(normalKnowledge.sessions),assertKnowledgeSession:normalKnowledge.sessions.assertKnowledgeSession.bind(normalKnowledge.sessions),
     async sendMessage(user,sessionId,text,opts){
       const session=await normalKnowledge.sessions.assertKnowledgeSession(user,sessionId);
+      if(isPrivateMaterialSession(session))return privateMaterials.sessions.sendMessage(user,sessionId,text,opts);
       if(parseArticleContext(session.contextKey))return articleRuntime.sessions.sendMessage(user,sessionId,text,opts);
       if(isHubSession(session)){
         const inputError=agentQuestionError(text);if(inputError)throw error('HUB_COMMAND_INPUT_INVALID',inputError,400);
@@ -448,6 +457,7 @@ export async function createLocalKnowledgeAi({root,dir,env,ids,prisma:legacyPris
   const Sessions=load('sessions/sessions.service','SessionsService');
   const {lockAuthorizationMutation}=require(coreSourcePath('common/worker-publication'));
   isolateContractTasks(queue);
+  privateMaterials.bindQueue(queue);
   articleAi=articleRuntime;
   const commandConsumer='researchhub-interactive.v1';
   const {hasRequiredPermissions}=require(coreSourcePath('common/permission-catalog'));
@@ -565,16 +575,16 @@ export async function createLocalKnowledgeAi({root,dir,env,ids,prisma:legacyPris
       return {items,hasMore:rows.length>limit,page:Number(query.page??1)};
     }
     async agents(req){return(await agents.list(req.user)).filter(a=>a.id===agentId).map(({id,type,name})=>({id,type,name}));}
-    async status(req,query={}){req.res?.setHeader('Cache-Control','no-store');if(query.kbId){if(Object.keys(query).some(k=>k!=='kbId'))throw new BadRequestException('问答参数无效');await normalKnowledge.evidence.authorize(req.user,query.kbId);return normalKnowledge.status(req.user,query.kbId);}return{enabled:true,syntheticOnly:true,model:'deepseek-v4-pro',quota:await quota.status(req.user),readOnly:true,materialUpload:{schema:'hub-material-upload.v1',analysisReady:true,enabled:[ids.owner,ids.admin].includes(req.user.accountId),researchDataEnabled:[ids.owner,ids.admin].includes(req.user.accountId),researchDataOverviewReady:true,researchDataAnalysisReady:true,mediaEnabled:Boolean(media?.service)&&[ids.owner,ids.admin].includes(req.user.accountId),mediaResumable:Boolean(media?.service?.snapshot),mediaRegistrationEnabled:Boolean(media?.ingests),mediaRegistrationState:media?.registrationState??'unavailable',mediaContentEnabled:Boolean(media?.content),mediaContentState:media?.contentState??'unavailable',mediaMaxBytes:500*1024*1024,mediaExtensions:['mp4','mov','webm'],maxBytes:100*1024*1024,extensions:['pdf','docx','txt','md']}};}
+    async status(req,query={}){req.res?.setHeader('Cache-Control','no-store');if(query.kbId){if(Object.keys(query).some(k=>k!=='kbId'))throw new BadRequestException('问答参数无效');await normalKnowledge.evidence.authorize(req.user,query.kbId);return normalKnowledge.status(req.user,query.kbId);}return{enabled:true,syntheticOnly:true,model:'deepseek-v4-pro',quota:await quota.status(req.user),readOnly:true,materialUpload:{...(await attachmentStatus(req.user)).materialUpload,researchDataEnabled:[ids.owner,ids.admin].includes(req.user.accountId),researchDataOverviewReady:true,researchDataAnalysisReady:true,mediaEnabled:Boolean(media?.service)&&[ids.owner,ids.admin].includes(req.user.accountId),mediaResumable:Boolean(media?.service?.snapshot),mediaRegistrationEnabled:Boolean(media?.ingests),mediaRegistrationState:media?.registrationState??'unavailable',mediaContentEnabled:Boolean(media?.content),mediaContentState:media?.contentState??'unavailable',mediaMaxBytes:500*1024*1024,mediaExtensions:['mp4','mov','webm'],maxBytes:100*1024*1024,extensions:['pdf','docx','txt','md']}};}
     async ensure(req,body){assertBody(body,['agentId','kbId','kbName']);if(body.agentId!==agentId)throw new ForbiddenException('Agent 不匹配');await base(req.user,id(body.kbId));return normalKnowledge.ensure(req.user,body.kbId);}
     async articleContext(req,recordId,query){req.res?.setHeader('Cache-Control','no-store');if(Object.keys(query).some(k=>k!=='requestKey'))throw new BadRequestException('单篇查询参数无效');return articleAi.context(req.user,id(recordId),query.requestKey);}
     async ensureHub(req,body){assertBody(body,['agentId','hubKey','articleBinding','conversationKey']);if(body.agentId!==agentId||body.hubKey!=='lingshu-xinyu')throw new ForbiddenException('Hub Agent 范围不匹配');if(Object.hasOwn(body,'articleBinding')){if(Object.hasOwn(body,'conversationKey'))throw new BadRequestException('文章与普通新会话不能混用');return articleAi.ensure(req.user,body.articleBinding);}try{return await ensureHubConversation({sessions,authorize:hubAuthorize,user:req.user,agentId,conversationKey:body.conversationKey});}catch(reason){if(reason.status===400)throw new BadRequestException(reason.message);throw reason;}}
     async state(req,sessionId,query){req.res?.setHeader('Cache-Control','no-store');const limit=Number(query.limit??60);if(!Number.isSafeInteger(limit)||limit<1||limit>100)throw new BadRequestException('分页参数无效');const session=await normalKnowledge.sessions.assertKnowledgeSession(req.user,sessionId);return{...await state(req.user,sessionId,{limit,...(query.before?{before:id(query.before)}:{})}),quota:(session.contextKey?.startsWith('kb:')||parseArticleContext(session.contextKey))?(await normalStatus(req.user)).quota:await quota.status(req.user)};}
-    async commandsList(req,sid){req.res?.setHeader('Cache-Control','no-store');const session=await normalKnowledge.sessions.assertKnowledgeSession(req.user,id(sid));if(parseArticleContext(session.contextKey)){const result=await state(req.user,sid,{limit:60}),messages=new Map(result.messages.map(m=>[m.id,m])),items=result.jobs.map(j=>({id:j.id,sessionId:sid,status:j.status,version:1,requestKey:messages.get(j.userMessageId)?.meta?.requestKey,text:messages.get(j.userMessageId)?.content??'',createdAt:j.createdAt}));return{items,recent:items.filter(j=>['completed','failed'].includes(j.status)),paused:false};}return commands.list(req.user,id(sid));}
-    async commandsSubmit(req,sid,body){assertBody(body,['text','requestKey','kbIds','networkIntent']);const intent=normalizeNetworkIntent(body.networkIntent);if(intent.enabled){const s=await own(req.user,id(sid),{hubReadAllowed:true});if(!isHubSession(s)||parseArticleContext(s.contextKey))throw new BadRequestException('请在岐研AI普通会话开启智能搜索。');}const session=await normalKnowledge.sessions.assertKnowledgeSession(req.user,id(sid));if(parseArticleContext(session.contextKey)){const result=await this.send(req,id(sid),body);return{id:result.id,sessionId:sid,status:result.status,version:1,requestKey:body.requestKey};}return commands.submit(req.user,id(sid),body);}
-    async commandsEdit(req,sid,cid,body){assertBody(body,['text','version']);return commands.edit(req.user,id(sid),id(cid),body);}
-    async commandsCancel(req,sid,cid,body){assertBody(body,['version']);return commands.cancel(req.user,id(sid),id(cid),body);}
-    async commandsResume(req,sid,body){assertBody(body,[]);return commands.resume(req.user,id(sid));}
+    async commandsList(req,sid){req.res?.setHeader('Cache-Control','no-store');const session=await normalKnowledge.sessions.assertKnowledgeSession(req.user,id(sid));if(parseArticleContext(session.contextKey)){const result=await state(req.user,sid,{limit:60}),messages=new Map(result.messages.map(m=>[m.id,m])),items=result.jobs.map(j=>({id:j.id,sessionId:sid,status:j.status,version:1,requestKey:messages.get(j.userMessageId)?.meta?.requestKey,text:messages.get(j.userMessageId)?.content??'',createdAt:j.createdAt}));return{items,recent:items.filter(j=>['completed','failed'].includes(j.status)),paused:false};}if(await privateMaterials.belongs(req.user,id(sid))){const legacy=await commands.list(req.user,id(sid)),current=await privateMaterials.commands.list(req.user,id(sid));return {...current,items:[...legacy.items,...current.items],recent:[...legacy.recent,...current.recent],paused:legacy.paused||current.paused};}return commands.list(req.user,id(sid));}
+    async commandsSubmit(req,sid,body){assertBody(body,['text','requestKey','kbIds','networkIntent']);const intent=normalizeNetworkIntent(body.networkIntent);if(intent.enabled){const s=await own(req.user,id(sid),{hubReadAllowed:true});if(!isHubSession(s)||parseArticleContext(s.contextKey))throw new BadRequestException('请在岐研AI普通会话开启智能搜索。');}const session=await normalKnowledge.sessions.assertKnowledgeSession(req.user,id(sid));if(parseArticleContext(session.contextKey)){const result=await this.send(req,id(sid),body);return{id:result.id,sessionId:sid,status:result.status,version:1,requestKey:body.requestKey};}if(await privateMaterials.belongs(req.user,id(sid)))return privateMaterials.submit(req.user,id(sid),body);return commands.submit(req.user,id(sid),body);}
+    async commandsEdit(req,sid,cid,body){assertBody(body,['text','version']);const target=await privateMaterials.ownsCommand(req.user,id(sid),id(cid))?privateMaterials.commands:commands;return target.edit(req.user,id(sid),id(cid),body);}
+    async commandsCancel(req,sid,cid,body){assertBody(body,['version']);const target=await privateMaterials.ownsCommand(req.user,id(sid),id(cid))?privateMaterials.commands:commands;return target.cancel(req.user,id(sid),id(cid),body);}
+    async commandsResume(req,sid,body){assertBody(body,[]);const legacy=await commands.resume(req.user,id(sid));if(!await privateMaterials.belongs(req.user,id(sid)))return legacy;const current=await privateMaterials.commands.resume(req.user,id(sid));return {resumed:legacy.resumed+current.resumed};}
     async send(req,sessionId,body){
       assertBody(body,['text','requestKey','kbIds','networkIntent']);const s=await own(req.user,sessionId,{hubReadAllowed:true});
       const networkIntent=normalizeNetworkIntent(body.networkIntent);if(!isHubSession(s)&&networkIntent.enabled)throw new BadRequestException('当前会话不支持智能搜索');
@@ -660,6 +670,7 @@ export async function createLocalKnowledgeAi({root,dir,env,ids,prisma:legacyPris
       const turn=context.getStore();if(!turn)return;
       await validateTurnInTx(tx,turn);
     },
-    stop(){clearInterval(commandTimer);queue.onModuleDestroy();},
+    start(){privateMaterials.start();},
+    stop(){privateMaterials.stop();clearInterval(commandTimer);queue.onModuleDestroy();},
   };
 }

@@ -1,3 +1,4 @@
+import {isPrivateMaterialSession} from './private-material-context.mjs';
 import {unlink} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 import {withFixtureTransaction} from '../database/transactions.mjs';
@@ -29,7 +30,7 @@ export function createMaterialAccess({env,ids,load,transaction}){
         tx.researchProject.findFirst({where:{id:user.researchProjectId,tenantId:user.tenantId,studyGroupId:user.studyGroupId,status:'active'}}),
       ]);
       const admin=account?.role==='tenant_admin'&&account.isTenantAdmin===true;
-      if(!account||account.tenant.status!=='active'||account.authVersion!==user.authVersion||!groupParent||!projectParent||!admin&&(!membership||!project)||!session||!isHubConversation(session.contextKey)||session.agent.status!=='active'||session.agent.type!=='research'||!config||!scoped(accesses,user.accountId))deny();
+      if(!account||account.tenant.status!=='active'||account.authVersion!==user.authVersion||!groupParent||!projectParent||!admin&&(!membership||!project)||!session||!(isHubConversation(session.contextKey)||isPrivateMaterialSession(session))||session.agent.status!=='active'||session.agent.type!=='research'||!config||!scoped(accesses,user.accountId))deny();
       const role=admin?{menuPermissions:['knowledge','workbench'],buttonPermissions:['knowledge.edit','chat.use']}:membership.role;
       if(!permissions(role.menuPermissions,['knowledge','workbench'])||!permissions(role.buttonPermissions,['knowledge.edit','chat.use'])||!effective('research',config.tools,role).includes('file.read'))deny();
       const current={tenantId:account.tenantId,accountId:account.id,studyGroupId:session.studyGroupId,researchProjectId:session.researchProjectId,authVersion:account.authVersion,role:account.role,isTenantAdmin:account.isTenantAdmin,username:account.username};

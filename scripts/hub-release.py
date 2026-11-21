@@ -23,7 +23,7 @@ def read_current(store,policy):
  except Exception as e:
   if getattr(e,'status',None)!=404:raise
   pointer={'tag':policy['seedTag'],'manifestSha256':policy['seedManifestSha256']};etag=None
- raw,previous=manifest(store,pointer['tag'],pointer['manifestSha256']);need(previous['coreDigest'] in [policy['coreDigest'],policy.get('coreUpgrade',{}).get('sourceCoreDigest'),policy.get('articleCoreUpgrade',{}).get('sourceCoreDigest')],'HUB_RELEASE_CORE_REAPPROVAL_REQUIRED')
+ raw,previous=manifest(store,pointer['tag'],pointer['manifestSha256']);need(previous['coreDigest'] in [policy['coreDigest'],policy.get('coreUpgrade',{}).get('sourceCoreDigest'),policy.get('articleCoreUpgrade',{}).get('sourceCoreDigest'),policy.get('privateCoreUpgrade',{}).get('sourceCoreDigest')],'HUB_RELEASE_CORE_REAPPROVAL_REQUIRED')
  return raw,previous,{'etag':etag,'tag':pointer['tag'],'manifestSha256':pointer['manifestSha256']}
 
 def provenance(previous,kind,built,revision):
@@ -34,7 +34,7 @@ def backend_reference(previous,tag,built):
  return 'researchhub-backend:'+tag if built else previous['backendImage']
 
 def validate_core_policy(policy,root=HERE.parent):
- for name,expected in {**policy['coreSourceGuards'],**policy.get('coreUpgradeGuards',{}),**policy.get('articleCoreUpgradeGuards',{})}.items():
+ for name,expected in {**policy['coreSourceGuards'],**policy.get('coreUpgradeGuards',{}),**policy.get('articleCoreUpgradeGuards',{}),**policy.get('privateCoreUpgradeGuards',{})}.items():
   need(digest((root/name).read_bytes())==expected,'HUB_RELEASE_CORE_SOURCE_REAPPROVAL_REQUIRED')
  hub=json.loads((root/'package.json').read_text())
  return hub
@@ -45,7 +45,7 @@ def main():
   validate_core_policy(policy)
   raw,previous,pointer=read_current(store,policy);(directory/'previous-release.json').write_bytes(raw);(directory/'baseline-pointer.json').write_text(json.dumps(pointer))
   if a.mode=='rollback':
-   target_raw,target=manifest(store,a.tag,a.manifest_sha);need(target['coreDigest'] in [policy['coreDigest'],policy.get('coreUpgrade',{}).get('sourceCoreDigest'),policy.get('articleCoreUpgrade',{}).get('sourceCoreDigest')],'HUB_RELEASE_ROLLBACK_CORE_REJECTED');(directory/'runtime-release.json').write_bytes(target_raw)
+   target_raw,target=manifest(store,a.tag,a.manifest_sha);need(target['coreDigest'] in [policy['coreDigest'],policy.get('coreUpgrade',{}).get('sourceCoreDigest'),policy.get('articleCoreUpgrade',{}).get('sourceCoreDigest'),policy.get('privateCoreUpgrade',{}).get('sourceCoreDigest')],'HUB_RELEASE_ROLLBACK_CORE_REJECTED');(directory/'runtime-release.json').write_bytes(target_raw)
    output({'release_required':'true','tag':a.tag,'manifest_sha':a.manifest_sha});return
   plan=plan_module.make_plan(previous,os.environ['GITHUB_SHA'],os.environ.get('HUB_DATABASE_APPROVED_DIGEST',''));(directory/'plan.json').write_text(json.dumps(plan,indent=2)+'\n');print(json.dumps(plan))
   need(plan['databaseApproved'],'HUB_DATABASE_SEPARATE_APPROVAL_REQUIRED')

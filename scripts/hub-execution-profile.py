@@ -9,6 +9,7 @@ ROOT=pathlib.Path('/srv/researchhub/ops/chat-runtime')
 CORE='85a0f5c5e7b5155b1593e04baaebd534322d8cb2b41d2847e394e54a5ad75135'
 KNOWLEDGE_CORE='55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669'
 ARTICLE_CORE='c5a27d1cdb85681bf21821e7b8c8eabd482469fb7c87031dabb5faa69cf9e087'
+PRIVATE_CORE='5ae81a684c60472a31a71bdfbde1f2b7b22f2ac7b5f7132ca278d51ded6f7222'
 ACCOUNTS={'rh-kb-local-b0e2af9d-admin','rh-kb-local-b0e2af9d-owner'}
 
 def need(ok,code):
@@ -57,7 +58,7 @@ def support(release,saved):
  state=values(saved)
  profile=state['HUB_EXECUTION_PROFILE']
  if profile!='disabled':
-  cores=[KNOWLEDGE_CORE,ARTICLE_CORE] if profile==STANDARD_PROFILE else [KNOWLEDGE_CORE] if profile==KNOWLEDGE_PROFILE else [CORE,KNOWLEDGE_CORE]
+  cores=[KNOWLEDGE_CORE,ARTICLE_CORE,PRIVATE_CORE] if profile==STANDARD_PROFILE else [KNOWLEDGE_CORE] if profile==KNOWLEDGE_PROFILE else [CORE,KNOWLEDGE_CORE]
   need(profile in release.get('supportedExecutionProfiles',[]) and release.get('coreDigest') in cores,'HUB_ROLLBACK_EXECUTION_UNSUPPORTED')
  if state.get('HUB_CHAT_BUDGET_EXTENSION'):need(state['HUB_CHAT_BUDGET_EXTENSION'] in release.get('supportedBudgetExtensions',[]),'HUB_BUDGET_EXTENSION_ROLLBACK_UNSUPPORTED')
  return state
@@ -111,6 +112,7 @@ def admitted_jobs(saved):
 
 def core_transition(previous,release,saved,upgrade=None):
  if previous.get('coreDigest')==release.get('coreDigest'):return
+ if saved.get('HUB_EXECUTION_PROFILE')==STANDARD_PROFILE and upgrade=={'sourceCoreDigest':ARTICLE_CORE,'targetCoreDigest':PRIVATE_CORE} and {previous.get('coreDigest'),release.get('coreDigest')}=={ARTICLE_CORE,PRIVATE_CORE}:return
  if saved.get('HUB_EXECUTION_PROFILE')==STANDARD_PROFILE and upgrade=={'sourceCoreDigest':KNOWLEDGE_CORE,'targetCoreDigest':ARTICLE_CORE} and {previous.get('coreDigest'),release.get('coreDigest')}=={KNOWLEDGE_CORE,ARTICLE_CORE}:return
  need(saved.get('HUB_EXECUTION_PROFILE')==PROFILE and upgrade=={'sourceCoreDigest':CORE,'targetCoreDigest':KNOWLEDGE_CORE} and {previous.get('coreDigest'),release.get('coreDigest')}=={CORE,KNOWLEDGE_CORE},'HUB_PAIR_CORE_OR_DATABASE_REAPPROVAL_REQUIRED')
 

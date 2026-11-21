@@ -13,6 +13,11 @@ COPY core/prisma ./prisma
 RUN npm ci --ignore-scripts --no-audit --no-fund \
  && DATABASE_URL=postgresql://unused@localhost/unused DIRECT_URL=postgresql://unused@localhost/unused node node_modules/prisma/build/index.js generate --schema prisma/schema.prisma
 
+FROM ${NODE_IMAGE} AS private_agent
+WORKDIR /opt/researchhub
+COPY hub/deploy/opencode-runtime.json hub/deploy/install-opencode.mjs ./deploy/
+RUN node deploy/install-opencode.mjs /opt/researchhub/bin
+
 FROM ${NODE_IMAGE}
 ARG DEBIAN_MIRROR=http://deb.debian.org
 RUN sed -i "s#http://deb.debian.org#${DEBIAN_MIRROR}#g" /etc/apt/sources.list.d/debian.sources \
@@ -23,12 +28,13 @@ ARG HUB_SOURCE_SHA
 LABEL org.opencontainers.image.revision=${HUB_SOURCE_SHA}
 WORKDIR /opt/researchhub
 COPY --from=dependencies --chown=node:node /opt/researchhub/core ./core
+COPY --from=private_agent --chown=node:node /opt/researchhub/bin ./bin
 COPY --chown=node:node core ./core
 COPY --chown=node:node hub ./hub
 COPY --chown=node:node release.json ./release.json
 RUN ln -s /opt/researchhub/core/node_modules /opt/researchhub/hub/node_modules
 ARG CORE_MANIFEST_SHA256
-ENV NODE_ENV=production HUB_REQUIRE_PRIVATE_CORE=true HUB_CORE_DIR=/opt/researchhub/core HUB_CORE_MANIFEST_SHA256=${CORE_MANIFEST_SHA256}
+ENV HUB_OPENCODE_BIN=/opt/researchhub/bin/opencode NODE_ENV=production HUB_REQUIRE_PRIVATE_CORE=true HUB_CORE_DIR=/opt/researchhub/core HUB_CORE_MANIFEST_SHA256=${CORE_MANIFEST_SHA256}
 WORKDIR /opt/researchhub/hub
 USER node
 EXPOSE 19612

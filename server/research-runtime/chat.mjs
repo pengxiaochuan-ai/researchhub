@@ -1,3 +1,5 @@
+import {createRuntimePrivateMaterials} from './private-material-runtime.mjs';
+import {isPrivateMaterialSession} from '../ai-agent/private-material-context.mjs';
 import {assertNoLegacyMaterialQuestion} from '../ai-agent/session-materials.mjs';
 import {ARTICLE_ORIGINAL_MISSING_MESSAGE} from '../hub-sources/article-asset-reader.mjs';
 import {createRuntimeArticle} from './article-runtime.mjs';
@@ -28,7 +30,7 @@ export async function knowledgeEntryAvailability(authorize){
  try{await authorize();return{enabled:true};}
  catch(error){if(error?.code!=='KNOWLEDGE_AI_SCOPE_NOT_ADMITTED')throw error;return{enabled:false,code:'KNOWLEDGE_AI_NOT_CONFIGURED',message:'当前知识库尚未开放资料问答。'};}
 }
-export function createRuntimeChat({config,env,transactionEnv,prisma,load,services,chatBudget}){
+export async function createRuntimeChat({config,env,transactionEnv,prisma,load,services,chatBudget}){
  const tenantId=config.scope.defaultTenantId,agentId=tenantId+'-kb-research';
  const scope=(db,principal)=>({db,principal,tenantId,hubKey:'lingshu-xinyu'});
  const sessionAdmission=new AsyncLocalStorage();
@@ -38,7 +40,8 @@ export function createRuntimeChat({config,env,transactionEnv,prisma,load,service
   if(user.studyGroupId&&user.researchProjectId)await tx.$executeRawUnsafe("SELECT set_config('app.study_group_id',$1,true),set_config('app.research_project_id',$2,true)",user.studyGroupId,user.researchProjectId);
   return fn(tx);
  },{readOnly:true});
- const status=createRuntimeChatStatus({read,load,services,tenantId,agentId,env,config,chatBudget,invalid});
+ const privateMaterials=config.executionProfile==='standard'?await createRuntimePrivateMaterials({config,prisma,load,services,agentId}):null;
+ const status=createRuntimeChatStatus({read,load,services,tenantId,agentId,env,config,chatBudget,invalid,privateMaterials});
  async function requireReady(user){if(!(await status(user)).enabled)unavailable();}
  async function authorize(user,tx){
   // The native publication already holds official/tenant authorization locks;
@@ -78,7 +81,7 @@ export function createRuntimeChat({config,env,transactionEnv,prisma,load,service
   return sessionAdmission.run({accountId:user.accountId,key},fn);
  };
  const sessions=new Proxy(runtime.sessions,{get(target,key){
-  if(key==='sendMessage')return async(user,id,text,options)=>{const s=await target.assertKnowledgeSession(user,id);if(parseArticleContext(s.contextKey)){if(!article)unavailable();return article.sessions.sendMessage(user,id,text,options);}if(isHubConversation(s.contextKey))return target.sendMessage(user,id,text,options);if(!knowledge)unavailable();return knowledge.sessions.sendMessage(user,id,text,options);};
+  if(key==='sendMessage')return async(user,id,text,options)=>{const s=await target.assertKnowledgeSession(user,id);if(parseArticleContext(s.contextKey)){if(!article)unavailable();return article.sessions.sendMessage(user,id,text,options);}if(isPrivateMaterialSession(s)){if(!privateMaterials)unavailable();return privateMaterials.sessions.sendMessage(user,id,text,options);}if(isHubConversation(s.contextKey))return target.sendMessage(user,id,text,options);if(!knowledge)unavailable();return knowledge.sessions.sendMessage(user,id,text,options);};
   const value=Reflect.get(target,key);return typeof value==='function'?value.bind(target):value;
  }});
  const entryStatus=async(user,query={})=>{
@@ -95,13 +98,14 @@ export function createRuntimeChat({config,env,transactionEnv,prisma,load,service
   transaction:(fn,user)=>load('common/worker-publication','withAuthorizationMutation')(prisma,user.tenantId,fn,{studyGroupId:user.studyGroupId,researchProjectId:user.researchProjectId}),
   authorize:async(tx,user)=>{await lock(tx,user.tenantId,{includeOfficial:true});await bindHubTransactionScope(tx,user);await assertHubAgent(scope(tx,user));},
  });
- return{...runtime,sessions,knowledge,article,status:entryStatus,requireReady,agentId,current,read,queueFence:article?{prisma:withQueueBranches(queueFence.prisma,[article.queueFence]),bind:queueFence.bind}:queueFence,chatBudget,withSessionAdmission,historyAction};
+ const projectHub=async(u,session,messages)=>{const ordinary=messages.filter(m=>!m.meta?.provenance?.privateMaterials),projected=await projectHubMessages(ordinary,s=>current(u,s)),byId=new Map(projected.map(m=>[m.id,m]));return privateMaterials?privateMaterials.analysis.project(u,session,messages.map(m=>byId.get(m.id)??m)):messages.map(m=>byId.get(m.id)??{...m,content:'当前无法核对原资料。',meta:{sourceStatus:'restricted'}});};
+ return{...runtime,sessions,knowledge,article,privateMaterials,projectHub,status:entryStatus,requireReady,agentId,current,read,queueFence:{prisma:withQueueBranches(queueFence.prisma,[article?.queueFence,privateMaterials?.queueFence]),bind:queue=>{queueFence.bind(queue);privateMaterials?.bindQueue(queue);return queue;}},chatBudget,withSessionAdmission,historyAction};
 }
 
 export function createRuntimeChatController({require,load,getChat,getQueue}){
  const {Controller,Get,Post,Patch,Req,Body,Param,Query,HttpException}=require('@nestjs/common');
  const body=(v,keys)=>{if(!v||typeof v!=='object'||Array.isArray(v)||Object.keys(v).some(k=>!keys.includes(k)))invalid();return v;};
- async function own(chat,user,id){const s=await chat.sessions.assertKnowledgeSession(user,id);if(s.agentId!==chat.agentId)invalid();if(parseArticleContext(s.contextKey)){if(!chat.article)unavailable();return chat.article.authorizeSession(user,id);}if(!isHubConversation(s.contextKey)){if(!chat.knowledge)unavailable();await chat.knowledge.evidence.authorize(user,knowledgeContextId(s.contextKey));}return s;}
+ async function own(chat,user,id){const s=await chat.sessions.assertKnowledgeSession(user,id);if(s.agentId!==chat.agentId)invalid();if(parseArticleContext(s.contextKey)){if(!chat.article)unavailable();return chat.article.authorizeSession(user,id);}if(!isHubConversation(s.contextKey)&&!isPrivateMaterialSession(s)){if(!chat.knowledge)unavailable();await chat.knowledge.evidence.authorize(user,knowledgeContextId(s.contextKey));}return s;}
  class HubChatController{
   async agents(req){const chat=getChat();return(await chat.status(req.user)).enabled?[{id:chat.agentId,type:'research',name:'岐研科研 Agent'}]:[];}
   async status(req,q){
@@ -117,31 +121,37 @@ export function createRuntimeChatController({require,load,getChat,getQueue}){
   async ensureKnowledge(req,input){const chat=getChat();body(input,['agentId','kbId','kbName']);await chat.requireReady(req.user);if(input.agentId!==chat.agentId||typeof input.kbId!=='string')invalid();if(!chat.knowledge)unavailable();return chat.knowledge.ensure(req.user,input.kbId);}
    async ensureHub(req,input){const chat=getChat();body(input,['agentId','hubKey','conversationKey','articleBinding']);await chat.requireReady(req.user);if(input.agentId!==chat.agentId||input.hubKey!=='lingshu-xinyu')invalid();if(Object.hasOwn(input,'articleBinding')){if(Object.hasOwn(input,'conversationKey'))invalid();if(!chat.article)unavailable();return chat.article.ensure(req.user,input.articleBinding);}return chat.withSessionAdmission(req.user,input.conversationKey,()=>ensureHubConversation({sessions:chat.sessions,authorize:chat.requireReady,user:req.user,agentId:chat.agentId,conversationKey:input.conversationKey}));}
   async history(req,q){const chat=getChat();await chat.requireReady(req.user);const args=hubHistoryQuery(req.user,chat.agentId,q);return chat.read(req.user,async db=>{const rows=await db.session.findMany(args);return{items:await projectHubHistoryPage(rows,req.user,db,Number(q.limit??20)),hasMore:rows.length>Number(q.limit??20),page:Number(q.page??1)};});}
-  async state(req,id,q){const chat=getChat();await chat.requireReady(req.user);const session=await own(chat,req.user,id);if(Object.keys(q).some(k=>!['limit','before'].includes(k)))invalid();const limit=Number(q.limit??60);if(!Number.isSafeInteger(limit)||limit<1||limit>100)invalid();const result=await getQueue().state(req.user,id,{limit,...(q.before?{before:q.before}:{})});if(parseArticleContext(session.contextKey))return chat.article.state(req.user,session,result);const hub=isHubConversation(session.contextKey),kbId=hub?null:knowledgeContextId(session.contextKey);return{...result,...chat.chatBudget&&{quota:chat.chatBudget.isAdmittedSession(req.user.accountId,id)?chat.chatBudget.quota(req.user.accountId,session.contextKey):{blocked:true,message:'此历史会话仅供查看，请使用新对话提问。'}},messages:hub?await projectHubMessages(result.messages,s=>chat.current(req.user,s)):await chat.knowledge.evidence.project(req.user,kbId,result.messages),hubContext:{kind:hub?'hub':'knowledge',sessionId:id,...kbId&&{kbId}}};}
-  async send(req,id,input){const chat=getChat();body(input,['text','requestKey','kbIds','networkIntent']);await chat.requireReady(req.user);const session=await own(chat,req.user,id);if(parseArticleContext(session.contextKey)){if(input.networkIntent&&(input.networkIntent.enabled!==false||Object.keys(input.networkIntent).some(k=>k!=='enabled')))invalid();return chat.article.enqueue(req.user,id,input,getQueue());}const hub=isHubConversation(session.contextKey),kbId=hub?null:knowledgeContextId(session.contextKey);
+  async state(req,id,q){const chat=getChat();await chat.requireReady(req.user);const session=await own(chat,req.user,id);if(Object.keys(q).some(k=>!['limit','before'].includes(k)))invalid();const limit=Number(q.limit??60);if(!Number.isSafeInteger(limit)||limit<1||limit>100)invalid();const result=await getQueue().state(req.user,id,{limit,...(q.before?{before:q.before}:{})});if(parseArticleContext(session.contextKey))return chat.article.state(req.user,session,result);const hub=isHubConversation(session.contextKey)||isPrivateMaterialSession(session),kbId=hub?null:knowledgeContextId(session.contextKey);return{...result,...chat.chatBudget&&{quota:chat.chatBudget.isAdmittedSession(req.user.accountId,id)?chat.chatBudget.quota(req.user.accountId,session.contextKey):{blocked:true,message:'此历史会话仅供查看，请使用新对话提问。'}},messages:hub?await chat.projectHub(req.user,session,result.messages):await chat.knowledge.evidence.project(req.user,kbId,result.messages),hubContext:{kind:hub?'hub':'knowledge',sessionId:id,...kbId&&{kbId}}};}
+  async send(req,id,input){const chat=getChat();body(input,['text','requestKey','kbIds','networkIntent']);await chat.requireReady(req.user);const session=await own(chat,req.user,id);if(parseArticleContext(session.contextKey)){if(input.networkIntent&&(input.networkIntent.enabled!==false||Object.keys(input.networkIntent).some(k=>k!=='enabled')))invalid();return chat.article.enqueue(req.user,id,input,getQueue());}if(isPrivateMaterialSession(session))throw Object.assign(Error('请使用当前会话的发送入口。'),{code:'HUB_PRIVATE_COMMAND_REQUIRED',status:409});const hub=isHubConversation(session.contextKey),kbId=hub?null:knowledgeContextId(session.contextKey);
     if(chat.chatBudget){chat.chatBudget.assertAdmittedSession(req.user.accountId,id);chat.chatBudget.assertCanEnqueue(req.user.accountId,{sessionId:id,requestKey:input.requestKey});}
    if(agentQuestionError(input.text)||!/^[A-Za-z0-9_-]{8,160}$/.test(input.requestKey??'')||!Array.isArray(input.kbIds)||(hub?input.kbIds.length:input.kbIds.length!==1||input.kbIds[0]!==kbId))invalid();
    if(input.networkIntent&&(![false,undefined].includes(input.networkIntent.enabled)||Object.keys(input.networkIntent).some(k=>k!=='enabled')))unavailable();
    return getQueue().enqueue(req.user,id,{text:input.text,requestKey:input.requestKey,kbIds:hub?[]:[kbId]});
   }
   async commands(req,id){
+   const chat=getChat();if(chat.privateMaterials&&await chat.privateMaterials.belongs(req.user,id))return chat.privateMaterials.commands.list(req.user,id);
    const state=await this.state(req,id,{}),messages=new Map(state.messages.map(m=>[m.id,m]));
    const items=state.jobs.map(j=>({id:j.id,sessionId:id,status:j.status,version:1,requestKey:messages.get(j.userMessageId)?.meta?.requestKey,text:messages.get(j.userMessageId)?.content??'',createdAt:j.createdAt}));
    return{items,recent:items.filter(j=>['completed','failed'].includes(j.status)),paused:false};
   }
   async command(req,id,input){
    body(input,['text','requestKey','kbIds','networkIntent']);
+   const chat=getChat();await chat.requireReady(req.user);if(chat.privateMaterials&&await chat.privateMaterials.belongs(req.user,id))return chat.privateMaterials.submit(req.user,id,input);
    if(input.networkIntent&&(input.networkIntent.schema!=='hub-network-intent.v1'||input.networkIntent.enabled!==false||Object.keys(input.networkIntent).some(k=>!['schema','enabled'].includes(k))))unavailable();
    const result=await this.send(req,id,{...input,...input.networkIntent&&{networkIntent:{enabled:false}}});
    return{id:result.id,sessionId:id,status:result.status,version:1,requestKey:input.requestKey};
   }
-  async source(req,id,messageId,index){const chat=getChat();await chat.requireReady(req.user);const session=await own(chat,req.user,id);const n=Number(index);if(parseArticleContext(session.contextKey)){if(n!==1)invalid();const message=await chat.read(req.user,db=>db.message.findFirst({where:{id:messageId,sessionId:id,tenantId:req.user.tenantId,role:'assistant'}}));if(!message)invalid();return chat.article.source(req.user,session,message);}const hub=isHubConversation(session.contextKey);if(!Number.isSafeInteger(n)||n<1)invalid();const source=await chat.read(req.user,async db=>{const message=await db.message.findFirst({where:{id:messageId,sessionId:id,tenantId:req.user.tenantId,role:'assistant'}}),sources=message?.meta?.provenance?.[hub?'hubSources':'knowledgeSources'];if(!Array.isArray(sources)||!sources[n-1])invalid();if(hub)await assertCurrentAiSources({db,principal:req.user,tenantId:req.user.tenantId,hubKey:'lingshu-xinyu',sources:[sources[n-1]]});return sources[n-1];});const status=hub?'current':await chat.knowledge.evidence.status(req.user,knowledgeContextId(session.contextKey),source);if(status==='restricted')throw Object.assign(Error('当前来源不可查看，请刷新核对。'),{status:403,code:'KNOWLEDGE_SOURCE_RESTRICTED'});return{...source,index:n,status};}
+  async source(req,id,messageId,index){const chat=getChat();await chat.requireReady(req.user);const session=await own(chat,req.user,id);const n=Number(index);const privateMessage=await chat.read(req.user,db=>db.message.findFirst({where:{id:messageId,sessionId:id,tenantId:req.user.tenantId,role:'assistant'}}));if(privateMessage?.meta?.provenance?.privateMaterials){if(!chat.privateMaterials)unavailable();return chat.privateMaterials.analysis.source(req.user,session,privateMessage,n);}if(parseArticleContext(session.contextKey)){if(n!==1)invalid();const message=await chat.read(req.user,db=>db.message.findFirst({where:{id:messageId,sessionId:id,tenantId:req.user.tenantId,role:'assistant'}}));if(!message)invalid();return chat.article.source(req.user,session,message);}const hub=isHubConversation(session.contextKey);if(!Number.isSafeInteger(n)||n<1)invalid();const source=await chat.read(req.user,async db=>{const message=await db.message.findFirst({where:{id:messageId,sessionId:id,tenantId:req.user.tenantId,role:'assistant'}}),sources=message?.meta?.provenance?.[hub?'hubSources':'knowledgeSources'];if(!Array.isArray(sources)||!sources[n-1])invalid();if(hub)await assertCurrentAiSources({db,principal:req.user,tenantId:req.user.tenantId,hubKey:'lingshu-xinyu',sources:[sources[n-1]]});return sources[n-1];});const status=hub?'current':await chat.knowledge.evidence.status(req.user,knowledgeContextId(session.contextKey),source);if(status==='restricted')throw Object.assign(Error('当前来源不可查看，请刷新核对。'),{status:403,code:'KNOWLEDGE_SOURCE_RESTRICTED'});return{...source,index:n,status};}
   async articleContext(req,recordId,q){const chat=getChat();await chat.requireReady(req.user);if(Object.keys(q).some(k=>k!=='requestKey'))invalid();if(!chat.article)unavailable();req.res?.setHeader('Cache-Control','no-store');return chat.article.context(req.user,recordId,q.requestKey);}
   async notConfigured(req){await getChat().requireReady(req.user);unavailable();}
+  async privateCommandEdit(req,id,cid,input){body(input,['text','version']);return getChat().privateMaterials.commands.edit(req.user,id,cid,input);}
+  async privateCommandCancel(req,id,cid,input){body(input,['version']);return getChat().privateMaterials.commands.cancel(req.user,id,cid,input);}
+  async privateCommandResume(req,id,input){body(input,[]);return getChat().privateMaterials.commands.resume(req.user,id);}
   async historyAction(req,id,input){const chat=getChat();await chat.requireReady(req.user);return chat.historyAction(req.user,id,input);}
  }
  Controller()(HubChatController);
  const routes=[['agents',Get,'agents',[]],['status',Get,'knowledge/ai-status',[Query()]],['ensureHub',Post,'sessions/hub-source',[Body()]],['ensureKnowledge',Post,'sessions/knowledge',[Body()]],['history',Get,'sessions/hub-source/history',[Query()]],['state',Get,'sessions/:id/knowledge-state',[Param('id'),Query()]],['send',Post,'sessions/:id/knowledge-messages',[Param('id'),Body()]],['commands',Get,'sessions/:id/commands',[Param('id')]],['command',Post,'sessions/:id/commands',[Param('id'),Body()]],['source',Get,'sessions/:id/knowledge-sources/:messageId/:index',[Param('id'),Param('messageId'),Param('index')]]];
+ routes.push(['privateCommandEdit',Patch,'sessions/:id/commands/:commandId',[Param('id'),Param('commandId'),Body()]],['privateCommandCancel',Post,'sessions/:id/commands/:commandId/cancellation',[Param('id'),Param('commandId'),Body()]],['privateCommandResume',Post,'sessions/:id/commands/resumption',[Param('id'),Body()]]);
  // Separate contexts must never silently execute as a different evidence scope.
  routes.push(['historyAction',Patch,'sessions/:id/history-action',[Param('id'),Body()]]);
  routes.push(['articleContext',Get,'hub-sources/article-context/:recordId',[Param('recordId'),Query()]]);

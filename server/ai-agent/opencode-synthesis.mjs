@@ -1,6 +1,10 @@
 import {createServer} from 'node:http';
 import {randomBytes,randomUUID} from 'node:crypto';
-import {fileURLToPath} from 'node:url';
+import {mkdtemp,rm,realpath} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {runtimeDependencies} from '../research-runtime/dependencies.mjs';
+import {hubOpenCodeBinary} from './opencode-installation.mjs';
 import {prepareHubWorkspace,startHubPreflightRuntime} from './opencode-runtime.mjs';
 import {routeDigest} from './skill-routing.mjs';
 
@@ -9,6 +13,8 @@ import {routeDigest} from './skill-routing.mjs';
 export async function runOpenCodeSynthesis({root,tenantId,instruction,text,authorize,providerCall,signal}){
  if(typeof authorize!=='function'||await authorize()!==true)throw Error('HUB_OPENCODE_ACCESS_DENIED');
  signal?.throwIfAborted();
+ const binary=await hubOpenCodeBinary(),{load}=runtimeDependencies({coreRoot:process.env.HUB_CORE_DIR,digest:process.env.HUB_CORE_MANIFEST_SHA256,requirePrivate:process.env.NODE_ENV==='production'}),Client=load('orchestrator/opencode/opencode-client','OpencodeClient');
+ const workspaceRoot=await realpath(await mkdtemp(join(tmpdir(),'researchhub-opencode-')));
  const token=randomBytes(32).toString('hex');let calls=0,known,runtime,paths,proxyError,providerPending;
  const proxy=createServer(async(req,res)=>{
   try{
@@ -34,8 +40,8 @@ export async function runOpenCodeSynthesis({root,tenantId,instruction,text,autho
  });
  await new Promise((resolve,reject)=>{proxy.once('error',reject);proxy.listen(0,'127.0.0.1',resolve);});
  try{
-  paths=await prepareHubWorkspace({root,tenantId,deploymentId:'hub-literature',mode:'literature',instruction,provider:{baseURL:`http://127.0.0.1:${proxy.address().port}/v1`,apiKey:token,model:'deepseek-v4-pro'}});
-  runtime=await startHubPreflightRuntime({bin:'/Users/mac/.opencode/bin/opencode.real',paths,oldServerRoot:fileURLToPath(new URL('../../../app/server/',import.meta.url))});
+  paths=await prepareHubWorkspace({root:workspaceRoot,tenantId,deploymentId:'hub-literature',mode:'literature',instruction,provider:{baseURL:`http://127.0.0.1:${proxy.address().port}/v1`,apiKey:token,model:'deepseek-v4-pro'}});
+  runtime=await startHubPreflightRuntime({bin:binary,paths,Client});
   const session=await runtime.client.createSession('Hub fixed public literature synthesis');
   const response=await runtime.client.sendMessage(session.id,{agent:'qiyan',providerID:'deepseek',modelID:'deepseek-v4-pro',text,timeoutMs:100000,signal,tools:{}});
   if(proxyError)throw proxyError;
@@ -48,5 +54,5 @@ export async function runOpenCodeSynthesis({root,tenantId,instruction,text,autho
   if(providerPending)try{known??=await providerPending;}catch(cause){proxyError??=cause;}
   const reason=proxyError??error;if(known)reason.knownProviderResult=known;throw reason;
  }
- finally{await runtime?.stop();proxy.closeAllConnections();await new Promise(resolve=>proxy.close(resolve));}
+ finally{await runtime?.stop();proxy.closeAllConnections();await new Promise(resolve=>proxy.close(resolve));await rm(workspaceRoot,{recursive:true,force:true});}
 }

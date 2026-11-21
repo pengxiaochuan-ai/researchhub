@@ -1,3 +1,4 @@
+import {PRIVATE_MATERIAL_CONTEXT_PREFIX} from '../server/ai-agent/private-material-context.mjs';
 import {HUB_CONTEXT_KEY,HUB_CONVERSATION_PREFIX,isHubConversation} from './hub-agent-contract.mjs';
 import {parseArticleContext} from '../server/hub-sources/article-evidence.mjs';
 const fail=()=>{throw Object.assign(Error('HUB_HISTORY_INVALID'),{status:400});};
@@ -5,7 +6,7 @@ export function hubHistoryQuery(user,agentId,query={}){
  const page=Number(query.page??1),limit=Number(query.limit??20);
  if(Object.keys(query).some(k=>!['page','limit'].includes(k))||!Number.isSafeInteger(page)||page<1||page>10000||!Number.isSafeInteger(limit)||limit<1||limit>50)fail();
  return {where:{tenantId:user.tenantId,accountId:user.accountId,studyGroupId:user.studyGroupId,researchProjectId:user.researchProjectId,agentId,channel:'knowledge',deletedAt:null,
-   OR:[{contextKey:HUB_CONTEXT_KEY},{contextKey:{startsWith:HUB_CONVERSATION_PREFIX}},{contextKey:{startsWith:'hub-article:v1:'}}]},
+   OR:[{contextKey:HUB_CONTEXT_KEY},{contextKey:{startsWith:HUB_CONVERSATION_PREFIX}},{contextKey:{startsWith:'hub-article:v1:'}},{contextKey:{startsWith:PRIVATE_MATERIAL_CONTEXT_PREFIX}}]},
    select:{id:true,title:true,pinned:true,contextKey:true,updatedAt:true,messages:{where:{tenantId:user.tenantId,role:'user'},select:{content:true,meta:true},orderBy:[{createdAt:'asc'},{id:'asc'}],take:1}},orderBy:[{pinned:'desc'},{updatedAt:'desc'},{id:'desc'}],skip:(page-1)*limit,take:limit+1};
 }
 export function projectHubHistory(session,job){

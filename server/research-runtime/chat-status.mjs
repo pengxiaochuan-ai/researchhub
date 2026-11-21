@@ -8,7 +8,7 @@ export function materialUploadCapability({assembled,account,roles,tools,effectiv
  return{schema:'hub-material-upload.v1',enabled:Boolean(allowed),analysisReady:false,maxBytes:MATERIAL_MAX_BYTES,extensions:['pdf','docx','txt','md']};
 }
 
-export function createRuntimeChatStatus({read,load,services,tenantId,agentId,env,config,chatBudget,invalid}){
+export function createRuntimeChatStatus({read,load,services,tenantId,agentId,env,config,chatBudget,invalid,privateMaterials}){
  async function status(user,{tx:existingTx}={}){
   let materialUpload={enabled:false,analysisReady:false};
   let businessQuota={businessReady:false,requiredTokens:'0',effectiveRemainingTokens:'0'};
@@ -30,6 +30,7 @@ export function createRuntimeChatStatus({read,load,services,tenantId,agentId,env
     }catch{valid=false;}
     const members=account.role==='tenant_admin'&&account.isTenantAdmin===true?[]:await tx.studyGroupMembership.findMany({where:{tenantId,accountId:user.accountId,status:'active',studyGroup:{status:'active'},role:{status:'active'},...(user.studyGroupId?{studyGroupId:user.studyGroupId}:{})},select:{role:{select:{menuPermissions:true,buttonPermissions:true}}}});
     materialUpload=materialUploadCapability({assembled:config.profile==='full'&&Boolean(env.KB_DOC_PARSER_URL)&&config.scope.enabledWorkerKinds.includes('knowledge-import'),account,roles:members.map(m=>m.role),tools:model?.tools??[],effective:load('common/tool-catalog','effectiveRuntimeToolKeys'),permissions:load('common/permission-catalog','hasRequiredPermissions')});
+    if(materialUpload.enabled&&valid&&configuredRoute.model==='deepseek-v4-pro'&&privateMaterials?.ready)materialUpload.analysisReady=await privateMaterials.canAnalyze(tx,user);
     if(!valid)result.push('HUB_CHAT_MODEL_NOT_CONFIGURED');
     if(valid){const required=load('billing/token-quota-policy','estimateRunTokenBudget')(Number(configuredRoute.maxTokens??4096)),quota=await services.billing.quotaSnapshotFrom(tx,tenantId,user.accountId);businessQuota={businessReady:quota.effectiveRemaining>=required,requiredTokens:required.toString(),effectiveRemainingTokens:quota.effectiveRemaining.toString()};}
    }

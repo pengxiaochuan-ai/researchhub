@@ -4,7 +4,7 @@
   "seedManifestSha256": "56b37e68bdb8c04ae343596dea24f1881f7a00d3661819cf4c1ba73e0a2adb9b",
   "coreSourceKey": "releases/researchhub/backend-demo-20261119-45651761fc8b/context.tar.gz",
   "coreSourceSha256": "45651761fc8b3513e884554c0ecc9c79249a5e7d21766f259c8ea04cad3d1745",
-  "coreDigest": "c5a27d1cdb85681bf21821e7b8c8eabd482469fb7c87031dabb5faa69cf9e087",
+  "coreDigest": "5ae81a684c60472a31a71bdfbde1f2b7b22f2ac7b5f7132ca278d51ded6f7222",
   "tenantSlug": "rh-kb-local-b0e2af9d-tenant",
   "target": {
     "database": "researchhub",
@@ -36,5 +36,16 @@
     "deploy/article-chat-core-upgrade.mjs": "bf38524127778323d08d2bf3d7b1760ae9e250332c08171bd75f116ba610a4ee",
     "deploy/runtime-adaptations/article-task-context.ts": "a63937635a998382643b2ff0c027c377b863185f91692a67af37eddcc65834f9",
     "deploy/runtime-adaptations/article-admin.json": "a5ee545536960574a9fa4fe780f9c47a4413db54c6122bd10ae95c2e1d596773"
+  },
+  "privateCoreUpgrade": {
+    "sourceCoreDigest": "c5a27d1cdb85681bf21821e7b8c8eabd482469fb7c87031dabb5faa69cf9e087",
+    "targetCoreDigest": "5ae81a684c60472a31a71bdfbde1f2b7b22f2ac7b5f7132ca278d51ded6f7222"
+  },
+  "privateCoreUpgradeGuards": {
+    "deploy/private-material-core-upgrade.mjs": "a210ef556feb249681b49d25f247c25b2a977bc27c427390835d09600f7be6ac",
+    "deploy/runtime-adaptations/hub-private-materials.ts": "c6e86c495af069468ba62be91ceddede61174702adac14d19928f510e36787e0",
+    "deploy/runtime-adaptations/private-material-admin.json": "695354319dc4d9214e751a06b4b57509d726dd1c40cad852b2e4a01a63e5210f",
+    "deploy/opencode-runtime.json": "2c864ad8b9a81cd752a4ffa4fd414d75598f9567da3b36445fd71ed56c5f9919",
+    "deploy/install-opencode.mjs": "fac08da8cc31b26912fb5c12aeaaef5f8eec20a7aaf6b1fc64a8360a240009c8"
   }
 }

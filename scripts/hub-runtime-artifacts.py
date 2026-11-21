@@ -8,10 +8,11 @@ def need(ok,code):
 def supported_execution_profiles(context,core,previous=None):
  if previous is not None:return previous.get('supportedExecutionProfiles',['disabled'])
  profiles=['disabled','bounded-hub-chat-v1']
- if core in ('55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669','c5a27d1cdb85681bf21821e7b8c8eabd482469fb7c87031dabb5faa69cf9e087'):
+ if core in ('5ae81a684c60472a31a71bdfbde1f2b7b22f2ac7b5f7132ca278d51ded6f7222','55d56847c17af69fe4616613cb46e0cdc3ae263f9d7a205f267290c504a94669','c5a27d1cdb85681bf21821e7b8c8eabd482469fb7c87031dabb5faa69cf9e087'):
   profiles.append('bounded-hub-knowledge-v2')
   required=('server/research-runtime/knowledge-module.mjs','server/research-runtime/business-execution.mjs','services/knowledge/dependencies.json','services/knowledge/parser.py','services/knowledge/embedding.py','services/knowledge/model.json','services/knowledge/run.py','services/knowledge/verify_model.py','services/knowledge/parser.Dockerfile','services/knowledge/embedding.Dockerfile')
   if core=='c5a27d1cdb85681bf21821e7b8c8eabd482469fb7c87031dabb5faa69cf9e087':required+=('server/research-runtime/article-runtime.mjs','server/research-runtime/article-turn.mjs','server/research-runtime/article-original-cache.mjs','server/research-runtime/queue-branches.mjs','server/hub-sources/article-asset-reader.mjs')
+  if core=='5ae81a684c60472a31a71bdfbde1f2b7b22f2ac7b5f7132ca278d51ded6f7222':required+=('server/research-runtime/private-material-runtime.mjs','server/research-runtime/private-material-turn.mjs','deploy/opencode-runtime.json')
   if all((pathlib.Path(context)/'hub'/name).is_file() for name in required):profiles.append('standard')
  return profiles
 

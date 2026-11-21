@@ -13,9 +13,9 @@ import { spawn, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createServer as netServer, createConnection } from 'node:net';
 import { loadFixtureInput } from '../../app/server/scripts/wp01/local-config.mjs';
-import { withFixtureTransaction, assertFixtureTarget } from '../../app/server/scripts/wp01/fixture-guard.mjs';
+import { assertFixtureTarget } from '../../app/server/scripts/wp01/fixture-guard.mjs';
 import { assertLocalScope, assertOwnProcess, allowedFetchUrl, stopOwnedChildren, guardViteSignalOwnership } from './local-knowledge-config.mjs';
-import { bindRuntimeTransactionsInto } from '../server/database/transactions.mjs';
+import { bindRuntimeTransactionsInto, withFixtureTransaction } from '../server/database/transactions.mjs';
 import {configureAnalysisListProxy} from '../server/http/analysis-list-lifetime.mjs';
 import {isOwnedOpenCodeRequest} from '../server/ai-agent/opencode-runtime.mjs';
 import {parseAssetJson} from './research-assets-json.mjs';
@@ -274,7 +274,7 @@ if(action==='status'){
     // parser. Explicitly preserve the legacy 100kb parser for the other APIs.
     app.use(express.json());
     app.useGlobalPipes(new ValidationPipe({whitelist:true,transform:true,forbidNonWhitelisted:true}));
-    const reflector=new Reflector();app.useGlobalGuards(hubAuth.guard(reflector),admission.guard(reflector),new(load('common/guards/roles.guard','RolesGuard'))(reflector,prisma),createHubStudyScopeGuard({native:new(load('common/guards/study-group.guard','StudyGroupGuard'))(reflector,prisma),reflector,prisma,load,allowedTenantIds:scope.allowedTenantIds}));await app.listen(19502,'127.0.0.1');
+    const reflector=new Reflector();app.useGlobalGuards(hubAuth.guard(reflector),admission.guard(reflector),new(load('common/guards/roles.guard','RolesGuard'))(reflector,prisma),createHubStudyScopeGuard({native:new(load('common/guards/study-group.guard','StudyGroupGuard'))(reflector,prisma),reflector,prisma,load,allowedTenantIds:scope.allowedTenantIds}));await app.listen(19502,'127.0.0.1');ai.start();
     const {createServer}=await import(root+'researchhub/node_modules/vite/dist/node/index.js');
     const priorTermHandlers=new Set(process.listeners('SIGTERM'));
     vite=await createServer({root:root+'researchhub',configFile:root+'researchhub/vite.config.js',cacheDir:root+'researchhub/.tmp/vite-runtime-'+key,define:{'import.meta.env.VITE_AUTH_TENANT_SLUG':JSON.stringify(ids.tenant)},server:{host:'127.0.0.1',port:19501,strictPort:true,proxy:{'/api':{target:'http://127.0.0.1:19502',changeOrigin:true,configure:configureAnalysisListProxy}}},logLevel:'error'});await vite.listen();

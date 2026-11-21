@@ -1,3 +1,4 @@
+import {privateMaterialLegacySession} from './private-material-context.mjs';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {routeSkillTask,bindSkillRoute,assertSkillRoute,routeDigest} from './skill-routing.mjs';
 import {VIDEO_MODE} from './video-chat-contract.mjs';
@@ -24,6 +25,7 @@ export function createSessionSkillRouting({tenantId,agentId,catalog,contextOf,tr
   return{jobId:job.id,skillKey:old.skill?.key,anchorQuestion:old.decision.anchorQuestion,mode:old.decision.mode,taskAsOf:old.decision.taskPlan?.asOf,taskPlan:old.decision.taskPlan};
  }
  async function bind(tx,user,session,text,payload,stored,read=false){
+  if(read)session=privateMaterialLegacySession(session,stored,routeDigest);
   if(stored&&stored.inputHash!==routeDigest(text.trim()))failure('HUB_SKILL_ROUTE_CHANGED','任务输入与路由快照不一致。');
   const current=await effectiveInTx(tx,user);
   const networkIntent=smartSearchEnabled&&(!stored||stored.schema==='hub-medical-router.v2')?normalizeNetworkIntent(payload?.networkIntent):undefined;

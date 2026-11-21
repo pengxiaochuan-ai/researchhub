@@ -75,9 +75,8 @@ export function hubChildEnvironment(paths, ambient = process.env) {
   };
 }
 
-export async function startHubPreflightRuntime({ bin, paths, oldServerRoot, readyMs = 45000 }) {
-  const require = createRequire(join(resolve(oldServerRoot), 'package.json'));
-  const { OpencodeClient } = require(join(resolve(oldServerRoot), 'dist/orchestrator/opencode/opencode-client.js'));
+export async function startHubPreflightRuntime({ bin, paths, oldServerRoot, Client, readyMs = 45000 }) {
+  const OpencodeClient=Client??createRequire(join(resolve(oldServerRoot),'package.json'))(join(resolve(oldServerRoot),'dist/orchestrator/opencode/opencode-client.js')).OpencodeClient;
   const log = await open(join(paths.workspace, 'opencode.log'), 'a', 0o600);
   const child = spawn(bin, ['serve', '--port', '0', '--hostname', '127.0.0.1', '--log-level', 'WARN'], {
     cwd: paths.workspace, env: hubChildEnvironment(paths), stdio: ['ignore', 'pipe', 'pipe'], detached: true,

@@ -1,0 +1,13 @@
+{
+  "schema": "hub-private-material-admin.v1",
+  "sourceCoreDigest": "c5a27d1cdb85681bf21821e7b8c8eabd482469fb7c87031dabb5faa69cf9e087",
+  "before": {
+    "src/common/worker-authorization.ts": "e5425ffb746bdd21ec0c156ff78ae715f26a681cddd77d447a721d3d5854a5f1",
+    "src/common/hub-knowledge-admin.ts": "5f281d385c983522dac08cba62a5292b3a8983e61a3a11c6cc430e8caef93fff"
+  },
+  "after": {
+    "src/common/worker-authorization.ts": "49c70f8ec2b2dc00c252594ca00d8f6b90f7507ff4ec2badea7cbdf9d3505860",
+    "src/common/hub-knowledge-admin.ts": "9416376dfeacb5aa8f686979f87cb7d63b01478519d5710c2ad095ec5619c12f",
+    "src/common/hub-private-materials.ts": "c6e86c495af069468ba62be91ceddede61174702adac14d19928f510e36787e0"
+  }
+}

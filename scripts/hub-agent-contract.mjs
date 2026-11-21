@@ -1,3 +1,4 @@
+import {isPrivateMaterialSession} from '../server/ai-agent/private-material-context.mjs';
 // Hub evidence has a distinct persisted provenance even though the unchanged
 // old Orchestrator exposes only its fixed kb_search tool slot.
 import {isDeepStrictEqual} from 'node:util';
@@ -16,7 +17,7 @@ export function bindHubSynthesisQuestion(messages,question){
   '注册资料只代表登记信息，不能据此推定研究已完成或干预有效；不足以作答时明确局限，仍用原来源编号标注已有依据。',
  ].join('\n')},{...messages[1],content:'用户问题：'+question+'\n'+messages[1].content.slice(prefix.length)}];
 }
-export const isHubSession=session=>isHubConversation(session?.contextKey)||session?.contextKey?.startsWith('hub-article:')===true;
+export const isHubSession=session=>isPrivateMaterialSession(session)||isHubConversation(session?.contextKey)||session?.contextKey?.startsWith('hub-article:')===true;
 
 export function assertHubToolResult(result){
   const sources=result?.meta?.sources;

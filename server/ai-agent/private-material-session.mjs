@@ -1,3 +1,4 @@
+import {loadPrivateMaterialInstruction} from './private-material-instruction.mjs';
 import {readFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {materialDigest} from './session-material-contract.mjs';
@@ -11,12 +12,7 @@ export function assertPrivateRuntimeTools(ctx,{privateMaterials=false}={}){
 }
 export function createPrivateMaterialSession({root,tenantId,routing,reader,transaction,executionCurrent,runSynthesis=runOpenCodeSynthesis,filterText=text=>text}){
  const owner=(u,sid)=>({tenantId,accountId:u.accountId,studyGroupId:u.studyGroupId,researchProjectId:u.researchProjectId,sessionId:sid});
- async function instruction(){
-  const method=await readFile(join(root,'skill/doubao-medical-literature-interpretation/SKILL.md'),'utf8');
-  const core=method.slice(method.indexOf('## 5.'),method.indexOf('## 6.'));
-  if(!core.trim())fail('HUB_SKILL_SOURCE_CHANGED');
-  return core+'\n【ResearchHub本人资料执行适配，优先于原平台交付要求，不创建外部文档】\n'+PRIVATE_MATERIAL_INSTRUCTION;
- }
+ const instruction=()=>loadPrivateMaterialInstruction(root);
  async function validateInTx(tx,turn,{read=false}={}){
   if(turn.user.tenantId!==tenantId||turn.skillRoute?.decision?.mode!=='hub-private-materials')fail('HUB_PRIVATE_CONTEXT_CHANGED');
   await routing.validateInTx(tx,turn.user,turn.sessionId,turn.jobId,turn.skillRoute,read);

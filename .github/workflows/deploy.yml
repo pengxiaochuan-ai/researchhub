@@ -86,12 +86,14 @@ jobs:
           node --input-type=module - <<'JS'
           import{refreshBackendHub}from'./deploy/backend-package.mjs';
           import{upgradeFrozenKnowledgeCore}from'./deploy/knowledge-chat-kb-upgrade.mjs';
+          import{upgradeFrozenPrivateMaterialCore}from'./deploy/private-material-core-upgrade.mjs';
           import{upgradeFrozenArticleCore}from'./deploy/article-chat-core-upgrade.mjs';
           import{readFileSync}from'node:fs';
           const policy=JSON.parse(readFileSync('deploy/release-policy.json'));
           const context=process.env.RUNNER_TEMP+'/hub-backend-context';
           if(policy.coreUpgrade){const upgraded=upgradeFrozenKnowledgeCore({source:process.env.RUNNER_TEMP+'/hub-backend-baseline',output:policy.articleCoreUpgrade?process.env.RUNNER_TEMP+'/hub-backend-knowledge':context});if(upgraded.coreDigest!==policy.coreUpgrade.targetCoreDigest)throw Error('KB_CORE_UPGRADE_DIGEST_REAPPROVAL_REQUIRED');}
-          if(policy.articleCoreUpgrade){const upgraded=upgradeFrozenArticleCore({source:process.env.RUNNER_TEMP+'/hub-backend-knowledge',output:context});if(upgraded.coreDigest!==policy.coreDigest)throw Error('ARTICLE_CORE_UPGRADE_DIGEST_REAPPROVAL_REQUIRED');}
+          if(policy.articleCoreUpgrade){const upgraded=upgradeFrozenArticleCore({source:process.env.RUNNER_TEMP+'/hub-backend-knowledge',output:policy.privateCoreUpgrade?process.env.RUNNER_TEMP+'/hub-backend-article':context});if(upgraded.coreDigest!==(policy.privateCoreUpgrade?.sourceCoreDigest??policy.coreDigest))throw Error('ARTICLE_CORE_UPGRADE_DIGEST_REAPPROVAL_REQUIRED');}
+          if(policy.privateCoreUpgrade){const upgraded=upgradeFrozenPrivateMaterialCore({source:process.env.RUNNER_TEMP+'/hub-backend-article',output:context});if(upgraded.coreDigest!==policy.coreDigest)throw Error('PRIVATE_CORE_UPGRADE_DIGEST_CHANGED');}
           const r=refreshBackendHub({context:process.env.RUNNER_TEMP+'/hub-backend-context',source:process.cwd(),sourceGit:process.env.GITHUB_SHA});
           console.log(JSON.stringify({coreDigest:r.coreDigest,hubDigest:r.hubDigest,sourceGit:r.sourceGit}));
           JS
