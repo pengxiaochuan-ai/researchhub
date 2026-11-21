@@ -739,14 +739,14 @@ def _render_pdf_page(
 
     text_char_count = len(re.sub(r"\s", "", all_text))
     text_issue = _pdf_page_text_issue(page, layout)
-    if text_char_count == 0:
-        thumbnail = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
-        if all(value == 255 for value in thumbnail.samples):
-            return f"## 第 {page_no} 页", False, warnings
-    # Enough extracted characters do not prove that the embedded font maps to Unicode.
+    # Limit raster memory for oversized pages and reuse the same image for
+    # blank-page detection and OCR. samples_mv avoids a second RGB buffer.
     if text_char_count < 20 or text_issue:
-        scale = 3 if text_issue else 2
+        area = max(1, page.rect.width * page.rect.height)
+        scale = min(3 if text_issue else 2, (4_000_000 / area) ** 0.5)
         pixmap = page.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False)
+        if text_char_count == 0 and all(value == 255 for value in pixmap.samples_mv):
+            return f"## 第 {page_no} 页", False, warnings
         recognized = ocr_png(pixmap.tobytes("png"))
         if any(char.isalnum() for char in recognized) and not _unreadable_pdf_text(recognized):
             if text_issue:
