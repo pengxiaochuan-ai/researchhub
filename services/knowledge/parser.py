@@ -839,28 +839,33 @@ def _render_pdf_page(
 
 
 def extract_pdf(data: bytes) -> tuple[str, int, bool, list[str]]:
-    document = fitz.open(stream=data, filetype="pdf")
-    if document.page_count > MAX_PAGES:
-        raise HTTPException(422, f"PDF 超过 {MAX_PAGES} 页解析上限")
     parts: list[str] = []
     used_ocr = False
     warnings: list[str] = []
-    with pdfplumber.open(io.BytesIO(data)) as plumber:
-        for index, page in enumerate(document):
-            page_no = index + 1
-            rendered, page_used_ocr, page_warnings = _render_pdf_page(
-                page,
-                plumber.pages[index],
-                page_no,
-            )
-            parts.append(rendered)
-            used_ocr = used_ocr or page_used_ocr
-            warnings.extend(page_warnings)
+    with fitz.open(stream=data, filetype="pdf") as document:
+        page_count = document.page_count
+        if page_count > MAX_PAGES:
+            raise HTTPException(422, f"PDF 超过 {MAX_PAGES} 页解析上限")
+        with pdfplumber.open(io.BytesIO(data)) as plumber:
+            for index, page in enumerate(document):
+                plumber_page = plumber.pages[index]
+                try:
+                    rendered, page_used_ocr, page_warnings = _render_pdf_page(
+                        page, plumber_page, index + 1,
+                    )
+                    parts.append(rendered)
+                    used_ocr = used_ocr or page_used_ocr
+                    warnings.extend(page_warnings)
+                finally:
+                    # pdfplumber retains layout objects for every visited page.
+                    # Release them before decoding the next page.
+                    plumber_page.close()
+                    fitz.TOOLS.store_shrink(100)
     markdown = "\n\n".join(parts).strip()
     meaningful = re.sub(r"(?m)^## 第 \d+ 页\s*$", "", markdown)
     if not re.sub(r"\s", "", meaningful):
         raise HTTPException(422, "PDF 未提取到可用文本")
-    return markdown, document.page_count, used_ocr, warnings
+    return markdown, page_count, used_ocr, warnings
 
 
 def iter_docx_blocks(document: Document):
