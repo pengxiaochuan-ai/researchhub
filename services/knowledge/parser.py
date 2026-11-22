@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
+import json
 import os
 import re
 import statistics
 import subprocess
+import sys
 import tempfile
 import unicodedata
 import zipfile
@@ -26,6 +29,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from markitdown import MarkItDown, StreamInfo
 
 MAX_BYTES = int(os.environ.get("KB_DOC_PARSER_MAX_BYTES", str(100 * 1024 * 1024)))
+PDF_PAGE_BATCH_SIZE = 12
 MAX_PAGES = int(os.environ.get("KB_DOC_PARSER_MAX_PAGES", "1000"))
 MAX_OCR_IMAGES_PER_PAGE = int(os.environ.get("KB_DOC_PARSER_MAX_OCR_IMAGES_PER_PAGE", "30"))
 MAX_OCR_IMAGES_PER_DOCUMENT = int(
@@ -60,6 +64,7 @@ CLS_MODEL_DIR = MODEL_ROOT / "whl/cls/ch_ppocr_mobile_v2.0_cls_infer"
 app = FastAPI(title="kb-doc-parser", docs_url=None, redoc_url=None)
 _ocr: Any | None = None
 _ocr_lock = Lock()
+_pdf_range_lock = asyncio.Lock()
 
 
 class OfflineRequestsSession(requests.Session):
@@ -81,6 +86,10 @@ def ocr_engine() -> Any:
                 use_angle_cls=True,
                 lang="ch",
                 show_log=False,
+                cpu_threads=2,
+                enable_mkldnn=False,
+                rec_batch_num=2,
+                cls_batch_num=2,
                 det_model_dir=str(DET_MODEL_DIR),
                 rec_model_dir=str(REC_MODEL_DIR),
                 cls_model_dir=str(CLS_MODEL_DIR),
@@ -838,7 +847,7 @@ def _render_pdf_page(
     return "\n\n".join(value for value in page_parts if value), used_ocr, warnings
 
 
-def extract_pdf(data: bytes) -> tuple[str, int, bool, list[str]]:
+def extract_pdf(data: bytes, *, start_page: int | None = None) -> tuple[str, int, bool, list[str]]:
     parts: list[str] = []
     used_ocr = False
     warnings: list[str] = []
@@ -846,8 +855,13 @@ def extract_pdf(data: bytes) -> tuple[str, int, bool, list[str]]:
         page_count = document.page_count
         if page_count > MAX_PAGES:
             raise HTTPException(422, f"PDF 超过 {MAX_PAGES} 页解析上限")
+        start = 0 if start_page is None else start_page - 1
+        stop = page_count if start_page is None else min(start + PDF_PAGE_BATCH_SIZE, page_count)
+        if not 0 <= start < stop:
+            raise HTTPException(422, "PDF 起始页超出范围")
         with pdfplumber.open(io.BytesIO(data)) as plumber:
-            for index, page in enumerate(document):
+            for index in range(start, stop):
+                page = document[index]
                 plumber_page = plumber.pages[index]
                 try:
                     rendered, page_used_ocr, page_warnings = _render_pdf_page(
@@ -863,7 +877,7 @@ def extract_pdf(data: bytes) -> tuple[str, int, bool, list[str]]:
                     fitz.TOOLS.store_shrink(100)
     markdown = "\n\n".join(parts).strip()
     meaningful = re.sub(r"(?m)^## 第 \d+ 页\s*$", "", markdown)
-    if not re.sub(r"\s", "", meaningful):
+    if start_page is None and not re.sub(r"\s", "", meaningful):
         raise HTTPException(422, "PDF 未提取到可用文本")
     return markdown, page_count, used_ocr, warnings
 
@@ -931,6 +945,54 @@ def extract_docx(path: Path) -> tuple[str, list[str]]:
 @app.get("/health")
 def health():
     return {"ok": True}
+
+
+def parse_pdf_range(data: bytes, start: int) -> dict[str, object]:
+    markdown, page_count, used_ocr, warnings = extract_pdf(data, start_page=start)
+    metadata = pdf_literature_metadata(data, markdown) if start == 1 else {}
+    return {
+        **metadata,
+        "contentMd": markdown,
+        "pageCount": page_count,
+        "startPage": start,
+        "endPage": min(start + PDF_PAGE_BATCH_SIZE - 1, page_count),
+        "usedOcr": used_ocr,
+        "warnings": warnings,
+    }
+
+
+@app.post("/extract/pdf-range")
+async def extract_pdf_range(start: int, file: UploadFile = File(...)):
+    if Path(file.filename or "").suffix.lower() != ".pdf":
+        raise HTTPException(415, "仅支持 PDF 分页解析")
+    if start < 1 or start > MAX_PAGES:
+        raise HTTPException(422, "PDF 起始页超出范围")
+    async with _pdf_range_lock:
+        data = await file.read(MAX_BYTES + 1)
+        if not data or len(data) > MAX_BYTES:
+            raise HTTPException(413, "文献文件为空或超过解析上限")
+        # Native OCR allocations are released when the page-range process exits.
+        process = await asyncio.create_subprocess_exec(
+            sys.executable, str(Path(__file__).with_name("run.py")), "pdf-range", "--start", str(start),
+            stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+        )
+        try:
+            output, _ = await asyncio.wait_for(process.communicate(data), timeout=240)
+        except asyncio.TimeoutError as error:
+            raise HTTPException(504, "当前 PDF 页段解析超时") from error
+        finally:
+            if process.returncode is None:
+                try:
+                    process.kill()
+                except ProcessLookupError:
+                    pass
+                await process.wait()
+        if process.returncode != 0:
+            raise HTTPException(422, "当前 PDF 页段无法解析")
+        result = json.loads(output)
+        if "error" in result:
+            raise HTTPException(result["status"], result["error"])
+        return result
 
 
 @app.post("/extract")

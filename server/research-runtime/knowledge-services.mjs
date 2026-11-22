@@ -10,7 +10,7 @@ export function createKnowledgeServices({load,require,prisma,storage,scope,embed
  const ingestion=new(Native('ingestion.service','IngestionService'))(prisma,embedding);
  const retrieval=new(Native('retrieval.service','RetrievalService'))(prisma,embedding);
  const grounding=new(Native('grounding.service','GroundingService'))(retrieval);
- const extract=createRuntimeDocExtractor({Native:Native('doc-extract.service','DocExtractService'),PDFParse:require('pdf-parse').PDFParse,resolveMetadata:Native('knowledge-literature-metadata','resolveLiteratureMetadata'),parserConfigured});
+ const extract=createRuntimeDocExtractor({Native:Native('doc-extract.service','DocExtractService'),PDFParse:require('pdf-parse').PDFParse,resolveMetadata:Native('knowledge-literature-metadata','resolveLiteratureMetadata'),parserConfigured,parserUrl:parserConfigured?process.env.KB_DOC_PARSER_URL:undefined});
  const queue=new(Native('knowledge-import.service','KnowledgeImportService'))(prisma,storage,extract,ingestion,scope);
  const knowledge=new(Native('knowledge.service','KnowledgeService'))(prisma,ingestion,grounding,extract,queue,storage);
  const tools=new(Native('kb-tools.service','KbToolsService'))(knowledge,storage);

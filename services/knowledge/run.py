@@ -4,16 +4,23 @@ import importlib.util
 import os
 from pathlib import Path
 import socket
+import sys
 import json
 from verify_model import verify
 
 
 def main():
     cli = argparse.ArgumentParser()
-    cli.add_argument('service', choices=['parser', 'embedding'])
+    cli.add_argument('service', choices=['parser', 'embedding', 'pdf-range'])
     cli.add_argument('--host', default='127.0.0.1')
-    cli.add_argument('--port', type=int, required=True)
+    cli.add_argument('--port', type=int)
+    cli.add_argument('--start', type=int)
     args = cli.parse_args()
+    if args.service == 'pdf-range':
+        if args.start is None or args.start < 1:
+            cli.error('--start must be a positive page number')
+    elif args.port is None:
+        cli.error('--port is required')
     os.environ.update(HF_HUB_OFFLINE='1', HF_HUB_DISABLE_TELEMETRY='1', TOKENIZERS_PARALLELISM='false')
 
     def denied(*_args, **_kwargs):
@@ -22,10 +29,21 @@ def main():
     socket.socket.connect = denied
     socket.socket.connect_ex = denied
     socket.create_connection = denied
-    source = Path(__file__).with_name(args.service + '.py')
+    module_name = 'parser' if args.service == 'pdf-range' else args.service
+    source = Path(__file__).with_name(module_name + '.py')
     spec = importlib.util.spec_from_file_location('hub_' + args.service, source)
     service = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(service)
+    if args.service == 'pdf-range':
+        from contextlib import redirect_stdout
+        with redirect_stdout(sys.stderr):
+            data = sys.stdin.buffer.read(service.MAX_BYTES + 1)
+            try:
+                result = service.parse_pdf_range(data, args.start)
+            except service.HTTPException as error:
+                result = {'status': error.status_code, 'error': error.detail}
+        print(json.dumps(result, ensure_ascii=False))
+        return
     if args.service == 'embedding':
         from fastembed import TextEmbedding
         options = dict(model_name=service.MODEL, threads=1, local_files_only=True)

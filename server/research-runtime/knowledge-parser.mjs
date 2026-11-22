@@ -1,9 +1,68 @@
+const PDF_PAGE_LIMIT = 1000;
+const PDF_MARKDOWN_LIMIT = 5_000_000;
+
+async function extractPdfRanges(parserUrl, buffer, resolveMetadata) {
+  const form = new FormData();
+  form.append('file', new Blob([buffer]), 'document.pdf');
+  const parts = [];
+  const warnings = [];
+  let pageCount;
+  let firstRange;
+  let usedOcr = false;
+  let chars = 0;
+  for (let start = 1; start <= (pageCount ?? 1);) {
+    let response;
+    try {
+      response = await fetch(`${parserUrl}/extract/pdf-range?start=${start}`, {
+        method: 'POST', body: form, signal: AbortSignal.timeout(5 * 60_000),
+      });
+    } catch (error) {
+      throw new Error(`PDF 第 ${start} 页起的解析请求失败：${error.message}`);
+    }
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '');
+      throw new Error(`PDF 第 ${start} 页起解析失败（${response.status}）：${detail.slice(0, 200)}`);
+    }
+    const range = await response.json();
+    pageCount ??= range.pageCount;
+    if (!Number.isSafeInteger(pageCount) || pageCount < 1 || pageCount > PDF_PAGE_LIMIT ||
+        range.pageCount !== pageCount || range.startPage !== start ||
+        !Number.isSafeInteger(range.endPage) || range.endPage < start || range.endPage > pageCount ||
+        typeof range.contentMd !== 'string') {
+      throw new Error('PDF 分页结果与原始页码不一致');
+    }
+    const pageMarkers = [...range.contentMd.matchAll(/^## 第 (\d+) 页$/gm)];
+    if (pageMarkers.length !== range.endPage - start + 1 ||
+        pageMarkers.some((match, offset) => Number(match[1]) !== start + offset)) {
+      throw new Error('PDF 分页正文缺少原始页码');
+    }
+    chars += range.contentMd.length + (parts.length ? 2 : 0);
+    if (chars > PDF_MARKDOWN_LIMIT) throw new Error('PDF 解析正文超过导入上限');
+    firstRange ??= range;
+    parts.push(range.contentMd);
+    if (Array.isArray(range.warnings)) {
+      warnings.push(...range.warnings.filter(warning => typeof warning === 'string'));
+    }
+    usedOcr ||= range.usedOcr === true;
+    start = range.endPage + 1;
+  }
+  const contentMd = parts.join('\n\n');
+  if (!contentMd.replace(/^## 第 \d+ 页\s*$/gm, '').trim()) throw new Error('PDF 未提取到可用文本');
+  const {title, authors, doi, publicationYear, metadataSource, metadataConfidence} = firstRange;
+  const metadata = resolveMetadata({
+    contentMd, preferredTitle: title, authors, doi, publicationYear, metadataSource, metadataConfidence,
+  });
+  return {contentMd, ...metadata, pageCount, usedOcr, warnings: warnings.slice(0, 20), extractor:'kb-doc-parser'};
+}
+
 // Reuse the already installed Node PDF parser. Page markers are deterministic
 // parser output consumed by native IngestionService, never invented by an LLM.
-export function createRuntimeDocExtractor({Native,PDFParse,resolveMetadata,parserConfigured}){
+export function createRuntimeDocExtractor({Native,PDFParse,resolveMetadata,parserConfigured,parserUrl}){
  return new(class extends Native{
   async extract(filename,buffer){
-   if(parserConfigured||!/^.*\.pdf$/i.test(filename??''))return super.extract(filename,buffer);
+   if(!/\.pdf$/i.test(filename??''))return super.extract(filename,buffer);
+   if(parserUrl)return extractPdfRanges(parserUrl.replace(/\/$/,''),buffer,resolveMetadata);
+   if(parserConfigured)return super.extract(filename,buffer);
    const parser=new PDFParse({data:buffer});
    try{
     const result=await parser.getText(),pages=result.pages;
