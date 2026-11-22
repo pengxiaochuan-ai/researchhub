@@ -66,7 +66,7 @@ services:
     tmpfs: ['/tmp:size=2g,mode=1777', '/home/app:size=256m']
     cap_drop: [ALL]
     security_opt: ['no-new-privileges:true']
-    mem_limit: 4g
+    mem_limit: 8g
     cpus: 2
     healthcheck:
       test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8200/health')"]
