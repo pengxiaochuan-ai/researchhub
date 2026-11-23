@@ -17,7 +17,7 @@ try {
  const bindings=[];
  for(const kind of ['direct','app']) {
   const [row]=await withDeploymentTransaction(env,kind,tx=>tx.$queryRawUnsafe(
-   "SELECT current_database() AS database,current_user AS role, encode(sha256(convert_to(coalesce(shobj_description((SELECT oid FROM pg_database WHERE datname=current_database()),'pg_database'),''),'UTF8')) AS marker_sha256,to_regnamespace('rh_hub_activity') IS NOT NULL AS activity_namespace,to_regclass('rh_hub_activity.first_public') IS NOT NULL AS activity_index,to_regclass('rh_hub_activity.evidence') IS NOT NULL AS activity_evidence,to_regclass('rh_hub.hub') IS NOT NULL AS hub_parent,to_regclass('rh_academic.version') IS NOT NULL AS publication_history,has_database_privilege(current_database(),'CREATE') AS can_create_schema"
+   "SELECT current_database() AS database,current_user AS role, encode(sha256(convert_to(coalesce(shobj_description((SELECT oid FROM pg_database WHERE datname=current_database()),'pg_database'),''),'UTF8')),'hex') AS marker_sha256,to_regnamespace('rh_hub_activity') IS NOT NULL AS activity_namespace,to_regclass('rh_hub_activity.first_public') IS NOT NULL AS activity_index,to_regclass('rh_hub_activity.evidence') IS NOT NULL AS activity_evidence,to_regclass('rh_hub.hub') IS NOT NULL AS hub_parent,to_regclass('rh_academic.version') IS NOT NULL AS publication_history,has_database_privilege(current_database(),'CREATE') AS can_create_schema"
   ),{readOnly:true});
   bindings.push({kind,...row});
  }
