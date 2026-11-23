@@ -45,22 +45,18 @@ def image_transfer_metadata():
 def vector_metadata(items):
     own=[x for x in items if (x['Config'].get('Labels') or {}).get('com.docker.compose.project')=='researchhub-backend' and (x['Config'].get('Labels') or {}).get('com.docker.compose.service')=='researchhub-api']
     if len(own)!=1:raise ValueError('owned api required')
-    code="""const {createRequire}=require('node:module');(async()=>{const req=createRequire(process.env.HUB_CORE_DIR+'/package.json'),{PrismaClient}=req('@prisma/client'),out=[];for(const key of ['DATABASE_URL','DIRECT_URL']){const url=process.env[key];if(new URL(url).pathname!=='/researchhub')throw Error('target');const db=new PrismaClient({datasources:{db:{url}}});try{const rows=await db.$transaction(async tx=>{await tx.$executeRawUnsafe('SET TRANSACTION READ ONLY');await tx.$executeRawUnsafe("SET LOCAL statement_timeout='5000ms'");return tx.$queryRawUnsafe("SELECT current_database() AS database,current_user AS role,encode(sha256(convert_to(coalesce(shobj_description((SELECT oid FROM pg_database WHERE datname=current_database()),'pg_database'),''),'UTF8')) AS marker_sha256,to_regnamespace('rh_hub_activity') IS NOT NULL AS activity_namespace,to_regclass('rh_hub_activity.first_public') IS NOT NULL AS activity_index,to_regclass('rh_hub_activity.evidence') IS NOT NULL AS activity_evidence,to_regclass('rh_hub.hub') IS NOT NULL AS hub_parent,to_regclass('rh_academic.version') IS NOT NULL AS publication_history,to_regrole('aisci_app') IS NOT NULL AS app_role,has_database_privilege(current_database(),'CREATE') AS can_create_schema")});out.push({binding:key,...rows[0]})}finally{await db.$disconnect()}}console.log(JSON.stringify(out))})().catch(()=>{console.error('HUB_VECTOR_METADATA_FAILED');process.exitCode=1})"""
-    return json.loads(command(['docker','exec',own[0]['Id'],'node','-e',code]))
+    code="""const {createRequire}=require('node:module');(async()=>{const req=createRequire(process.env.HUB_CORE_DIR+'/package.json'),{PrismaClient}=req('@prisma/client'),out=[];for(const key of ['DATABASE_URL','DIRECT_URL']){const url=process.env[key];if(new URL(url).pathname!=='/researchhub')throw Error('target');const db=new PrismaClient({datasources:{db:{url}}});try{const rows=await db.$transaction(async tx=>{await tx.$executeRawUnsafe('SET TRANSACTION READ ONLY');await tx.$executeRawUnsafe("SET LOCAL statement_timeout='5000ms'");return tx.$queryRawUnsafe("SELECT current_database() AS database,current_user AS role,encode(sha256(convert_to(coalesce(shobj_description((SELECT oid FROM pg_database WHERE datname=current_database()),'pg_database'),''),'UTF8')) AS marker_sha256,to_regnamespace('rh_hub_activity') IS NOT NULL AS activity_namespace,to_regclass('rh_hub_activity.first_public') IS NOT NULL AS activity_index,to_regclass('rh_hub_activity.evidence') IS NOT NULL AS activity_evidence,to_regclass('rh_hub.hub') IS NOT NULL AS hub_parent,to_regclass('rh_academic.version') IS NOT NULL AS publication_history,to_regrole('aisci_app') IS NOT NULL AS app_role,has_database_privilege(current_database(),'CREATE') AS can_create_schema")});out.push({binding:key,...rows[0]})}finally{await db.$disconnect()}}console.log(JSON.stringify(out))})().catch(()=>{console.error('HUB_ACTIVITY_PROBE_FAILED:'+String(process.env.HUB_STAGE||'db'));process.exitCode=1})"""
+    result=subprocess.run(['docker','exec',own[0]['Id'],'node','-e',code],capture_output=True,text=True,timeout=40)
+    if result.returncode!=0:
+        print(json.dumps({'code':'HUB_ACTIVITY_DATABASE_PROBE_FAILED','exitCode':result.returncode}))
+        raise ValueError('owned api probe failed')
+    return json.loads(result.stdout)
 
 def main():
-    ids=command(['docker','ps','-q']).split();items=json.loads(command(['docker','inspect']+ids)) if ids else []
-    containers=[container_metadata(c) for c in items if (c['Config'].get('Labels') or {}).get('com.docker.compose.project') in ('researchhub','ops','official-site','researchhub-backend')]
-    mem={}
-    for line in pathlib.Path('/proc/meminfo').read_text().splitlines():
-        key,_,value=line.partition(':')
-        if key in ('MemTotal','MemAvailable'):mem[key+'KB']=int(value.split()[0])
-    disk=shutil.disk_usage('/srv/researchhub');source=pathlib.Path('/srv/researchhub/ops/.env.release')
-    keys=[]
-    if source.is_file() and not source.is_symlink() and source.stat().st_size<65536:
-        keys=sorted({line.partition('=')[0] for line in source.read_text().splitlines()}&{'S3_ENDPOINT','S3_ACCESS_KEY','S3_SECRET_KEY','S3_BUCKET'})
-    result={'imageTransfer':image_transfer_metadata(),'schema':'hub-runtime-preflight.v1','architecture':platform.machine(),'python':platform.python_version(),'memory':mem,'diskFreeBytes':disk.free,'containers':containers,'databaseConfig':config_metadata(pathlib.Path('/srv/researchhub/ops/.env.prod')),'releaseStorageKeysPresent':keys,'releaseTransferPresent':pathlib.Path('/srv/researchhub/ops/oss-release-transfer.py').is_file(),'vectorMetadata':vector_metadata(items),'databaseQueries':2,'writes':0}
-    print(json.dumps(result))
+    ids=command(['docker','ps','-q','--filter','label=com.docker.compose.project=researchhub-backend','--filter','label=com.docker.compose.service=researchhub-api']).split()
+    if len(ids)!=1:raise ValueError('owned api required')
+    items=json.loads(command(['docker','inspect',ids[0]]))
+    print(json.dumps({'schema':'hub-activity-target-preflight.v1','databaseBindings':vector_metadata(items),'writes':0}))
 
 if __name__=='__main__':
     try:main()
