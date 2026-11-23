@@ -13,7 +13,7 @@ const validEvidence = value => {
   } catch { return false; }
 };
 
-export async function submitExternalReview({ db, principal, tenantId, hubKey, reviewerAccountId, input }) {
+export async function submitExternalReview({ db, principal, tenantId, hubKey, reviewerAccountId, input, recordPublicApproval }) {
   if (!principal || principal.accountId !== reviewerAccountId || principal.tenantId !== tenantId)
     fail('HUB_SOURCE_REVIEW_AUTH_REQUIRED');
   if (!input || !validId(input.documentId) || !validId(input.versionId))
@@ -78,6 +78,9 @@ export async function submitExternalReview({ db, principal, tenantId, hubKey, re
     VALUES (${tenantId}, ${hubKey}, ${input.versionId}, ${input.fieldKind},
             ${input.purpose}, 'public', ${input.decision}, ${input.evidenceRef}, ${principal.accountId})
     RETURNING decision_version AS version, created_at AS "createdAt"`;
+  if (input.fieldKind === 'bibliographic' && input.purpose === 'display' && input.decision === 'approve') {
+    await recordPublicApproval?.(db, {tenantId, hubKey}, {documentId:input.documentId, decisionVersion:rows[0].version, createdAt:rows[0].createdAt});
+  }
   return { version: String(rows[0].version), createdAt: rows[0].createdAt.toISOString(),
     documentId: input.documentId, versionId: input.versionId, fieldKind: input.fieldKind,
     purpose: input.purpose, decision: input.decision, audience: 'public' };

@@ -1,4 +1,5 @@
 import { withFixtureTransaction } from '../database/transactions.mjs';
+import {recordExternalPublicApproval} from '../hub-activity/external-event.mjs';
 import { listReviewBatches, listReviewHistory, listBatchSources, listReviewRows, reviewSource } from './review-service.mjs';
 import { listExternalReviewItems } from './external-preview.mjs';
 import { submitExternalReview } from './external-review.mjs';
@@ -25,7 +26,7 @@ const messages = {
 export function createHubSourceReviewController({ env, ids, require, readPmcAsset }) {
   const { Controller, Get, Post, Req, Res, Body, Param, Query, ForbiddenException,
     BadRequestException, ConflictException, NotFoundException,ServiceUnavailableException } = require('@nestjs/common');
-  const transact = operation => withFixtureTransaction(env, 'app', async db => {
+  const transact = (operation, role='app') => withFixtureTransaction(env, role, async db => {
     await db.$executeRaw`SELECT set_config('app.tenant_id', ${ids.tenant}, true)`;
     await db.$executeRaw`SELECT set_config('app.research_project_id','',true)`;
     return operation(db);
@@ -70,7 +71,7 @@ export function createHubSourceReviewController({ env, ids, require, readPmcAsse
       response.setHeader('Cache-Control','no-store');
       try { return { review: await withFixtureTransaction(env,'direct',async db=>{
         await db.$executeRaw`SELECT set_config('app.tenant_id',${ids.tenant},true)`;
-        const args={db,principal:req.user,tenantId:ids.tenant,hubKey:'lingshu-xinyu',reviewerAccountId:ids.admin,input:body,kind:body?.kind};
+        const args={db,principal:req.user,tenantId:ids.tenant,hubKey:'lingshu-xinyu',reviewerAccountId:ids.admin,input:body,kind:body?.kind,recordPublicApproval:recordExternalPublicApproval};
         return submitWithReviewReceipt(args,()=>submitObjectReview(args));
       }) }; }
       catch(error) { mapError(error); }
@@ -97,8 +98,10 @@ export function createHubSourceReviewController({ env, ids, require, readPmcAsse
     }
     async externalSubmit(req, body, response) {
       response.setHeader('Cache-Control', 'no-store');
+      const tracksPublicApproval=body?.fieldKind==='bibliographic'&&body?.purpose==='display'&&body?.decision==='approve';
       try { return { review: await transact(db => submitExternalReview({ db, principal: req.user,
-        tenantId: ids.tenant, hubKey: 'lingshu-xinyu', reviewerAccountId: ids.admin, input: body })) }; }
+        tenantId: ids.tenant, hubKey: 'lingshu-xinyu', reviewerAccountId: ids.admin, input: body,
+        recordPublicApproval:tracksPublicApproval?recordExternalPublicApproval:undefined }),tracksPublicApproval?'direct':'app') }; }
       catch (error) { mapError(error); }
     }
     async batches(req) {

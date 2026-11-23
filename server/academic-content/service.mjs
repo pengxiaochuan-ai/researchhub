@@ -8,7 +8,7 @@ export const mutationHash=(action,id,body)=>contentHash(operationPayload(action,
 const validId=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,160}$/.test(x);
 const notFound=()=>fail(404,'CONTENT_NOT_FOUND','内容不存在或当前不可访问。');
 const conflict=()=>fail(409,'CONTENT_VERSION_CONFLICT','内容已变化，请保留输入后核对最新版本。');
-export function createAcademicContentService({transact,lockAuthorization,tenantId,hubKey=HUB_KEY,now=()=>new Date()}){
+export function createAcademicContentService({transact,lockAuthorization,tenantId,hubKey=HUB_KEY,now=()=>new Date(),recordPublicVersion}){
  if(typeof transact!=='function'||typeof lockAuthorization!=='function'||!validId(tenantId)||hubKey!==HUB_KEY)throw Error('CONTENT_DEPENDENCIES_REQUIRED');
  async function activeDeployment(tx){const rows=await tx.$queryRawUnsafe("SELECT t.id FROM public.tenant t JOIN rh_hub.hub h ON h.tenant_id=t.id WHERE t.id=$1 AND t.status='active' AND h.hub_key=$2 AND h.status='active'",tenantId,hubKey);if(!rows[0])fail(503,'CONTENT_DEPLOYMENT_UNAVAILABLE','当前平台内容暂不可用。');}
  async function identity(tx,p,admin){
@@ -37,9 +37,23 @@ export function createAcademicContentService({transact,lockAuthorization,tenantI
  function view(v,p,date){return publicView({...v.payload,id:v.content_id,publishedAt:v.first_published_at,updatedAt:v.published_at,resources:v.payload.resources.map(r=>({...r,key:v.id+'_'+r.key}))},Boolean(p),date.getTime());}
  return{
   hubKey,
+  // Only this scoped service may inspect publication history; never expose raw versions to public SQL roles.
+  publicActivitySources:()=>run(null,async tx=>{
+   const rows=await tx.$queryRawUnsafe(`SELECT c.id AS "contentId",v.payload->>'title' AS title,v.payload->>'type' AS type,
+    v.payload->>'summary' AS summary,first_public.published_at AS "firstPublicAt",first_public.id AS "proofVersionId"
+    FROM rh_academic.content c JOIN rh_academic.version v ON v.id=c.published_version_id AND v.content_id=c.id
+     AND v.tenant_id=c.tenant_id AND v.hub_key=c.hub_key
+    JOIN LATERAL(SELECT h.id,h.published_at FROM rh_academic.version h WHERE h.tenant_id=c.tenant_id
+     AND h.hub_key=c.hub_key AND h.content_id=c.id AND h.payload->>'audience'='public'
+     ORDER BY h.published_at,h.id LIMIT 1)first_public ON true
+    WHERE c.tenant_id=$1 AND c.hub_key=$2 AND c.status='published' AND v.payload->>'audience'='public'
+    ORDER BY first_public.published_at,c.id`,tenantId,hubKey);
+   return rows.map(row=>({id:row.contentId,title:row.title,type:row.type,summary:row.summary??'',
+    firstPublicAt:new Date(row.firstPublicAt).toISOString(),proofRef:'academic-public-version:'+row.proofVersionId}));
+  }),
   create:(p,body)=>{input(body,['requestKey','draft'],false);const draft=normalizeDraft(body.draft),hash=mutationHash('create',null,body);return run(p,async tx=>{const old=await replay(tx,p,body.requestKey,hash);if(old)return old;const date=now(),rows=await tx.$queryRawUnsafe('INSERT INTO rh_academic.content(id,tenant_id,hub_key,draft,updated_at,created_at) VALUES($1,$2,$3,$4::jsonb,$5,$5) RETURNING *',randomUUID(),tenantId,hubKey,JSON.stringify(draft),date);return record(tx,p,rows[0],'create',body,hash,0);},{admin:true});},
   save:(p,id,body)=>{input(body,['requestKey','baseRevision','draft']);const draft=normalizeDraft(body.draft),hash=mutationHash('save',id,body);return run(p,async tx=>{const row=await find(tx,id,true),old=await replay(tx,p,body.requestKey,hash);if(old)return old;if(row.revision!==body.baseRevision)conflict();return record(tx,p,await update(tx,row,{draft},now()),'save',body,hash,body.baseRevision);},{admin:true});},
-  publish:(p,id,body)=>{input(body,['requestKey','baseRevision']);const hash=mutationHash('publish',id,body);return run(p,async tx=>{const row=await find(tx,id,true),old=await replay(tx,p,body.requestKey,hash);if(old)return old;if(row.revision!==body.baseRevision)conflict();const draft=normalizeDraft(row.draft);validatePublication(draft);const date=now(),versionId=randomUUID();await tx.$queryRawUnsafe('INSERT INTO rh_academic.version(id,content_id,tenant_id,hub_key,payload,published_at,revision) VALUES($1,$2,$3,$4,$5::jsonb,$6,$7)',versionId,id,tenantId,hubKey,JSON.stringify(draft),date,row.revision+1);const changed=await update(tx,row,{status:'published',versionId,audience:draft.audience,firstPublishedAt:row.first_published_at??date,publishedHash:contentHash(draft)},date);return record(tx,p,changed,'publish',body,hash,body.baseRevision);},{admin:true});},
+  publish:(p,id,body)=>{input(body,['requestKey','baseRevision']);const hash=mutationHash('publish',id,body);return run(p,async tx=>{const row=await find(tx,id,true),old=await replay(tx,p,body.requestKey,hash);if(old)return old;if(row.revision!==body.baseRevision)conflict();const draft=normalizeDraft(row.draft);validatePublication(draft);const date=now(),versionId=randomUUID();await tx.$queryRawUnsafe('INSERT INTO rh_academic.version(id,content_id,tenant_id,hub_key,payload,published_at,revision) VALUES($1,$2,$3,$4,$5::jsonb,$6,$7)',versionId,id,tenantId,hubKey,JSON.stringify(draft),date,row.revision+1);const changed=await update(tx,row,{status:'published',versionId,audience:draft.audience,firstPublishedAt:row.first_published_at??date,publishedHash:contentHash(draft)},date);const receipt=await record(tx,p,changed,'publish',body,hash,body.baseRevision);if(draft.audience==='public'&&recordPublicVersion)await recordPublicVersion(tx,{tenantId,hubKey},id);return receipt;},{admin:true});},
   withdraw:(p,id,body)=>{input(body,['requestKey','baseRevision','reason']);if(typeof body.reason!=='string'||!body.reason.trim()||[...body.reason].length>1000)fail(400,'CONTENT_REASON_REQUIRED','请填写撤下原因（最多1000字）。');const hash=mutationHash('withdraw',id,body);return run(p,async tx=>{const row=await find(tx,id,true),old=await replay(tx,p,body.requestKey,hash);if(old)return old;if(row.revision!==body.baseRevision)conflict();if(row.status!=='published')fail(409,'CONTENT_STATE_CONFLICT','当前内容未发布。');return record(tx,p,await update(tx,row,{status:'withdrawn',versionId:null,audience:null},now()),'withdraw',body,hash,body.baseRevision);},{admin:true});},
   adminDetail:(p,id)=>run(p,async tx=>present(await find(tx,id)),{admin:true}),
   adminList:(p,q={})=>run(p,async tx=>{

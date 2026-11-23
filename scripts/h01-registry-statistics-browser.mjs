@@ -1,0 +1,34 @@
+// Shared runtime is NOT restarted: replay only the new read-only PG projection
+// into the existing overview response for frontend integration verification.
+import fs from'node:fs';import assert from'node:assert/strict';import{randomUUID}from'node:crypto';
+const {default:pw}=await import('/Users/mac/aisciencesys/app/node_modules/.pnpm/playwright@1.63.0/node_modules/playwright/index.js');
+const base='http://127.0.0.1:19501',snapshot=JSON.parse(fs.readFileSync('.tmp/h01-registry-statistics-20261121/pg-result.json')),out='docs/testing/evidence/h01-registry-statistics-2026-11-21/'+randomUUID();fs.mkdirSync(out+'/video',{recursive:true});
+const native200=process.argv.includes('--native200');
+const browser=await pw.chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});
+const result={kind:'real_readonly_pg_projection_replayed_into_overview_not_live_controller',sharedRuntimeRestarted:false,backendWrites:0,modelCalls:0,checks:[],errors:[],shots:[],network:[]};
+const baseline=snapshot.overview;assert(baseline?.hub);assert.deepEqual(baseline.registrationStatistics,snapshot.statistics);
+async function setup(context){await context.route('**/api/hubs/lingshu-xinyu/overview',route=>route.fulfill({json:{...baseline,registrationStatistics:snapshot.statistics}}));}
+async function capture(page,name){await page.screenshot({path:out+'/'+name+'.png'});result.shots.push(name);}
+const contexts=[];
+try{
+ for(const role of ['visitor','admin']){
+  const context=native200?await pw.chromium.launchPersistentContext('.tmp/h01-registry-statistics-20261121/profile-'+role+'-'+randomUUID(),{headless:true,viewport:null,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',args:['--window-size=1440,1000'],recordVideo:{dir:out+'/video/'+role}}):await browser.newContext({viewport:{width:1440,height:1000},recordVideo:{dir:out+'/video/'+role}});contexts.push(context);
+  if(native200){const settings=context.pages()[0];await settings.goto('chrome://settings/appearance');await settings.locator('#zoomLevel').selectOption('2');}
+  if(role==='admin'){const state=JSON.parse(fs.readFileSync('/Users/mac/aisciencesys/.tmp/researchhub-knowledge-local/runtime.json'));assert.equal((await context.request.post(base+'/api/auth/login',{headers:{Origin:base,'X-ResearchHub-Request':'session-v1'},data:{tenantSlug:state.ids.tenant,username:'admin@example.org',password:state.password}})).status(),201);}
+  await setup(context);const page=await context.newPage();page.on('pageerror',e=>result.errors.push(e.message));page.on('response',r=>{if(new URL(r.url()).pathname.startsWith('/api/'))result.network.push({role,path:new URL(r.url()).pathname,status:r.status()});});
+  await page.goto(base+'/pages/h01/');const panel=page.locator('.hub-registry-statistics');await panel.getByText('本Hub已收录 2 项 · 非全领域总量',{exact:true}).waitFor();await panel.scrollIntoViewIfNeeded();
+  await panel.getByRole('tab',{name:'研究数量',exact:true}).focus();await page.keyboard.press('ArrowRight');assert.equal(await panel.getByRole('tab',{name:'疾病',exact:true}).getAttribute('aria-selected'),'true');await page.keyboard.press('Home');assert.equal(await panel.getByRole('tab',{name:'研究数量',exact:true}).getAttribute('aria-selected'),'true');result.checks.push(role+' tab arrow/Home keyboard selection');
+  const before=await panel.boundingBox();assert(await panel.getByRole('button',{name:/2023.*2 项.*累计 2 项/}).count());
+  await panel.getByRole('button',{name:/2023.*2 项.*累计 2 项/}).click();await panel.getByRole('region',{name:'统计来源'}).waitFor();assert.equal(await panel.locator('.hub-registry-sources a').count(),2);await capture(page,role+'-year-and-sources');
+  const source=panel.locator('.hub-registry-sources a').first(),href=await source.getAttribute('href');const detail=await context.newPage();await detail.goto(base+href);await detail.getByRole('heading',{name:snapshot.statistics.records[0].title,exact:true}).waitFor();await capture(detail,role+'-actual-source-detail');await detail.close();result.checks.push(role+' real currently approved C03 source detail opens without a mocked detail response');
+  for(const [label,key]of [['疾病','disease'],['研究设计','design'],['干预','intervention']]){
+   await panel.getByRole('tab',{name:label,exact:true}).click();const data=snapshot.statistics.dimensions[key];await page.waitForFunction(({count})=>document.querySelectorAll('.hub-registry-group').length===count,{count:data.groups.length});
+   assert.equal(await panel.locator('.hub-registry-group').count(),data.groups.length);await panel.locator('.hub-registry-group').first().click();assert(await panel.locator('.hub-registry-sources a').count()>0);await capture(page,role+'-'+key);const box=await panel.boundingBox();assert(Math.abs(box.height-before.height)<2,'card height changed with dimension');
+  }
+  for(const width of (native200?[720]:[1440,1024,720,390])){if(!native200)await page.setViewportSize({width,height:1000});else{const z=await page.evaluate(()=>({width:innerWidth,dpr:devicePixelRatio,scale:visualViewport.scale}));assert.equal(z.dpr,2);assert.equal(z.scale,1);result.nativeZoom=z;}await panel.scrollIntoViewIfNeeded();const box=await panel.boundingBox();assert(box.x>=-1&&box.x+box.width<=width+1);const overflow=await panel.evaluate(e=>e.scrollWidth-e.clientWidth);assert(overflow<=1);await capture(page,role+'-width-'+width);}
+  await context.unroute('**/api/hubs/lingshu-xinyu/overview');await page.reload();await panel.getByRole('alert').filter({hasText:'注册统计暂不可用'}).waitFor();await capture(page,role+'-shared-runtime-still-pending');
+  await context.route('**/api/hubs/lingshu-xinyu/overview',route=>route.fulfill({status:503,json:{message:'test failure'}}));await page.reload();await panel.getByRole('alert').waitFor();await context.unroute('**/api/hubs/lingshu-xinyu/overview');await setup(context);await panel.getByRole('button',{name:'重试',exact:true}).click();await panel.getByText('本Hub已收录 2 项 · 非全领域总量',{exact:true}).waitFor();result.checks.push(role+' error/retry and missing live payload remain explicit');
+  await context.unroute('**/api/hubs/lingshu-xinyu/overview');await context.route('**/api/hubs/lingshu-xinyu/overview',route=>route.fulfill({json:{...baseline,registrationStatistics:{...snapshot.statistics,total:0,dimensions:Object.fromEntries(Object.keys(snapshot.statistics.dimensions).map(k=>[k,{groups:[],missing:0}])),records:[]}}}));await page.reload();await panel.getByText('暂无获准展示的临床注册。',{exact:true}).waitFor();result.checks.push(role+' no approved records empty state');
+ }
+ assert.deepEqual(result.errors,[]);result.passed=true;
+}finally{for(const c of contexts)await c.close();await browser.close();fs.writeFileSync(out+'/result.json',JSON.stringify(result,null,2));console.log(JSON.stringify({passed:result.passed,evidence:out+'/result.json',kind:result.kind,errors:result.errors}));}

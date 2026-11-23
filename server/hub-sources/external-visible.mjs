@@ -207,6 +207,7 @@ export async function listVisibleClinicalRegistrySummaries({db,tenantId,hubKey,p
     const {structuredDetails:details,structuredDetailsStatus}=registryProjection(row);
     const registration=details?.registration;
     return {...visible(row),registrationSummaryStatus:registration?'approved':structuredDetailsStatus==='approved'?'not_extracted':structuredDetailsStatus,
+      ...(details?{statisticsFields:{status:'approved',design:details.design.find(field=>field.key==='design'),interventions:details.arms.map(arm=>arm.intervention),reviewVersion:details.reviewVersion,extractionVersion:details.extractionVersion,payloadSha256:details.payloadSha256}}:{}),
       ...(registration?{registrationSummary:{registeredOn:registration[0],leadInstitution:registration[1],registrationStatus:registration[2],researchStatus:'not_reported',
         snapshotDate:details.snapshotDate,fileName:details.fileName,sourceSha256:details.sourceSha256,payloadSha256:details.payloadSha256,
         extractionId:details.extractionId,extractionVersion:details.extractionVersion,reviewVersion:details.reviewVersion}}:{})};

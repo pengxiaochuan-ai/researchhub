@@ -20,7 +20,7 @@ import{createPmcObjectReader}from'./pmc-storage.mjs';
 import{loadChatAdmission,createChatBudget}from'./chat-budget.mjs';
 import{BOUNDED_CHAT_CORE,KNOWLEDGE_CHAT_CORE}from'./chat-execution.mjs';
 const field=(env,key,pattern)=>{if(!pattern.test(env[key]??''))throw Error('RESEARCH_RUNTIME_CONFIGURATION_REQUIRED:'+key);return env[key];};
-export async function createRuntimeFoundation({config,env,load,require,prisma,jwt}){
+export async function createRuntimeFoundation({config,env,load,require,prisma,jwt,readPublicContent}){
  if(config.scope.allowedTenantIds.length!==1)throw Error('RESEARCH_RUNTIME_SINGLE_HUB_TENANT_REQUIRED');
  const transactionEnv=bindRuntimeTransactions({prisma,expected:config.identity});
  const schemas=field(env,'HUB_MANAGED_SCHEMAS',/^[a-z][a-z0-9_]*(?:,[a-z][a-z0-9_]*)*$/).split(',');
@@ -53,7 +53,7 @@ export async function createRuntimeFoundation({config,env,load,require,prisma,jw
  let chat,queue,hubCopyWorkspace;
  const ChatController=createRuntimeChatController({require,load,getChat:()=>chat,getQueue:()=>queue});
  const Controllers=[load('knowledge/knowledge.controller','KnowledgeController'),ChatController,
-  createHubController({env:transactionEnv,ids,require}),createHubSourceReadController({env:transactionEnv,ids,require,secret:config.jwtSecret,readPmcAsset:createPmcObjectReader(storage,ids.tenant)}),createHubSourceReviewController({env:transactionEnv,ids,require,readPmcAsset:createPmcObjectReader(storage,ids.tenant)}),createHubSourceAgentController({env:transactionEnv,ids,require}),
+  createHubController({env:transactionEnv,ids,require,readPublicContent}),createHubSourceReadController({env:transactionEnv,ids,require,secret:config.jwtSecret,readPmcAsset:createPmcObjectReader(storage,ids.tenant)}),createHubSourceReviewController({env:transactionEnv,ids,require,readPmcAsset:createPmcObjectReader(storage,ids.tenant)}),createHubSourceAgentController({env:transactionEnv,ids,require}),
   await createDirectoryController({env:transactionEnv,ids,require,runtimePolicy}),await createReferenceController({env:transactionEnv,require,runtimePolicy}),await createResearchIdentityController({env:transactionEnv,ids,load,require,runtimePolicy}),
   createGovernanceAuditController({env:transactionEnv,ids,require,load}),createGovernanceSystemController({env:transactionEnv,ids,require,readState}),createGovernanceUsersController({require,service:users,origin:config.origin}),
   createMyResearchController({ids,prisma,load,require,runtime:true,canOpenHubCopy:(...args)=>hubCopyWorkspace?hubCopyWorkspace(...args):false})];

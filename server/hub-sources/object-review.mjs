@@ -175,17 +175,24 @@ export async function submitObjectReview(args) {
       if(state.status==='public')return {visibility:'public',replayed:true};
       fail('HUB_SOURCE_DISPLAY_AI_REVIEW_REQUIRED');
     }
-    for (const purpose of displayOnly?['display']:['display','ai_retrieval']) await db.$queryRaw`
+    let displayDecision;
+    for (const purpose of displayOnly?['display']:['display','ai_retrieval']) {
+      const [recorded] = await db.$queryRaw`
       INSERT INTO rh_source.external_review_decision
         (tenant_id,hub_key,version_id,field_kind,purpose,audience,decision,evidence_ref,reviewer_id)
       VALUES (${tenantId},${hubKey},${item.versionId},'bibliographic',${purpose},${audience},${decision},${reference},${principal.accountId})
-      RETURNING decision_version`;
+      RETURNING decision_version, created_at AS "createdAt"`;
+      if (purpose === 'display') displayDecision = recorded;
+    }
     if (item.structuredExtraction) await db.$queryRaw`
       INSERT INTO rh_source.clinical_registry_detail_review (tenant_id,hub_key,extraction_id,decision,evidence_ref,reviewer_id)
       VALUES (${tenantId},${hubKey},${item.structuredExtraction.extractionId},${decision},${reference},${principal.accountId}) RETURNING decision_version`;
     if (item.guidanceExtraction) await db.$queryRaw`
       INSERT INTO rh_source.guidance_clause_review (tenant_id,hub_key,extraction_id,decision,evidence_ref,reviewer_id)
       VALUES (${tenantId},${hubKey},${item.guidanceExtraction.extractionId},${decision},${reference},${principal.accountId}) RETURNING decision_version`;
+    if (input.visibility === 'public' && args.recordPublicApproval) {
+      await args.recordPublicApproval(db, {tenantId, hubKey}, {documentId:item.id, decisionVersion:displayDecision.decision_version, createdAt:displayDecision.createdAt});
+    }
     return { visibility: input.visibility, documentId: item.id, confirmedCount: 1 };
   }
   if (!validId(input.sourceRegistryId)) fail('HUB_SOURCE_SCOPE_REJECTED');

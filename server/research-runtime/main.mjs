@@ -75,7 +75,7 @@ export async function bootResearchRuntime(env=process.env,options={}){
   const hubAuth=createHubAuth({require,load,jwt,prisma,scope:config.scope,cookieName:config.cookieName,origin:config.origin,secureCookie:()=>config.secureCookie,profileProjection});
   const admission=assembleAdmission({prisma,scope:config.scope,require,load,origin:config.origin});
   const academic=assembleAcademicContent({prisma,scope:config.scope,require,load,origin:config.origin});
-  if(config.profile==='full')foundation=await (await import('./foundation.mjs')).createRuntimeFoundation({config,env,load,require,prisma,jwt});
+  if(config.profile==='full')foundation=await (await import('./foundation.mjs')).createRuntimeFoundation({config,env,load,require,prisma,jwt,readPublicContent:academic.service.publicActivitySources});
   if(foundation)accounts=await (await import('./accounts.mjs')).createRuntimeAccounts({env,config,transactionEnv:foundation.transactionEnv,runtimePolicy:foundation.runtimePolicy,admission:admission.service,require,load});
   const analysis=foundation?(await import('./analysis.mjs')).runtimeAnalysisFactory({env,load,prisma,storage:foundation.storage,scope:config.scope}):null;
   const ingestService=foundation?{ingestPreprocessed:(...args)=>app.get(load('ingest/ingest.service','IngestService')).ingestPreprocessed(...args)}:undefined;

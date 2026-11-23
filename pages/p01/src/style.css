@@ -88,6 +88,7 @@ body[data-platform-header="true"] #root>main{padding:80px 24px 30px!important;ov
 .hubNews{width:220px;flex:none;padding:0 0 0 16px;border-left:1px solid var(--border);font-size:14px;line-height:22px}
 .hubNews p{margin:8px 0}
 .hubNews a,.aiAnalysis a,.statNum a{color:var(--brand-primary);font-size:14px;line-height:22px}
+@media(max-width:700px){body[data-platform-page="p01"][data-platform-header="true"] #root>aside{display:none}}
 .hubMeta{margin-top:8px;font-size:13px;line-height:20px;color:var(--text-secondary)}
 .stats{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
 .statNum{font-size:28px;line-height:40px}

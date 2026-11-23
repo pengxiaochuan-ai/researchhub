@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Bookmark, BookOpen, ChevronRight, Search } from 'lucide-react';
 import { hubRequest } from '../../src/hub-api.js';
 import HubRegistryPreview from './HubRegistryPreview.jsx';
+import HubRegistryStatistics from './HubRegistryStatistics.jsx';
 import { hubSourceRequest } from '../../src/hub-source-api.js';
 import { createAuthClient } from '../../src/auth-session.js';
 import './real-hub.css';
@@ -103,17 +104,17 @@ function HubOverviewContent() {
   const [external, setExternal] = useState(null);
   const [registries,setRegistries]=useState(null);
   const [error, setError] = useState('');
-  const [trend,setTrend]=useState('研究数量');
+  const [registrationStatistics,setRegistrationStatistics]=useState(null);
   const [metrics,setMetrics]=useState(null);
   const overviewEpoch=useRef(0);
   const reload = () => {
     const epoch=++overviewEpoch.current;
-    setMetrics(null);
+    setMetrics(null);setRegistrationStatistics(null);
     setError(''); setHub(null); setSources(null); setExternal(null); setRegistries(null);setReviewedCount(null);
     Promise.all([hubRequest(`/${encodeURIComponent(key)}/overview`),
       key === 'lingshu-xinyu' ? hubSourceRequest('external-documents') : Promise.resolve({ items: [] })])
       .then(([data, documents]) => { if(epoch!==overviewEpoch.current)return; setMetrics(data.metrics);setHub(data.hub); setSources(data.reviewedSources || []);
-        setReviewedCount(data.reviewedSourceRecordCount); setExternal(documents.items || []);setRegistries(data.clinicalRegistries||[]); })
+        setReviewedCount(data.reviewedSourceRecordCount); setExternal(documents.items || []);setRegistries(data.clinicalRegistries||[]);setRegistrationStatistics(data.registrationStatistics??null); })
       .catch(e => {if(epoch===overviewEpoch.current)setError(errorText(e));});
   };
   useEffect(()=>{reload();return()=>{overviewEpoch.current+=1;};}, [key]);
@@ -122,8 +123,8 @@ function HubOverviewContent() {
     {!hub && !error && <p role="status" className="real-hub-state">正在读取领域数据…</p>}
     <>
       <HubMetrics metrics={metrics} loading={!hub&&!error} error={!!error}/>
-      <section className="hub-grid"><article className="hub-card"><header><h2>临床注册趋势</h2><div className="hub-switch" role="tablist" aria-label="趋势维度">{['研究数量','疾病','研究设计','干预'].map(label=><button role="tab" type="button" key={label} aria-selected={trend===label} className={trend===label?'on':''} onClick={()=>setTrend(label)}>{label}</button>)}</div></header><div className="hub-trend-body"><p className="real-hub-state">{trend}趋势尚无完整核验口径，不根据当前少量来源推断全域分布。</p></div></article><HubTeamMap hubKey={key}/>
-      <HubSourceCatalog sources={sources} recordCount={reviewedCount} error={!!error}/></section>
+      <section className="hub-grid"><HubRegistryStatistics statistics={registrationStatistics} loading={!hub&&!error} error={!!error} onRetry={reload}/><HubTeamMap hubKey={key}/>
+      <HubSourceCatalog hubKey={key}/></section>
       {key==='lingshu-xinyu'&&<AcademicDirectory compact/>}
       <section className="hub-grid hub-lower"><HubRegistryPreview items={registries} error={!!error}/><article className="hub-card"><header><h2>活跃研究者 / 学者</h2><button disabled>查看全部</button></header><p className="real-hub-state">研究者活跃度尚未核验。</p></article>
       <article className="hub-card real-hub-external"><header><h2>领域观察</h2></header><p className="real-hub-muted">尚无真实 AI 观察。下方保留已审核标准与指南目录，非自动生成观点。</p>
