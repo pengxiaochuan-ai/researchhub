@@ -17,10 +17,10 @@ let stage='initial',prisma,committed=false;
 try {
  assert.equal(createHash('sha256').update(sql).digest('hex'),sha);
  const config=readResearchRuntimeConfig(process.env);
- const {database,tenantId,markerSha256}=config.identity;
+ const {database,tenantId,markerDigest}=config.identity;
  assert.equal(database,'researchhub');
  assert.equal(tenantId,'rh-kb-local-b0e2af9d-tenant');
- assert.equal(markerSha256,'cb387f97078c6af304807b132a00d2400d7f10e6d2c39e050616e455542de523');
+ assert.equal(markerDigest,'cb387f97078c6af304807b132a00d2400d7f10e6d2c39e050616e455542de523');
  const {load}=runtimeDependencies(config.core);
  prisma=new (load('prisma/prisma.service','PrismaService'))();
  const env=bindRuntimeTransactions({prisma,expected:config.identity});
