@@ -63,6 +63,10 @@ test('no anonymous, cross-tenant, stale or disabled identity can read defaults o
 test('published source/release drift and unpublished versions cannot silently re-enable',async()=>{
  const f=fixture();await f.service.install(admin);
  f.skills[0].intent+='changed';await assert.rejects(()=>f.service.install(admin),/HUB_SKILL_RELEASE_CHANGED/);
+ const available=(await f.service.list(admin)).items;
+ assert.equal(available.length,8);
+ assert.ok(!available.some(item=>item.id===f.skills[0].id));
+ assert.ok(available.some(item=>item.key==='doubao-medical-literature-interpretation'));
  f.skills[0].status='draft';assert.equal((await f.service.list(admin)).items.length,8);
 });
 
