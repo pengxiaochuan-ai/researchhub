@@ -84,8 +84,19 @@ REVOKE ALL ON ALL TABLES IN SCHEMA rh_hub_activity FROM PUBLIC
 -- statement
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA rh_hub_activity FROM PUBLIC
 -- statement
-GRANT USAGE ON SCHEMA rh_hub_activity TO aisci_app
--- statement
-GRANT SELECT ON rh_hub_activity.first_public TO aisci_app
--- statement
-GRANT EXECUTE ON FUNCTION rh_hub_activity.scope_matches(text,text),rh_hub_activity.owner_writer() TO aisci_app
+DO $grant_activity_reader$
+DECLARE
+ reader_role name;
+BEGIN
+ IF current_database() = 'researchhub' AND current_user = 'researchhub_demo_owner' THEN
+  reader_role := 'researchhub_demo_app';
+ ELSIF current_database() = 'wp01_test_full_baseline' AND current_user = 'aisci_owner' THEN
+  reader_role := 'aisci_app';
+ ELSE
+  RAISE EXCEPTION 'Hub activity migration target or owner mismatch';
+ END IF;
+ EXECUTE format('GRANT USAGE ON SCHEMA rh_hub_activity TO %I', reader_role);
+ EXECUTE format('GRANT SELECT ON rh_hub_activity.first_public TO %I', reader_role);
+ EXECUTE format('GRANT EXECUTE ON FUNCTION rh_hub_activity.scope_matches(text,text),rh_hub_activity.owner_writer() TO %I', reader_role);
+END
+$grant_activity_reader$
