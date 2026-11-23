@@ -33,10 +33,10 @@ try {
 """
 
 def main():
-    ids=subprocess.check_output(['docker','ps','-q','--filter','label=com.docker.compose.project=researchhub-backend','--filter','label=com.docker.compose.service=researchhub-api'],text=True).split()
+    ids=subprocess.check_output(['docker','ps','-q','--filter','label=com.docker.compose.project=researchhub-backend','--filter','label=com.docker.compose.service=researchhub-api'],universal_newlines=True).split()
     if len(ids)!=1 or not re.fullmatch(r'[a-f0-9]{12,64}',ids[0]):
         raise ValueError('owned API container missing')
-    result=subprocess.run(['docker','exec','-i',ids[0],'node','--input-type=module','-'],input=NODE,capture_output=True,text=True,timeout=45)
+    result=subprocess.run(['docker','exec','-i',ids[0],'node','--input-type=module','-'],input=NODE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,universal_newlines=True,timeout=45)
     lines=result.stdout.splitlines()
     value=json.loads(lines[-1]) if lines else {'status':'stopped','code':'HUB_ACTIVITY_PROBE_NO_RESULT'}
     print(json.dumps(value))
