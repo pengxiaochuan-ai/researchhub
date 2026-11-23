@@ -38,14 +38,19 @@ export function createHubDefaultSkills({scope,tenantId,agentId,catalog,transacti
   await assertApprovedInTransaction(tx,user);
   return account;
  }
+ function matchesRelease(actual,expected){
+  return actual.status==='published'&&Boolean(actual.reviewedBy)&&Object.entries(expected).every(([key,value])=>isDeepStrictEqual(actual[key],value));
+ }
  function assertRelease(actual,expected){
-  if(actual.status!=='published'||!actual.reviewedBy||Object.entries(expected).some(([key,value])=>!isDeepStrictEqual(actual[key],value)))fail('HUB_SKILL_RELEASE_CHANGED');
+  if(!matchesRelease(actual,expected))fail('HUB_SKILL_RELEASE_CHANGED');
  }
  async function listInTransaction(tx,user){
   await lockAuthorization(tx,tenantId);await authorized(tx,user);
   const assignments=await tx.skillAssignment.findMany({where:{tenantId,agentId,scopeKey:{in:['*',user.accountId]},skill:{status:'published'}},include:{skill:true}});
-  const current=assignments.filter(row=>releases.some(expected=>expected.id===row.skillId));
-  for(const row of current)assertRelease(row.skill,releases.find(s=>s.id===row.skillId));
+  const current=assignments.filter(row=>{
+   const expected=releases.find(release=>release.id===row.skillId);
+   return expected&&matchesRelease(row.skill,expected);
+  });
   return{policy:DEFAULT_SKILL_POLICY,items:resolveEffectiveSkillCatalog(current,user.accountId).map(({id,key,name,kind,version})=>({id,key,name,kind,version,equipped:true,executionReady:false})),defaultCount:9};
  }
  return{
