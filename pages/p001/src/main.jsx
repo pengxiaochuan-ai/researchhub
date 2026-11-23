@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { ChevronRight, Search, ShieldCheck, X } from 'lucide-react';
 import './home.css';
 import '../../../src/lingshu-brand.css';
+import {lingshuLogoUrl} from '../../../src/lingshu-logo.js';
 
 const NAV = [
   ['产品能力', 'workflow'],
@@ -124,7 +125,7 @@ function App() {
   return (
     <div className="home">
       <header className="top">
-        <a className="brand" href="/pages/p002/#home"><span className="lingshu-brand-icon"><img src="/pages/p002/assets/reference-1.png" alt="灵枢心域标识"/></span><span className="lingshu-brand-copy"><b>灵枢心域</b><small>针灸防治情志病学术科研平台</small></span></a>
+        <a className="brand" href="/pages/p002/#home"><span className="lingshu-brand-icon brand-logo-tone"><img src={lingshuLogoUrl} width="66" height="67" alt=""/></span><span className="lingshu-brand-copy"><b>灵枢心域</b><small>针灸防治情志病学术科研平台</small></span></a>
         <nav>
           {NAV.map(([label, id]) => (
             <button key={id} type="button" className={section === id ? 'on' : ''} onClick={() => openNav(id)}>{label}</button>
