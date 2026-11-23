@@ -1,4 +1,4 @@
-name: Inspect Hub incident metadata
+name: Resume sealed ResearchHub release
 on:
   workflow_dispatch:
 permissions:
@@ -7,45 +7,101 @@ concurrency:
   group: researchhub-ecs-release
   cancel-in-progress: false
 jobs:
-  inspect:
+  release:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 30
     environment: production
+    env:
+      HUB_RUNTIME_TAG: hub-runtime-33a9ffd3-45155206512001
+      HUB_DATABASE_APPROVED_DIGEST: ${{ vars.HUB_DATABASE_APPROVED_DIGEST }}
+      OSS_ACCESS_KEY: ${{ secrets.OSS_ACCESS_KEY }}
+      OSS_SECRET_KEY: ${{ secrets.OSS_SECRET_KEY }}
+      OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
+      OSS_ENDPOINT: ${{ secrets.OSS_ENDPOINT }}
     steps:
       - uses: actions/checkout@v4
-      - name: Read only the independent Hub incident metadata
+        with:
+          ref: 33a9ffd348aaae75cce1ee5f8cd2cd34a139193c
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Verify the sealed candidate and current paired baseline
+        id: staged
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 33a9ffd348aaae75cce1ee5f8cd2cd34a139193c
+          python3 -m pip -q install 'oss2==2.19.1'
+          python3 - <<'PYCODE'
+          import hashlib, importlib.util, json, os, pathlib
+          spec=importlib.util.spec_from_file_location('release','scripts/hub-release.py')
+          release=importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(release)
+          policy=json.loads(pathlib.Path('deploy/release-policy.json').read_text())
+          release.validate_core_policy(policy)
+          store=release.artifacts.bucket()
+          _, previous, pointer=release.read_current(store,policy)
+          assert pointer['tag']=='hub-runtime-be32ffdb-45145871325001'
+          revision='33a9ffd348aaae75cce1ee5f8cd2cd34a139193c'
+          plan=release.plan_module.make_plan(previous,revision,os.environ['HUB_DATABASE_APPROVED_DIGEST'])
+          assert plan['releaseRequired'] and not plan['databaseChanged'] and plan['databaseApproved']
+          tag=os.environ['HUB_RUNTIME_TAG']
+          manifest_sha='85d1a6206ceaf2a1708103f12997c00008ab5ca78842cdb768e1355a427f01ef'
+          _, candidate=release.manifest(store,tag,manifest_sha)
+          assert candidate['releaseGit']==revision and candidate['databaseDigest']==plan['databaseDigest']
+          assert candidate['previousRelease']['manifestSha256']==pointer['manifestSha256']
+          assert candidate['previousRelease']['tag']==pointer['tag']
+          control_sha='bdb3f76d4f1a580ebd392faabf041271fdf4542d8d921c74adb87374d4d8f637'
+          key=f'{release.PREFIX}{tag}/runtime-controls-{control_sha[:16]}/control-manifest.json'
+          raw=store.get_object(key).read()
+          assert hashlib.sha256(raw).hexdigest()==control_sha
+          control=json.loads(raw)
+          assert control['paired'] and control['tag']==tag
+          assert control['imageManifestSha256']==manifest_sha and control['previousManifestSha256']==pointer['manifestSha256']
+          with open(os.environ['GITHUB_OUTPUT'],'a') as output:
+              output.write('control_sha='+control_sha+'\n')
+          print(json.dumps({'status':'sealed-candidate-verified','releaseGit':revision,'tag':tag,'databaseChanged':False}))
+          PYCODE
+      - name: Apply both components with paired rollback
+        id: apply
+        if: steps.staged.outcome == 'success'
         env:
           ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
           ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
           ALIYUN_ECS_INSTANCE_ID: ${{ secrets.ALIYUN_ECS_INSTANCE_ID }}
-        shell: bash
+          HUB_RUNTIME_CONTROL_SHA256: ${{ steps.staged.outputs.control_sha }}
+          HUB_RUNTIME_ACTION: pair-release
+        run: bash scripts/run-hub-runtime-command.sh
+      - name: Read-only real browser smoke
+        id: browser
+        if: steps.apply.outcome == 'success'
         run: |
-          set -Eeuo pipefail
-          export ALIBABA_CLOUD_IGNORE_PROFILE=TRUE
-          d="$(mktemp -d)"
-          trap 'rm -rf -- "$d"' EXIT
-          curl -fsSL --connect-timeout 15 --max-time 90 https://github.com/aliyun/aliyun-cli/releases/download/v3.3.18/aliyun-cli-linux-3.3.18-amd64.tgz -o "$d/cli.tgz"
-          printf '%s  %s\n' 0823286604dbd8beb8d65dd0694d23c913e7c5d5a02b20a3593a4f8a6517f1d4 "$d/cli.tgz" | sha256sum -c -
-          tar -xzf "$d/cli.tgz" -C "$d" aliyun
-          python3 - "$d/payload" <<'PY'
-          import base64,pathlib,sys
-          source=pathlib.Path('scripts/hub-production-inspect.py').read_text()
-          script="python3 - <<'HUB_READ_ONLY_INSPECT'\n"+source+"\nHUB_READ_ONLY_INSPECT\n"
-          value=base64.b64encode(script.encode()).decode();assert len(value)<24000
-          pathlib.Path(sys.argv[1]).write_text(value)
-          PY
-          "$d/aliyun" ecs RunCommand --RegionId cn-hangzhou --Type RunShellScript --ContentEncoding Base64 --CommandContent "$(cat "$d/payload")" --InstanceId.1 "$ALIYUN_ECS_INSTANCE_ID" --Username root --Timeout 180 --TerminationMode ProcessTree --RepeatMode Once --KeepCommand false --ClientToken "hub-inspect-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" --Name hub-read-only-incident > "$d/invocation.json"
-          id="$(jq -er .InvokeId "$d/invocation.json")"
-          for attempt in $(seq 1 48); do
-            "$d/aliyun" ecs DescribeInvocationResults --RegionId cn-hangzhou --InvokeId "$id" --InstanceId "$ALIYUN_ECS_INSTANCE_ID" --ContentEncoding Base64 > "$d/result.json"
-            state="$(jq -r '.Invocation.InvocationResults.InvocationResult[0].InvocationStatus // "Pending"' "$d/result.json")"
-            case "$state" in
-              Success|Failed|Error|Timeout|Stopped|Terminated|Cancelled|Invalid)
-                jq -r '.Invocation.InvocationResults.InvocationResult[0].Output // ""' "$d/result.json" | base64 --decode
-                test "$state" = Success
-                test "$(jq -r '.Invocation.InvocationResults.InvocationResult[0].ExitCode' "$d/result.json")" = 0
-                exit 0 ;;
-            esac
-            sleep 5
-          done
-          exit 1
+          npm install --prefix "$RUNNER_TEMP/browser" --ignore-scripts 'playwright@1.63.0'
+          "$RUNNER_TEMP/browser/node_modules/.bin/playwright" install --with-deps chromium
+          HUB_PLAYWRIGHT_MODULE="$RUNNER_TEMP/browser/node_modules/playwright/index.mjs" HUB_SMOKE_OUTPUT="$RUNNER_TEMP/hub-browser" node scripts/hub-release-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.apply.outcome == 'success'
+        with:
+          name: public-browser-smoke
+          path: ${{ runner.temp }}/hub-browser
+          retention-days: 7
+      - name: Finalize the successful pair after browser verification
+        id: finalize
+        if: success() && steps.browser.outcome == 'success'
+        env:
+          ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
+          ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
+          ALIYUN_ECS_INSTANCE_ID: ${{ secrets.ALIYUN_ECS_INSTANCE_ID }}
+          HUB_RUNTIME_CONTROL_SHA256: ${{ steps.staged.outputs.control_sha }}
+          HUB_RUNTIME_ACTION: pair-finalize
+        run: bash scripts/run-hub-runtime-command.sh
+      - name: Restore both previous components if browser verification fails
+        if: always() && (failure() || cancelled()) && steps.apply.outcome == 'success' && steps.finalize.outcome == 'skipped'
+        env:
+          ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
+          ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
+          ALIYUN_ECS_INSTANCE_ID: ${{ secrets.ALIYUN_ECS_INSTANCE_ID }}
+          HUB_RUNTIME_CONTROL_SHA256: ${{ steps.staged.outputs.control_sha }}
+          HUB_RUNTIME_ACTION: pair-rollback
+        run: bash scripts/run-hub-runtime-command.sh
