@@ -3,7 +3,6 @@ import {Landmark,Folder,ClipboardCheck,BrainCircuit,AlertTriangle,FileText,Calen
 import {researchProjectUrl,researchProjectsUrl} from '../../src/research-projects-session.js';
 import PersonalRecordList from './PersonalRecordList.jsx';
 import {Button} from './Components.jsx';
-import PublicActivity from './PublicActivity.jsx';
 const day=new Intl.DateTimeFormat('zh-CN',{year:'numeric',month:'long',day:'numeric',weekday:'long'}).format(new Date());
 const date=value=>new Intl.DateTimeFormat('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(value));
 function Stat({Icon,title,value,detail}){return <div className={'stat '+(title==='岐研 AI'?'aiStat':'')}><div className="statTop"><Icon/>{title}</div><div className="statNum">{value}</div><small>{detail}</small></div>;}
@@ -29,7 +28,18 @@ export default function PersonalOverview({data,unverified=false,notice,onAccessL
   const projectCount=!unverified&&directory.kind==='ready'&&Number.isSafeInteger(directory.total)&&directory.total>=0?directory.total:'—';
   const canCreateProject=!unverified&&directory.kind==='ready'&&directory.capabilities?.canCreateProject===true;
   return <>{notice}<div className="hello"><div><h1>{unverified?'我的工作台':data.profile.displayName+'，您好'}</h1><p>专注于证据，推动更好的临床实践。</p></div><time>{day}</time></div>
-    <div className="workspace"><div className="center"><section className="hub"><div className="hubMain"><div className="hubIcon"><Landmark/></div><div><small>当前科研工作空间 · {data.profile.tenantName}</small><h2>Research Hub</h2><p>负责人及参与关系暂不可查询。</p><div className="hubMeta">课题与草稿 {projectCount} 项 · 本人草稿 {data.summary.ownDraftCount} 份</div></div></div><div className="hubNews"><b>领域最新变化</b><PublicActivity limit={4}/><a href="/pages/h01/">查看全部 →</a></div></section>
+    <div className="workspace"><div className="center">
+      <section className="hub">
+        <div className="hubMain">
+          <div className="hubIcon"><Landmark aria-hidden="true"/></div>
+          <div>
+            <small>当前科研工作空间 · {data.profile.tenantName}</small>
+            <h2>Research Hub</h2>
+            <div className="hubMeta">课题与草稿 {projectCount} 项 · 本人草稿 {data.summary.ownDraftCount} 份</div>
+          </div>
+        </div>
+        <a className="hubResearchLink" href="/pages/h01/">进入领域研究 <ArrowRight size={16} aria-hidden="true"/></a>
+      </section>
       <div className="stats"><Stat Icon={Folder} title="我的课题" value={`${projectCount} 项`} detail="当前可查看课题与草稿"/><Stat Icon={AlertTriangle} title="需要判断" value="—" detail="判断事项汇总暂不可用"/><Stat Icon={ClipboardCheck} title="待我处理" value={`${data.summary.myOpenTaskCount} 项`} detail="分配给我的未完成任务"/><Stat Icon={BrainCircuit} title="岐研 AI" value={<a href="/pages/ai01/">进入 AI ›</a>} detail="按当前授权与Token额度使用"/></div>
       <section className="attention"><div className="attHead"><h2><AlertTriangle/>需要您判断</h2><span>预警与判断汇总暂不可用</span></div><div className="attBody"><p>当前没有可核实的入组预警或趋势预测。</p><div className="attGrid">{['当前入组进度','近14日新增入组','入组趋势（近14日）','可能影响'].map(label=><div className="metric" key={label}><small>{label}</small><b>—</b><p>暂不可用</p></div>)}</div><div className="lower"><div className="deviation"><h3>主要偏差中心</h3><p>中心偏差暂不可评估。</p><div className="actions"><button disabled>进入课题判断</button><button disabled>查看入组偏差</button><button disabled>分配任务</button></div></div><div className="aiAnalysis"><h3>岐研 AI 分析</h3><p>此项分析暂不可用。</p><a href="/pages/ai01/">进入科研 Agent</a></div></div>
         <details className="personal-task-details"><summary>待我处理 · {data.summary.myOpenTaskCount} 项任务</summary><PersonalRecordList kind="tasks" data={data} unverified={unverified} onAccessLost={onAccessLost}/></details>

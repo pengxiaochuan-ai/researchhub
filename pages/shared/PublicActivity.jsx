@@ -22,12 +22,15 @@ export function PublicActivityList({state,onRetry}){
  if(state.kind==='loading')return <p className="public-activity-state" role="status">正在读取领域动态…</p>;
  if(state.kind!=='ready')return <div className="public-activity-state" role="alert"><p>领域动态暂时无法读取。</p><Button onClick={onRetry}>重试</Button></div>;
  const {data}=state,partial=data.status==='partial';
+ const readFailed=(data.ledgerStatus!=null&&data.ledgerStatus!=='ready')
+  ||Object.values(data.categoryStatuses??{}).some(category=>category.status==='unavailable');
  return <>
-  {partial&&<div className="public-activity-state" role="status"><p>部分动态暂时无法读取。</p><Button onClick={onRetry}>重试</Button></div>}
+  {readFailed&&<div className="public-activity-state" role="status"><p>部分动态暂时无法读取。</p><Button onClick={onRetry}>重试</Button></div>}
   {data.items.length?<ul className="public-activity-list" tabIndex={0} aria-label="公开领域动态">{data.items.map(item=><li key={item.id}>
    {item.kind==='content'&&item.href?<a href={item.href}>{item.title}</a>:<strong>{item.title}</strong>}
    {item.summary&&<p>{item.summary}</p>}<time dateTime={item.day}>{activityDate(item.day,data.calculatedAt)}</time>
   </li>)}</ul>:<p className="public-activity-state" role="status">{partial?'暂无可展示的新增动态。':'暂无公开领域动态。'}</p>}
+  {partial&&!readFailed&&<p className="public-activity-state" role="status">仅展示已核实首次公开日期的动态。</p>}
  </>;
 }
 export default function PublicActivity(props){const activity=usePublicActivity(props);return <div className="public-activity"><PublicActivityList {...activity}/></div>;}

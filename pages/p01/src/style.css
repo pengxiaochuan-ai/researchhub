@@ -21,12 +21,11 @@ body[data-platform-header="true"] #root>main{padding:80px 24px 30px!important;ov
 .workspace{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px}
 .center,.rail{min-width:0}
 .hub,.panel,.railCard,.stat{background:#fff;border:1px solid #e3e8f1;border-radius:8px}
-.hub{display:flex;gap:16px;align-items:flex-start;padding:18px;min-height:120px}
+.hub{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:flex-start;padding:16px}
 .hubIcon{width:56px;height:56px;flex:none;border-radius:50%;background:#eeecff;display:grid;place-items:center;color:#4f46e5}
 .hubIcon svg{width:26px}
 .hub small{color:#657592;font-size:13px}
 .hub h2{font-size:20px;line-height:28px;margin:2px 0 4px}
-.hub p{margin:0;color:#647592;font-size:14px;line-height:22px}
 .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}
 .stat{min-height:106px;padding:14px 16px}
 .statTop{display:flex;align-items:center;gap:9px;color:#56678d;font-size:14px}
@@ -83,11 +82,10 @@ body[data-platform-header="true"] #root>main{padding:80px 24px 30px!important;ov
 .personal-auth-state h2{font-size:20px;line-height:28px;margin:0 0 8px}
 .page-state p{font-size:14px;line-height:22px;color:#647592;margin:0 0 16px}
 .primary-link,.page-state button{display:inline-flex;padding:9px 18px;border:1px solid #4f46e5;border-radius:6px;background:#4f46e5;color:#fff;text-decoration:none;cursor:pointer}
-.hub{padding:16px;align-items:stretch}
-.hubMain{display:flex;gap:16px;flex:1;min-width:0}
-.hubNews{width:220px;flex:none;padding:0 0 0 16px;border-left:1px solid var(--border);font-size:14px;line-height:22px}
-.hubNews p{margin:8px 0}
-.hubNews a,.aiAnalysis a,.statNum a{color:var(--brand-primary);font-size:14px;line-height:22px}
+.hubMain{display:flex;gap:16px;flex:1 1 220px;min-width:0}
+.hubMain>div:last-child{min-width:0;overflow-wrap:anywhere}
+.hubResearchLink{display:inline-flex;align-items:center;gap:6px;min-height:44px;margin-left:auto;font-size:14px;line-height:22px;white-space:nowrap}
+.aiAnalysis a,.statNum a{color:var(--brand-primary);font-size:14px;line-height:22px}
 @media(max-width:700px){body[data-platform-page="p01"][data-platform-header="true"] #root>aside{display:none}}
 .hubMeta{margin-top:8px;font-size:13px;line-height:20px;color:var(--text-secondary)}
 .stats{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
@@ -126,7 +124,7 @@ body[data-platform-header="true"] #root>main{padding:80px 24px 30px!important;ov
 .personal-report-preview{margin-top:8px}.personal-report-reading{font-size:14px;line-height:22px;overflow-wrap:anywhere}.personal-report-reading pre,.personal-report-reading .table-scroll{max-width:100%;overflow:auto}.personal-report-reading table{display:block;max-width:100%;overflow-x:auto}.personal-report-reading :is(h1,h2,h3,h4,h5,h6){font-size:16px;line-height:24px}
 .personal-task-details summary,.personal-draft-details summary,.recent summary{min-height:44px;padding:8px 0;cursor:pointer;font-size:14px;line-height:22px;color:var(--brand-primary)}
 @media(max-width:700px){body[data-platform-page="p01"] header.global-platform-header .qiyan-header-search,body[data-platform-page="p01"] header.global-platform-header .qiyan-header-notification,body[data-platform-page="p01"] header.global-platform-header .qiyan-header-separator{display:none!important}}
-@media(max-width:1250px){.hub{flex-direction:column}.hubNews{width:100%;border-left:0;border-top:1px solid var(--border);padding:12px 0 0}.stats,.attGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:1250px){.stats,.attGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){.lower,.briefs{grid-template-columns:minmax(0,1fr)}.hubMain{align-items:flex-start}.stats,.attGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:1100px){.workspace{grid-template-columns:1fr}.rail{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}}
 @media(max-width:700px){body[data-platform-page="p01"] .qiyan-platform-sidebar{display:none!important}body[data-platform-page="p01"][data-platform-header="true"] #root>main{margin-left:0!important;padding:82px 16px 24px!important}body[data-platform-page="p01"] header.global-platform-header .qiyan-header-brand{width:calc(100% - 158px)!important;padding-left:12px!important}body[data-platform-page="p01"] header.global-platform-header .lingshu-brand-copy small{display:none!important}body[data-platform-page="p01"] header.global-platform-header .qiyan-user-trigger{right:6px!important}.hello{display:block}.hello time{display:block;margin-top:8px}.stats{grid-template-columns:1fr}.rail{display:block}.railCard{margin-bottom:16px}.section-title{display:block}.section-title span{display:block;margin-top:2px}.record-list li{align-items:flex-start}.read-only{white-space:normal}}

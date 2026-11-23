@@ -57,7 +57,7 @@ test('real registry list retains its original list region, filter bar and column
 test('personal overview uses the four confirmed metric roles and judgement/brief layout with real profile', async () => {
   const {default:Overview}=await server.ssrLoadModule('/pages/shared/PersonalOverview.jsx');
   const html=renderToStaticMarkup(React.createElement(Overview,{data:{profile:{displayName:'合成审核员',tenantName:'合成租户'},summary:{projectCount:0,ownDraftCount:0,myOpenTaskCount:0},studyGroups:[],drafts:[],tasks:[],activity:[]}}));
-  for(const region of ['hubMain','hubNews','attention','attGrid','aiAnalysis','briefs'])assert.ok(html.includes(region),region);
+  for(const region of ['hubMain','hubResearchLink','attention','attGrid','aiAnalysis','briefs'])assert.ok(html.includes(region),region);
   for(const label of ['我的课题','需要判断','待我处理','岐研 AI'])assert.ok(html.includes(label));
   assert.match(html,/合成审核员/);assert.doesNotMatch(html,/王教授|67%|42.*120|12 条新证据/);
 });
