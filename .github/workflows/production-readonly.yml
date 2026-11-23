@@ -1,16 +1,10 @@
-name: ResearchHub production readonly preflight
+name: Apply approved Hub activity migration
 on:
   workflow_dispatch:
-    inputs:
-      profile:
-        description: Readonly inspection profile
-        type: choice
-        options: [catalog, rds-demo, hub-runtime]
-        default: catalog
 permissions:
   contents: read
 concurrency:
-  group: researchhub-production-readonly
+  group: researchhub-ecs-release
   cancel-in-progress: false
 jobs:
   inspect:
@@ -22,11 +16,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Read production metadata through existing Cloud Assistant
+      - name: Apply and verify the approved Hub activity schema
         env:
           ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
           ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
           ALIYUN_ECS_INSTANCE_ID: ${{ secrets.ALIYUN_ECS_INSTANCE_ID }}
           ALIYUN_REGION_ID: cn-hangzhou
-          HUB_READONLY_PROFILE: ${{ inputs.profile || 'catalog' }}
+          HUB_READONLY_PROFILE: hub-runtime
         run: bash scripts/production-readonly-run.sh

@@ -12,14 +12,14 @@ printf '%s  %s\n' 0823286604dbd8beb8d65dd0694d23c913e7c5d5a02b20a3593a4f8a6517f1
 tar -xzf "${task_dir}/cli.tgz" -C "${task_dir}" aliyun
 node --input-type=module > "${task_dir}/payload" <<'JS'
 import{readFileSync}from'node:fs';import{catalogFingerprintSql}from'./deploy/migration-plan.mjs';
-const m=JSON.parse(readFileSync('deploy/migrations/researchhub-production-equivalence-v1/manifest.json'));
-const profiles={catalog:'scripts/production-readonly-probe.py','rds-demo':'scripts/rds-demo-readonly-probe.py','hub-runtime':'scripts/hub-runtime-readonly-probe.py'};
-const selected=profiles[process.env.HUB_READONLY_PROFILE||'catalog'];if(!selected)throw Error('READONLY_PROFILE_REJECTED');
-const source=readFileSync(selected,'utf8').replace('__FINGERPRINT_SQL_BASE64__',Buffer.from(catalogFingerprintSql(m.managedSchemas)).toString('base64'));
+import{createHash}from'node:crypto';
+const sql=readFileSync('server/hub-activity/schema.sql');
+if(createHash('sha256').update(sql).digest('hex')!=='f286f89677336dc4c2846a47b889afdc28cb6f4bef4ebea150edd544b943af59')throw Error('APPROVED_SQL_SHA_MISMATCH');
+const source=readFileSync('scripts/hub-activity-production-apply.py','utf8').replace('__APPROVED_SCHEMA_BASE64__',sql.toString('base64'));
 const command='python3 - <<\'HUB_READONLY_PY\'\n'+source+'\nHUB_READONLY_PY\n';
 const encoded=Buffer.from(command).toString('base64');if(encoded.length>24000)throw Error('READONLY_PAYLOAD_TOO_LARGE');process.stdout.write(encoded);
 JS
-"${task_dir}/aliyun" ecs RunCommand --RegionId "${ALIYUN_REGION_ID}" --Type RunShellScript --ContentEncoding Base64 --CommandContent "$(cat "${task_dir}/payload")" --InstanceId.1 "${ALIYUN_ECS_INSTANCE_ID}" --Username root --Timeout 90 --TerminationMode ProcessTree --RepeatMode Once --KeepCommand false --ClientToken "hub-readonly-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" --Name hub-readonly-preflight > "${task_dir}/invocation.json"
+"${task_dir}/aliyun" ecs RunCommand --RegionId "${ALIYUN_REGION_ID}" --Type RunShellScript --ContentEncoding Base64 --CommandContent "$(cat "${task_dir}/payload")" --InstanceId.1 "${ALIYUN_ECS_INSTANCE_ID}" --Username root --Timeout 90 --TerminationMode ProcessTree --RepeatMode Once --KeepCommand false --ClientToken "hub-activity-apply-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" --Name hub-activity-approved-migration > "${task_dir}/invocation.json"
 invocation="$(jq -er .InvokeId "${task_dir}/invocation.json")"
 for attempt in $(seq 1 45); do
   "${task_dir}/aliyun" ecs DescribeInvocationResults --RegionId "${ALIYUN_REGION_ID}" --InvokeId "${invocation}" --InstanceId "${ALIYUN_ECS_INSTANCE_ID}" --ContentEncoding Base64 > "${task_dir}/result.json"
