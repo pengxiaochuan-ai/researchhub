@@ -41,7 +41,14 @@ jobs:
             state="$(jq -r '.Invocation.InvocationResults.InvocationResult[0].InvocationStatus // "Pending"' "$d/result.json")"
             case "$state" in
               Success|Failed|Error|Timeout|Stopped|Terminated|Cancelled|Invalid)
-                jq -r '.Invocation.InvocationResults.InvocationResult[0].Output // ""' "$d/result.json" | base64 --decode
+                jq -r '.Invocation.InvocationResults.InvocationResult[0].Output // ""' "$d/result.json" | base64 --decode | tee "$d/operator.json"
+                python3 - "$d/operator.json" <<'PYCODE'
+          import json,pathlib,sys
+          rows=pathlib.Path(sys.argv[1]).read_text().splitlines()
+          assert rows
+          body=json.loads(rows[-1])
+          print('::notice title=BN-01 Hub evidence::'+json.dumps(body,ensure_ascii=True,separators=(',',':')))
+          PYCODE
                 test "$state" = Success
                 test "$(jq -r '.Invocation.InvocationResults.InvocationResult[0].ExitCode' "$d/result.json")" = 0
                 exit 0 ;;

@@ -1,80 +1,79 @@
 #!/usr/bin/env python3
-"""Bounded, read-only incident metadata through the existing Hub API container."""
 import json
 import re
 import subprocess
+import hashlib
+import pathlib
 
-NODE = r'''
+NODE = r"""
+import assert from 'node:assert/strict';
+import {readResearchRuntimeConfig} from './server/research-runtime/config.mjs';
+import {runtimeDependencies} from './server/research-runtime/dependencies.mjs';
+import {bindRuntimeTransactions,withDeploymentTransaction} from './server/database/transactions.mjs';
+const data=JSON.parse(Buffer.from('eyJydW5JZCI6ICJibjAxLXByb2QtYWI2M2M2ZjMifQ==','base64').toString());
+const tenant='rh-kb-local-b0e2af9d-tenant';
+let prisma,stage='scope';
+try {
+ const configuration=readResearchRuntimeConfig(process.env);
+ assert.equal(configuration.identity.database,'researchhub');
+ assert.equal(configuration.identity.tenantId,tenant);
+ assert.equal(configuration.identity.markerDigest,'cb387f97078c6af304807b132a00d2400d7f10e6d2c39e050616e455542de523');
+ assert.match(data.runId,/^bn01-prod-[a-f0-9]{8}$/);
+ const {load}=runtimeDependencies(configuration.core);
+ prisma=new (load('prisma/prisma.service','PrismaService'))();
+ const env=bindRuntimeTransactions({prisma,expected:configuration.identity});
+ const refs=await withDeploymentTransaction(env,'direct',async tx=>{
+  stage='active-migration-readback';
+  const [center]=await tx.$queryRaw`SELECT obj_description(oid,'pg_namespace') AS revision FROM pg_namespace WHERE nspname='rh_center'`;
+  assert.equal(center?.revision,'rh-center.v1:9db01cf1641565f46fdd21d7fc39b89637d034616ce6d295edd116403b911d6b');
+  stage='isolated-group';
+  const member=await tx.account.findFirst({where:{tenantId:tenant,id:tenant.replace(/-tenant$/,'-owner'),username:'owner@example.org',status:'active',role:'researcher',isTenantAdmin:false},select:{id:true}});
+  assert(member,'SYNTHETIC_EXECUTOR_ACCOUNT_MISSING');
+  const groupId='rh-group-'+data.runId;
+  const roleId='rh-role-'+data.runId;
+  const group=await tx.studyGroup.create({data:{id:groupId,tenantId:tenant,name:'BN-01 合成验收组 · '+data.runId,slug:data.runId,createdBy:tenant.replace(/-tenant$/,'-admin')}});
+  const role=await tx.permissionRole.create({data:{id:roleId,tenantId:tenant,key:data.runId,name:'BN-01 合成执行人员',dataScope:'project',menuPermissions:['workbench','subjects'],buttonPermissions:['study.execute']}});
+  await tx.studyGroupMembership.create({data:{tenantId:tenant,studyGroupId:group.id,roleId:role.id,accountId:member.id}});
+  return {groupId,runId:data.runId};
+ });
+ console.log(JSON.stringify({status:'hub-center-synthetic-group-ready',...refs}));
+} catch(error) {
+ const code=error.code??error.message;
+ console.log(JSON.stringify({status:'stopped',stage,code:/^[A-Z][A-Z_0-9]{2,75}$/.test(code)?code:'HUB_CENTER_SYNTHETIC_PREP_FAILED'}));
+ process.exitCode=1;
+} finally {
+ await prisma?.app?.$disconnect();
+ await prisma?.elevated?.$disconnect();
+}
 
-import{readResearchRuntimeConfig}from'./server/research-runtime/config.mjs';
-import{runtimeDependencies}from'./server/research-runtime/dependencies.mjs';
-import{bindRuntimeTransactions,withDeploymentTransaction}from'./server/database/transactions.mjs';
-import{storageSettings,createRuntimeStorage}from'./server/research-runtime/storage.mjs';
-import{createRuntimeArticle}from'./server/research-runtime/article-runtime.mjs';
-import{createPmcObjectReader}from'./server/research-runtime/pmc-storage.mjs';
-import{loadArticleEvidence}from'./server/hub-sources/article-evidence.mjs';
-const config=readResearchRuntimeConfig(process.env),tenant='rh-kb-local-b0e2af9d-tenant';let prisma;
-try{
- if(config.identity.database!=='researchhub'||config.identity.tenantId!==tenant)throw Error('INSPECT_TARGET_REJECTED');
- const{load,require}=runtimeDependencies(config.core);prisma=new(load('prisma/prisma.service','PrismaService'))();await prisma.app.$connect();await prisma.elevated.$connect();const env=bindRuntimeTransactions({prisma,expected:config.identity});
- const a=await withDeploymentTransaction(env,'direct',tx=>tx.account.findUnique({where:{id:tenant.replace(/-tenant$/,'-admin')},select:{id:true,role:true,isTenantAdmin:true,authVersion:true}}),{readOnly:true});
- const user={tenantId:tenant,accountId:a.id,role:a.role,isTenantAdmin:a.isTenantAdmin,authVersion:a.authVersion,studyGroupId:tenant.replace(/-tenant$/,'-group'),researchProjectId:tenant.replace(/-tenant$/,'-project')};
- const storage=createRuntimeStorage({load,require,settings:storageSettings(process.env)});await storage.onModuleInit();const readPmcAsset=createPmcObjectReader(storage,tenant),result={status:'hub-production-inspected',databaseWrites:0,modelCalls:0,workersStarted:0};
- for(const kind of['source','runtime'])try{
-  let pack;
-  if(kind==='source')pack=(await withDeploymentTransaction(env,'app',async tx=>{await tx.$executeRawUnsafe("SELECT set_config('app.tenant_id',$1,true),set_config('app.account_id',$2,true),set_config('app.auth_version',$3,true),set_config('app.study_group_id',$4,true),set_config('app.research_project_id',$5,true)",tenant,user.accountId,String(user.authVersion),user.studyGroupId,user.researchProjectId);return loadArticleEvidence({db:tx,tenantId:tenant,hubKey:'lingshu-xinyu',principal:user,recordId:'pmc-PMC13691533',readPmcAsset})},{readOnly:true})).pack;
-  else pack=(await createRuntimeArticle({config,prisma,load,services:{storage,pool:{},provider:{},billing:{},tools:{},grounding:{}},status:async()=>({enabled:true,quota:{canStart:true}}),readPmcAsset}).context(user,'pmc-PMC13691533')).evidence;
-  result[kind]={status:'current',binding:pack.binding,fragments:pack.fragments.length};
- }catch(e){result[kind]={status:'failed',code:/^[A-Za-z][A-Za-z0-9_:.-]{0,100}$/.test(e.code||e.message||'')?(e.code||e.message):e.name||'ARTICLE_READ_FAILED'};}
- console.log(JSON.stringify(result));
-}catch(e){console.log(JSON.stringify({status:'stopped',code:'INSPECT_ARTICLE_FAILED'}));process.exitCode=1;}finally{await prisma?.app?.$disconnect();await prisma?.elevated?.$disconnect();}
-
-'''
-
-
-def run(args, stdin=None):
-    result = subprocess.run(args, input=stdin, stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE, universal_newlines=True, timeout=100)
-    if result.returncode:
-        # Never echo stderr: database libraries may include connection details.
-        raise ValueError('INSPECT_COMMAND_FAILED')
-    return result.stdout.strip()
-
-
-def legacy_key_presence():
-    # Read only this already-authorized model field; do not source shell config.
-    try:
-        with open('/srv/aisci/ops/.env.prod', encoding='utf-8') as file:
-            matches = [line.partition('=')[2].strip().strip('"\'') for line in file
-                       if re.match(r'^(?:export\s+)?DEEPSEEK_API_KEY\s*=', line)]
-        return len(matches) == 1 and bool(matches[0])
-    except (IOError, OSError):
-        return False
-
+"""
 
 def main():
-    ids = run(['docker', 'ps', '-q', '--filter', 'label=com.docker.compose.project=researchhub-backend',
-               '--filter', 'label=com.docker.compose.service=researchhub-api']).splitlines()
-    if len(ids) != 1 or not re.match(r'^[a-f0-9]{12,64}$', ids[0]):
-        raise ValueError('INSPECT_HUB_CONTAINER_REQUIRED')
-    before = run(['docker', 'ps', '--format', '{{.ID}} {{.Image}} {{.Status}}'])
-    raw = run(['docker', 'exec', '-i', ids[0], 'node', '--input-type=module', '-'], NODE)
-    value = json.loads(raw.splitlines()[-1])
-    if value.get('status') != 'hub-production-inspected':
-        raise ValueError('INSPECT_DATABASE_READ_FAILED')
-    # Only identity/image/state, not uptime text, are relevant for a read-only probe.
-    after_ids = run(['docker', 'ps', '--format', '{{.ID}} {{.Image}}'])
-    if [' '.join(line.split()[:2]) for line in before.splitlines()] != after_ids.splitlines():
-        raise ValueError('INSPECT_CONTAINER_IDENTITY_CHANGED')
-    value['legacyDeepSeekKeyPresent'] = legacy_key_presence()
-    value['containerIdentitiesUnchanged'] = True
-    print(json.dumps(value, sort_keys=True))
+    root=pathlib.Path('/srv/researchhub/ops')
+    recorded=json.loads((root/'paired-current.json').read_text())
+    if not re.fullmatch(r'hub-runtime-3b8b8553-[0-9]+',recorded.get('tag','')):
+        raise ValueError('approved pair not active')
+    backups=list((root/'database-backups').glob('researchhub-before-center-*.dump'))
+    backups=[b for b in backups if not b.is_symlink() and b.stat().st_uid==0 and b.stat().st_mode&0o077==0]
+    if not backups: raise ValueError('approved backup missing')
+    backup=max(backups,key=lambda b:b.stat().st_mtime)
+    sha=hashlib.sha256()
+    with backup.open('rb') as f:
+        for buf in iter(lambda:f.read(1<<20),b''): sha.update(buf)
+    ids=subprocess.check_output(['docker','ps','-q','--filter','label=com.docker.compose.project=researchhub-backend','--filter','label=com.docker.compose.service=researchhub-api'],universal_newlines=True).split()
+    if len(ids)!=1 or not re.fullmatch(r'[a-f0-9]{12,64}',ids[0]):
+        raise ValueError('owned API container missing')
+    result=subprocess.run(['docker','exec','-i',ids[0],'node','--input-type=module','-'],input=NODE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,universal_newlines=True,timeout=45)
+    lines=result.stdout.splitlines()
+    value=json.loads(lines[-1]) if lines else {'status':'stopped','code':'HUB_CENTER_PROBE_NO_RESULT'}
+    if result.returncode==0:
+        value['pairedTag']=recorded['tag']
+        value['backup']={'name':backup.name,'bytes':backup.stat().st_size,'sha256':sha.hexdigest()}
+    print(json.dumps(value))
+    return result.returncode
 
-
-if __name__ == '__main__':
-    try:
-        main()
-    except Exception as error:
-        code = str(error) if re.match(r'^INSPECT_[A-Z_]+$', str(error)) else 'INSPECT_FAILED'
-        print(json.dumps({'status': 'stopped', 'code': code, 'automaticRetry': False}))
+if __name__=='__main__':
+    try: raise SystemExit(main())
+    except (subprocess.SubprocessError, OSError, ValueError):
+        print(json.dumps({'status':'stopped','code':'HUB_CENTER_METADATA_FAILED'}))
         raise SystemExit(1)
