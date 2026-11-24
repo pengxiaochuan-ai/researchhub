@@ -3,6 +3,27 @@ const invalid=()=>{throw Object.assign(new Error('首页数据无法核对，请
 const str=value=>typeof value==='string'&&value.length>0;
 const list=value=>Array.isArray(value);
 const count=value=>Number.isSafeInteger(value)&&value>=0;
+const date=value=>typeof value==='string'&&Number.isFinite(Date.parse(value));
+const id=value=>typeof value==='string'&&/^[A-Za-z0-9_-]{1,160}$/.test(value);
+function validateEnrollment(value){
+ if(!value||!date(value.asOf)||value.windowDays!==14||!['available','not_available'].includes(value.centerPlans)||!['ready','restricted'].includes(value.status)||!list(value.projects)||value.status==='restricted'&&value.projects.length)invalid();
+ const validMetrics=row=>row&&
+   [row.actual,row.active,row.previous14,row.last14].every(count)&&row.active<=row.actual&&
+   (row.target===null||count(row.target))&&
+   [row.planStart,row.planEnd].every(day=>day===null||date(day))&&
+   (row.expected===null||Number.isFinite(row.expected)&&row.expected>=0)&&
+   [null,'behind_plan','target_overdue'].includes(row.alert)&&
+   (row.alert!=='behind_plan'||row.expected!==null)&&(row.alert!=='target_overdue'||row.target!==null);
+ for(const row of value.projects){
+  if(!validMetrics(row)||!id(row.studyGroupId)||!id(row.researchProjectId)||!str(row.title))invalid();
+  if(row.centers===undefined)continue;
+  if(typeof row.centersRestricted!=='boolean'||!id(row.studyId)||!list(row.centers)||
+   !(row.remainingTarget===null||Number.isSafeInteger(row.remainingTarget))||row.centersRestricted&&row.remainingTarget!==null||
+   !row.centers.every(c=>validMetrics(c)&&id(c.id)&&str(c.code)&&str(c.name)&&typeof c.enabled==='boolean'&&(c.planVersion===null||count(c.planVersion)&&c.planVersion>0))||
+   row.unassigned!==null&&(!row.unassigned||!['actual','active','last14','previous14'].every(key=>count(row.unassigned[key])))||
+   row.centersRestricted&&row.unassigned!==null)invalid();
+ }
+}
 
 export function validateMyResearchOverview(value){
  if(!value||!str(value.profile?.displayName)||!str(value.profile?.tenantName)||!list(value.studyGroups)||!list(value.drafts)||!list(value.tasks)||!list(value.activity)||!['projectCount','ownDraftCount','myOpenTaskCount'].every(key=>count(value.summary?.[key])))invalid();
@@ -12,6 +33,7 @@ export function validateMyResearchOverview(value){
  for(const task of value.tasks)if(!str(task?.id)||!str(task.title)||!str(task.studyGroupId)||!str(task.researchProjectId)||!str(task.status))invalid();
  for(const event of value.activity)if(!str(event?.id)||!str(event.title)||!str(event.updatedAt))invalid();
  if(value.pagination!==undefined)for(const kind of ['drafts','tasks']){const p=value.pagination?.[kind];if(!p||!Number.isSafeInteger(p.page)||p.page<1||p.page>100000||p.pageSize!==5||typeof p.hasNext!=='boolean')invalid();}
+ if(value.enrollment!==undefined)validateEnrollment(value.enrollment);
  return value;
 }
 

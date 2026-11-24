@@ -2,6 +2,7 @@ import React,{useEffect,useRef} from 'react';
 import {Landmark,Folder,ClipboardCheck,BrainCircuit,AlertTriangle,FileText,CalendarDays,ArrowRight,Clock} from 'lucide-react';
 import {researchProjectUrl,researchProjectsUrl} from '../../src/research-projects-session.js';
 import PersonalRecordList from './PersonalRecordList.jsx';
+import PersonalEnrollment from './PersonalEnrollment.jsx';
 import {Button} from './Components.jsx';
 const taskAnchor='p01-my-tasks';
 const day=new Intl.DateTimeFormat('zh-CN',{year:'numeric',month:'long',day:'numeric',weekday:'long'}).format(new Date());
@@ -73,7 +74,7 @@ export default function PersonalOverview({data,unverified=false,notice,onAccessL
             {decisionState.nextCursor&&<Button onClick={decisionState.more}>继续查看待审核方案</Button>}
           </>}
         </div>
-        <p>当前没有可核实的入组预警或趋势预测。</p><div className="attGrid">{['当前入组进度','近14日新增入组','入组趋势（近14日）','可能影响'].map(label=><div className="metric" key={label}><small>{label}</small><b>—</b><p>暂不可用</p></div>)}</div><div className="lower"><div className="deviation"><h3>主要偏差中心</h3><p>中心偏差暂不可评估。</p><div className="actions"><button disabled>进入课题判断</button><button disabled>查看入组偏差</button><button disabled>分配任务</button></div></div><div className="aiAnalysis"><h3>岐研 AI 分析</h3><p>此项分析暂不可用。</p><a href="/pages/ai01/">进入科研 Agent</a></div></div>
+        <PersonalEnrollment enrollment={data.enrollment} unverified={unverified}/>
         <details className="personal-task-details" id={taskAnchor} ref={tasks}><summary>待我处理 · {data.summary.myOpenTaskCount} 项任务</summary><PersonalRecordList kind="tasks" data={data} unverified={unverified} onAccessLost={onAccessLost}/></details>
       </div></section>
       <div className="briefTitle"><h2>与你相关的研究简报</h2><span>个性化简报暂不可用</span><button disabled>查看全部 →</button></div><div className="briefs">{['最新研究证据','研究方法进展','潜在研究机会'].map(label=><article key={label}><b><FileText/>{label}</b><p>暂无已核验的个性化简报。</p></article>)}</div>

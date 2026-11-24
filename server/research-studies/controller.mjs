@@ -11,6 +11,7 @@ import {createProtocolMigrationService} from '../research-execution/protocol-mig
 import {createSubjectsService} from '../research-execution/subjects.mjs';
 import {createSubjectDataService,canReadStudyDataInTx} from '../research-execution/subject-data.mjs';
 import {createEnrollmentService} from '../research-execution/enrollment.mjs';
+import {createCenterService,enrollmentCentersInTransaction,selectEnrollmentCenterInTransaction,bindEnrollmentCenterInTransaction,enrollmentCenterInTransaction,enrollmentCenterCorrectionsInTransaction} from '../research-execution/centers.mjs';
 import {createFormalCaptureService} from '../research-capture/formal-capture.mjs';
 import {createVisitWorkflowService} from '../research-capture/visit-workflow.mjs';
 import {createCorrectionImpactService} from '../research-capture/correction-impact.mjs';
@@ -117,7 +118,15 @@ export function createResearchStudiesController({require,load,prisma,scope,origi
   create:load('study-operations/formal-response-data-query','createFormalDataQueryInTransaction'),
   mutate:load('study-operations/formal-response-data-query','mutateFormalDataQueryInTransaction'),
  }});
- const participation=createEnrollmentService({studies:service,core:{
+ const centers=createCenterService({studies:service,authorizeParticipation});
+ const centerEnrollment={
+  enrollmentOptions:enrollmentCentersInTransaction,
+  resolveEnrollmentCenter:selectEnrollmentCenterInTransaction,
+  bindEnrollment:bindEnrollmentCenterInTransaction,
+  enrollmentCenter:enrollmentCenterInTransaction,
+  enrollmentCenterCorrections:enrollmentCenterCorrectionsInTransaction,
+ };
+ const participation=createEnrollmentService({studies:service,centers:centerEnrollment,core:{
   authorize:authorizeParticipation,
   context:load('study-operations/participation-events','participationContext'),
   evaluate:load('study-operations/participation-events','evaluateParticipation'),
@@ -133,6 +142,15 @@ export function createResearchStudiesController({require,load,prisma,scope,origi
  routes.push(['protocolReleaseReceipt',Get,'research-studies/:id/protocols/:protocolId/release-receipts/:requestKey',false]);
  routes.push(['protocolRelease',Get,'research-studies/:id/protocols/:protocolId/release',false],['savePolicy',Put,'research-studies/:id/protocols/:protocolId/policy',true]);
  routes.push(['migrationCandidates',Get,'research-studies/:id/protocols/:protocolId/migration-candidates',false],['migrationPreview',Post,'research-studies/:id/protocols/:protocolId/activation-preview',true],['migrationExecute',Post,'research-studies/:id/protocols/:protocolId/migration',true],['migrationReceipt',Get,'research-studies/:id/protocols/:protocolId/migration-receipts/:requestKey',false]);
+ routes.push(['studyCenters',Get,'research-studies/:id/centers',false],
+  ['setStudyCenterTarget',Put,'research-studies/:id/centers/target',true],
+  ['createStudyCenter',Post,'research-studies/:id/centers',true],
+  ['updateStudyCenter',Patch,'research-studies/:id/centers/:centerId',true],
+  ['setStudyCenterAccess',Put,'research-studies/:id/centers/:centerId/access',true],
+  ['submitCenterPlan',Post,'research-studies/:id/centers/:centerId/plans',true],
+  ['approveCenterPlan',Post,'research-studies/:id/centers/:centerId/plans/:planVersion/approve',true],
+  ['submitCenterCorrection',Post,'research-studies/:id/enrollments/:enrollmentId/center-corrections',true],
+  ['approveCenterCorrection',Post,'research-studies/:id/enrollments/:enrollmentId/center-corrections/:version/approve',true]);
  routes.push(['subjectData',Get,'research-studies/:id/subjects/:subjectId/data',false]);
  routes.push(['subjects',Get,'research-studies/:id/subjects',false],['createSubject',Post,'research-studies/:id/subjects',true],['subjectReceipt',Get,'research-studies/:id/subjects/receipts/:requestKey',false],['subjectDetail',Get,'research-studies/:id/subjects/:subjectId',false],['participation',Get,'research-studies/:id/subjects/:subjectId/participation',false],['participationEvent',Post,'research-studies/:id/subjects/:subjectId/participation/events',true],['enrollSubject',Post,'research-studies/:id/subjects/:subjectId/participation/enroll',true],['participationReceipt',Get,'research-studies/:id/subjects/:subjectId/participation/receipts/:requestKey',false]);
  const captureWrites={formDraft:'draft',formSubmit:'submit',formCorrect:'correct'},captureReviews={formReview:'review',formLock:'lock',formUnlock:'unlock'};
@@ -189,6 +207,15 @@ export function createResearchStudiesController({require,load,prisma,scope,origi
     if(name==='subjects')return await subjects.list(req.user,params.id,query);
     if(name==='createSubject')return await subjects.create(req.user,params.id,body);
     if(name==='subjectReceipt')return await subjects.receipt(req.user,params.id,params.requestKey);
+    if(name==='studyCenters'){only(query,[]);return await centers.list(req.user,params.id);}
+    if(name==='setStudyCenterTarget')return await centers.setProjectTarget(req.user,params.id,body);
+    if(name==='createStudyCenter')return await centers.create(req.user,params.id,body);
+    if(name==='updateStudyCenter')return await centers.update(req.user,params.id,params.centerId,body);
+    if(name==='setStudyCenterAccess')return await centers.setAccess(req.user,params.id,params.centerId,body);
+    if(name==='submitCenterPlan')return await centers.submitPlan(req.user,params.id,params.centerId,body);
+    if(name==='approveCenterPlan'){only(body??{},[]);return await centers.approvePlan(req.user,params.id,params.centerId,params.planVersion);}
+    if(name==='submitCenterCorrection')return await centers.submitCorrection(req.user,params.id,params.enrollmentId,body);
+    if(name==='approveCenterCorrection'){only(body??{},[]);return await centers.approveCorrection(req.user,params.id,params.enrollmentId,params.version);}
     if(name==='subjectData')return await subjectData.read(req.user,params.id,params.subjectId,query);
     if(name==='subjectDetail')return await subjects.detail(req.user,params.id,params.subjectId);
     if(name==='participation')return await participation.get(req.user,params.id,params.subjectId);

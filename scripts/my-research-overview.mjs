@@ -1,4 +1,5 @@
 // Read-only, local ResearchHub P01 projection over the existing shared schema.
+import {readMyResearchEnrollment} from './my-research-enrollment.mjs';
 import {draftWorkspace} from './my-research-draft-workspace.mjs';
 import {FORMAL_REPORT_PREFIX} from '../server/research-analysis/t17-report-content.mjs';
 import {RESEARCH_ASSET_PREFIX} from './research-assets-read-contract.mjs';
@@ -47,11 +48,12 @@ export function createMyResearchOverview({prisma,lockAuthorization,tenantId,ids,
    // A01 registrations are not research-workflow drafts; the shared request key is non-nullable.
    const draftWhere=draftProjects.length?{...scoped(draftProjects),id:{not:{startsWith:FORMAL_REPORT_PREFIX}},idempotencyKey:{not:{startsWith:RESEARCH_ASSET_PREFIX}},ownerAccountId:user.accountId,status:'draft',deletedAt:null}:null;
    const taskWhere=taskProjects.length?{...scoped(taskProjects),assigneeAccountId:user.accountId,acceptanceFixture:false,status:{in:openTaskStatuses}}:null;
-   const [ownDraftCount,drafts,myOpenTaskCount,tasks]=await Promise.all([
+   const [ownDraftCount,drafts,myOpenTaskCount,tasks,enrollment]=await Promise.all([
     draftWhere?tx.researchArtifact.count({where:draftWhere}):0,
     draftWhere?tx.researchArtifact.findMany({where:draftWhere,select:{id:true,studyGroupId:true,researchProjectId:true,typeKey:true,title:true,updatedAt:true,currentVersionNo:true,ownerAccountId:true,createdBy:true,idempotencyKey:true},orderBy:[{updatedAt:'desc'},{id:'desc'}],take:pageSize,skip:(draftPage-1)*pageSize}):[],
     taskWhere?tx.studyTask.count({where:taskWhere}):0,
-    taskWhere?tx.studyTask.findMany({where:taskWhere,select:{id:true,studyGroupId:true,researchProjectId:true,name:true,taskType:true,status:true,dueAt:true},orderBy:[{dueAt:'asc'},{createdAt:'desc'},{id:'desc'}],take:pageSize,skip:(taskPage-1)*pageSize}):[]
+    taskWhere?tx.studyTask.findMany({where:taskWhere,select:{id:true,studyGroupId:true,researchProjectId:true,name:true,taskType:true,status:true,dueAt:true},orderBy:[{dueAt:'asc'},{createdAt:'desc'},{id:'desc'}],take:pageSize,skip:(taskPage-1)*pageSize}):[],
+    query.draftPage===undefined&&query.taskPage===undefined?readMyResearchEnrollment(tx,{tenantId,account,accountId:user.accountId,projects}):undefined
    ]);
    const versions=drafts.length?await tx.researchArtifactVersion.findMany({where:{tenantId,OR:drafts.map(d=>({artifactId:d.id,versionNo:d.currentVersionNo}))},select:{artifactId:true,versionNo:true,contentBlocks:true},take:pageSize}):[];
    const projectedDrafts=[];
@@ -63,6 +65,7 @@ export function createMyResearchOverview({prisma,lockAuthorization,tenantId,ids,
     projectedDrafts.push({id:d.id,studyGroupId:d.studyGroupId,researchProjectId:d.researchProjectId,typeKey:d.typeKey,title:d.title,updatedAt:d.updatedAt.toISOString(),version:d.currentVersionNo,canOpenPlanFlow:canOpenPlanFlow(d,user.accountId,allowed),workspace,canOpenWorkspace});
    }
    return{
+    ...(enrollment?{enrollment}:{}),
     profile:{displayName:account.displayName,tenantName:account.tenant.name},
     studyGroups:groups.map(g=>({id:g.id,name:g.name,projects:g.projects.map(({permissions,studyGroupId,...p})=>({...p,canReadDrafts:permissions.menus.includes('artifacts')&&permissions.buttons.includes('artifact.read'),canReadTasks:permissions.menus.includes('workbench'),canOpenDesignWorkspace:canOpenDesignWorkspace({...p,studyGroupId,permissions},user.accountId,ids)}))})),
     summary:{projectCount:projects.length,ownDraftCount,myOpenTaskCount},

@@ -138,3 +138,18 @@ body[data-platform-header="true"] #root>main{padding:80px 24px 30px!important;ov
 .pending-decisions h3{font-size:14px;line-height:22px;margin:0 0 8px}
 .pending-decisions p{margin:4px 0 8px;color:var(--text-secondary)}
 .pending-decisions .decisionLink{text-decoration:none;font-weight:600}
+
+.personal-enrollment h3{margin:0 0 8px;font-size:14px;line-height:22px}
+.personal-enrollment p{margin:6px 0;color:var(--text-secondary)}
+.enrollment-list{list-style:none;margin:0;padding:0}
+.enrollment-row{padding:12px 0;border-bottom:1px solid var(--border)}
+.enrollment-project{font-weight:600;text-decoration:none;overflow-wrap:anywhere}
+.enrollment-row dl{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:8px 0}
+.enrollment-row dt{color:var(--text-secondary)}
+.enrollment-row dd{margin:0;font-weight:600}
+.enrollment-row .enrollment-warning{padding:8px 10px;background:var(--canvas);border-left:2px solid var(--warning);color:var(--text-primary)}
+@media(max-width:700px){.enrollment-row dl{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.enrollment-more summary{min-height:44px;padding:10px 0;color:var(--brand-primary);cursor:pointer}
+
+.enrollment-center{padding:10px 0 10px 12px;border-left:2px solid var(--border);margin:0 0 8px}
+.enrollment-center h4{margin:0;font-size:14px;line-height:22px;overflow-wrap:anywhere}
