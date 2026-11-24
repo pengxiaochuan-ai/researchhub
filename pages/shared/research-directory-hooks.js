@@ -3,11 +3,11 @@ import {readResearchDirectoryRange} from '../../src/research-directory-session.j
 import {useResearchProjectAccess} from './research-project-hooks.js';
 
 const empty=(kind,message='')=>({kind,items:[],total:null,nextCursor:null,capabilities:{canCreateProject:false},message,refreshing:false,loadingMore:false});
-export function useResearchDirectory({limit=20,query='',onIdentityReset=()=>{}}={}){
+export function useResearchDirectory({limit=20,refreshOnPoll=false,query='',onIdentityReset=()=>{}}={}){
  const [state,setState]=useState(()=>empty('loading'));
  const inFlight=useRef(false);
  const sequence=useRef(0),desired=useRef(limit),previousQuery=useRef(null),morePending=useRef(false),identityReset=useRef(onIdentityReset);identityReset.current=onIdentityReset;
- const access=useResearchProjectAccess(()=>{inFlight.current=false;sequence.current++;desired.current=limit;morePending.current=false;setState(empty('restricted'));identityReset.current();},{probePath:'/research-directory?limit=1',shouldRevalidate:()=>!inFlight.current,onProbeError:error=>{if(error.code==='RESEARCH_STALE'||[401,403,404].includes(error.status))return;inFlight.current=false;sequence.current++;morePending.current=false;setState(empty('error',error.message));}});
+ const access=useResearchProjectAccess(()=>{inFlight.current=false;sequence.current++;desired.current=limit;morePending.current=false;setState(empty('restricted'));identityReset.current();},{probePath:'/research-directory?limit=1',refreshOnPoll,shouldRevalidate:()=>!inFlight.current,onProbeError:error=>{if(error.code==='RESEARCH_STALE'||[401,403,404].includes(error.status))return;inFlight.current=false;sequence.current++;morePending.current=false;setState(empty('error',error.message));}});
  const normalized=query.trim();
  useEffect(()=>{
   const changed=previousQuery.current!==normalized;previousQuery.current=normalized;if(changed){desired.current=limit;morePending.current=false;}

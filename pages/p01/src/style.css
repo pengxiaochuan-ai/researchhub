@@ -90,6 +90,10 @@ body[data-platform-header="true"] #root>main{padding:80px 24px 30px!important;ov
 .hubMeta{margin-top:8px;font-size:13px;line-height:20px;color:var(--text-secondary)}
 .stats{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
 .statNum{font-size:28px;line-height:40px}
+.statNum .statCountLink{font:inherit;text-decoration:none}
+.statNum .statCountLink:hover{text-decoration:none;color:var(--brand-deep,#3730a3)}
+.statNum .statCountLink:focus-visible{outline:2px solid var(--brand-primary);outline-offset:3px}
+#p01-my-tasks{scroll-margin-top:80px}
 .attention{border:1px solid var(--border);border-radius:8px;background:var(--surface);overflow:hidden;margin-bottom:16px}
 .attHead{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--border);background:#fff9f5}
 .attHead h2{display:flex;align-items:center;gap:8px;font-size:16px;line-height:24px;margin:0}
@@ -128,3 +132,9 @@ body[data-platform-header="true"] #root>main{padding:80px 24px 30px!important;ov
 @media(max-width:700px){.lower,.briefs{grid-template-columns:minmax(0,1fr)}.hubMain{align-items:flex-start}.stats,.attGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:1100px){.workspace{grid-template-columns:1fr}.rail{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}}
 @media(max-width:700px){body[data-platform-page="p01"] .qiyan-platform-sidebar{display:none!important}body[data-platform-page="p01"][data-platform-header="true"] #root>main{margin-left:0!important;padding:82px 16px 24px!important}body[data-platform-page="p01"] header.global-platform-header .qiyan-header-brand{width:calc(100% - 158px)!important;padding-left:12px!important}body[data-platform-page="p01"] header.global-platform-header .lingshu-brand-copy small{display:none!important}body[data-platform-page="p01"] header.global-platform-header .qiyan-user-trigger{right:6px!important}.hello{display:block}.hello time{display:block;margin-top:8px}.stats{grid-template-columns:1fr}.rail{display:block}.railCard{margin-bottom:16px}.section-title{display:block}.section-title span{display:block;margin-top:2px}.record-list li{align-items:flex-start}.read-only{white-space:normal}}
+
+#p01-decisions{scroll-margin-top:80px}
+.pending-decisions{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.pending-decisions h3{font-size:14px;line-height:22px;margin:0 0 8px}
+.pending-decisions p{margin:4px 0 8px;color:var(--text-secondary)}
+.pending-decisions .decisionLink{text-decoration:none;font-weight:600}

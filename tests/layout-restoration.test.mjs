@@ -59,6 +59,9 @@ test('personal overview uses the four confirmed metric roles and judgement/brief
   const html=renderToStaticMarkup(React.createElement(Overview,{data:{profile:{displayName:'合成审核员',tenantName:'合成租户'},summary:{projectCount:0,ownDraftCount:0,myOpenTaskCount:0},studyGroups:[],drafts:[],tasks:[],activity:[]}}));
   for(const region of ['hubMain','hubResearchLink','attention','attGrid','aiAnalysis','briefs'])assert.ok(html.includes(region),region);
   for(const label of ['我的课题','需要判断','待我处理','岐研 AI'])assert.ok(html.includes(label));
+  assert.match(html,/class="statCountLink" href="\/pages\/q02\/\?researchProjects=1"/);
+  assert.match(html,/class="statCountLink" href="#p01-my-tasks"/);
+  assert.match(html,/<details class="personal-task-details" id="p01-my-tasks">/);
   assert.match(html,/合成审核员/);assert.doesNotMatch(html,/王教授|67%|42.*120|12 条新证据/);
 });
 
@@ -137,4 +140,18 @@ test('unverified detail and personal states retain their page regions without ze
   const personal=render(PersonalOverviewSkeleton);
   for(const region of ['hubMain','stats','attention','briefs','railCard'])assert.ok(personal.includes(region),region);
   assert.doesNotMatch(personal,/已授权课题 0|待我处理.*0 项|暂无已授权的私有课题/);
+});
+
+test('P01 judgement entries show only the active queue result and preserve the exact protocol version link',async()=>{
+  const {default:Overview}=await server.ssrLoadModule('/pages/shared/PersonalOverview.jsx');
+  const data={profile:{displayName:'验收',tenantName:'合成租户'},summary:{ownDraftCount:0,myOpenTaskCount:0},
+    studyGroups:[],drafts:[],tasks:[],activity:[]};
+  const item={studyId:'study-1',studyTitle:'合成课题',protocol:{id:'p-1',title:'待审版本',versionNumber:2},
+    href:'/pages/s07/?formalPreparation=1&studyId=study-1&protocolId=p-1'};
+  const view=(decisions,unverified=false)=>renderToStaticMarkup(React.createElement(Overview,{data,decisions,unverified}));
+  assert.match(view({kind:'ready',items:[item],nextCursor:'next'}),/>1\+ 项</);
+  assert.match(view({kind:'ready',items:[item],nextCursor:null}),/protocolId=p-1">待审版本/);
+  assert.match(view({kind:'ready',items:[],nextCursor:null}),/当前没有需要您审核的研究方案/);
+  assert.match(view({kind:'error'}),/待审核方案暂时无法读取/);
+  assert.doesNotMatch(view({kind:'ready',items:[item],nextCursor:null},true),/待审版本/);
 });

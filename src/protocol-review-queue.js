@@ -16,9 +16,9 @@ export function parseDecisionPage(result,previousCursor){
  });return{items,nextCursor:result.nextCursor};
 }
 // Rebuild the opened range under current authorization; never merge prior rows.
-export async function readProtocolReviewRange(request,tab,desired=20){
+export async function readProtocolReviewRange(request,tab,desired=20,{signal:lifetime}={}){
  if(!['pending','processed'].includes(tab)||!Number.isSafeInteger(desired)||desired<1)throw Error('列表条件无效，请重新读取。');
- const endpoint=tab==='pending'?'protocol-reviews':'protocol-decisions',parse=tab==='pending'?parseReviewPage:parseDecisionPage,items=[],keys=new Set(),cursors=new Set(),signal=AbortSignal.timeout(20000);let cursor=null;
+ const endpoint=tab==='pending'?'protocol-reviews':'protocol-decisions',parse=tab==='pending'?parseReviewPage:parseDecisionPage,items=[],keys=new Set(),cursors=new Set(),timeout=AbortSignal.timeout(20000),signal=lifetime?AbortSignal.any([lifetime,timeout]):timeout;let cursor=null;
  do{
   signal.throwIfAborted();const q=new URLSearchParams({limit:String(Math.min(100,desired-items.length)),...(cursor?{cursor}:{})}),page=parse(await request('/research-studies/'+endpoint+'?'+q,{signal}),cursor);
   signal.throwIfAborted();

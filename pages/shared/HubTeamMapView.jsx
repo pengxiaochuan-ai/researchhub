@@ -1,3 +1,4 @@
+import SouthChinaSeaInset from './SouthChinaSeaInset.jsx';
 import React from 'react';
 import {MapPin} from 'lucide-react';
 import china from '../h01/src/china.json';
@@ -18,7 +19,7 @@ export default function HubTeamMapView({map,loading=false,error='',onRetry,detai
   {current&&<p className="hub-note">当前已审核团队 {current.matchedTeamCount} 个；未定位 {current.unmappedTeamCount} 个。{cities.some(p=>p.coordinateKind==='CITY_REFERENCE')&&'城市参考点不代表团队精确地址。'}{regions.length>0&&'省级地区汇总不代表团队精确地址。'}{cities.some(p=>p.coordinateKind==='CITY_CENTROID')&&'城市聚合位置不代表团队精确地址。'}</p>}
   <div className="hub-map">
    {loading?<p className="real-hub-state" role="status">正在读取团队分布…</p>:error?<p className="real-hub-state" role="alert">{error}<button type="button" onClick={onRetry}>重新加载</button></p>:current?<>
-    <svg viewBox="2 0 258 228" role="img" aria-label={`当前已审核研究团队分布，匹配${current.matchedTeamCount}个，未定位${current.unmappedTeamCount}个`}><path className="land" d={shape}/>{points.map((p,i)=>{const[x,y]=project(p.longitude,p.latitude);return <circle key={p.coordinateKind+'-'+(p.cityCode??p.regionCode??p.name)+'-'+i} cx={x} cy={y} r="3.5" data-count={p.teamCount} style={{fillOpacity:opacity(p.teamCount)}}><title>{`${p.name}：${p.teamCount}个团队，${basis(p)}`}</title></circle>;})}</svg>
+    <svg viewBox="2 0 258 228" role="img" aria-label={`当前已审核研究团队分布，匹配${current.matchedTeamCount}个，未定位${current.unmappedTeamCount}个，含南海诸岛附图`}><path className="land" d={shape}/>{points.map((p,i)=>{const[x,y]=project(p.longitude,p.latitude);return <circle key={p.coordinateKind+'-'+(p.cityCode??p.regionCode??p.name)+'-'+i} cx={x} cy={y} r="3.5" data-count={p.teamCount} style={{fillOpacity:opacity(p.teamCount)}}><title>{`${p.name}：${p.teamCount}个团队，${basis(p)}`}</title></circle>;})}<SouthChinaSeaInset x={207} y={159} /></svg>
     <p className="hub-scale" aria-label="标记深浅对应团队数量">{[['≥20',1],['10–19',.72],['5–9',.48],['1–4',.28]].map(([label,alpha])=><span key={label}><i style={{opacity:alpha}}/>{label}</span>)}</p>
     <div className="hub-rank"><b>TOP 5 城市</b><small>团队数</small>{ranks.length?<ol>{ranks.map(([name,count],i)=><li key={name}><em>{i+1}</em>{name}<strong>{count}</strong></li>)}</ol>:<p>{current.matchedTeamCount===0?'暂无已审核团队。':'暂无可定位城市。'}</p>}</div>
    </>:null}

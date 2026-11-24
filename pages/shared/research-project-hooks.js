@@ -3,7 +3,7 @@ import {getPlatformUser} from '../../src/platform-user.js';
 import {readResearchProjectRoute,createResearchProjectsClient} from '../../src/research-projects-session.js';
 
 // Each identity change invalidates every response from the preceding session.
-export function useResearchProjectAccess(onReset,{probePath,onProbeError,shouldRevalidate}={}){
+export function useResearchProjectAccess(onReset,{probePath,onProbeError,shouldRevalidate,refreshOnPoll=false}={}){
  const reset=useRef(onReset);reset.current=onReset;
  const probe=useRef(probePath);probe.current=probePath;
  const probeError=useRef(onProbeError);probeError.current=onProbeError;
@@ -18,12 +18,12 @@ export function useResearchProjectAccess(onReset,{probePath,onProbeError,shouldR
   }
   function revalidate(){if(document.visibilityState==='visible'&&canRevalidate.current?.()!==false)setRevision(value=>value+1);}
   let stopped=false,timer;
-  async function poll(){try{const page=location.pathname.match(/\/pages\/([^/]+)/)?.[1],route=readResearchProjectRoute(page,location.search),path=probe.current??(route?(route.kind==='study'?'/research-studies/'+route.id:route.kind==='creation'&&route.id?'/research-projects/'+route.id:'/research-projects/context'):null);if(path&&document.visibilityState==='visible'){await client.current.request(path);if(!stopped&&canRevalidate.current?.()!==false)setRevision(value=>value+1);}}catch(error){if(!stopped)probeError.current?.(error);}finally{if(!stopped)timer=setTimeout(poll,3000);}}
+  async function poll(){try{if(refreshOnPoll){revalidate();return;}const page=location.pathname.match(/\/pages\/([^/]+)/)?.[1],route=readResearchProjectRoute(page,location.search),path=probe.current??(route?(route.kind==='study'?'/research-studies/'+route.id:route.kind==='creation'&&route.id?'/research-projects/'+route.id:'/research-projects/context'):null);if(path&&document.visibilityState==='visible'){await client.current.request(path);if(!stopped&&canRevalidate.current?.()!==false)setRevision(value=>value+1);}}catch(error){if(!stopped)probeError.current?.(error);}finally{if(!stopped)timer=setTimeout(poll,3000);}}
   timer=setTimeout(poll,3000);
   window.addEventListener('qiyan:user-change',changed);window.addEventListener('focus',revalidate);document.addEventListener('visibilitychange',revalidate);
   // Reconcile a completed identity read that arrived before this effect subscribed.
   changed({detail:getPlatformUser()});
   return()=>{stopped=true;clearTimeout(timer);client.current.invalidate();window.removeEventListener('qiyan:user-change',changed);window.removeEventListener('focus',revalidate);document.removeEventListener('visibilitychange',revalidate);};
- },[]);
+ },[refreshOnPoll]);
  return{client:client.current,revision,accessError,authenticated:identity.current.authenticated===true,retry:()=>{setAccessError('');setRevision(value=>value+1);}};
 }

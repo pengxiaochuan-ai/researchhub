@@ -1,3 +1,4 @@
+import SouthChinaSeaInset from '../../shared/SouthChinaSeaInset.jsx';
 import React, { useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ChevronRight, LayoutList, Map, Search, X } from 'lucide-react';
@@ -309,7 +310,7 @@ function TeamMap({ teams, shape }) {
   });
   return (
     <section className="team-map">
-      <svg viewBox="0 0 680 500" role="img" aria-label="研究团队分布">
+      <svg viewBox="0 0 680 500" role="img" aria-label="研究团队分布，含南海诸岛附图">
         <path d={shape} />
         {places.map((place) => {
           const [x, y] = project(place.geo[0], place.geo[1]);
@@ -320,6 +321,7 @@ function TeamMap({ teams, shape }) {
             </g>
           );
         })}
+        <SouthChinaSeaInset x={550} y={346} scale={2} />
       </svg>
       <ul>
         {teams.map((team) => <li key={team.id}><b>{team.city}</b><button type="button" onClick={() => openTeam(team.id)}>{team.name}</button></li>)}

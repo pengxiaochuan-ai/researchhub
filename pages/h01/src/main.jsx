@@ -1,3 +1,4 @@
+import SouthChinaSeaInset from '../../shared/SouthChinaSeaInset.jsx';
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
@@ -203,7 +204,7 @@ function App() {
           </header>
           <p className="hub-note">基于临床注册研究实施机构统计</p>
           <div className="hub-map">
-            <svg viewBox="2 0 258 228" role="img" aria-label="中国地图，研究机构主要分布在北京、上海、广州、成都和杭州">
+            <svg viewBox="2 0 258 228" role="img" aria-label="中国地图，研究机构主要分布在北京、上海、广州、成都和杭州，含南海诸岛附图">
               <path className="land" d={CHINA.main} />
               {MORE_CITIES.map(([lon, lat, count]) => {
                 const [x, y] = project(lon, lat, MAP_FRAME, MAP_BOX);
@@ -213,6 +214,7 @@ function App() {
                 const [x, y] = project(lon, lat, MAP_FRAME, MAP_BOX);
                 return <circle key={name} cx={x} cy={y} r="3.5" data-count={count}><title>{`${name} ${count}`}</title></circle>;
               })}
+              <SouthChinaSeaInset x={207} y={159} />
             </svg>
             <p className="hub-scale"><i />≥20 <i />10–19 <i />5–9 <i />1–4</p>
             <div className="hub-rank">
