@@ -240,7 +240,7 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v4
-      - name: Check current ResearchHub cache
+      - name: Audit or maintain the current ResearchHub cache
         env:
           ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
           ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}

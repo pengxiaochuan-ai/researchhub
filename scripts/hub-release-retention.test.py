@@ -175,6 +175,14 @@ class RetentionTests(unittest.TestCase):
         self.assertEqual((result['archivesReclaimed'], result['imagesReclaimed']), (1, 1))
         self.assertEqual(self.removed_images, [self.old['backendImage']])
 
+    def test_docker_created_uses_real_timezone_and_subseconds(self):
+        stamps = ['2026-11-24T10:14:00.807348016+08:00',
+                  '2026-11-24T02:14:00.807348016Z',
+                  '2026-11-23T21:14:00.807348016-05:00']
+        self.assertEqual(len({retention.created_timestamp({'Created': t}) for t in stamps}), 1)
+        with self.assertRaises(ValueError):
+            retention.created_timestamp({'Created': '2026-11-24T10:14:00+25:00'})
+
     def test_pointer_or_live_pair_drift_blocks_any_cleanup(self):
         self.live[0]['Image'] = self.old['images']['frontend']['configId']
         with self.assertRaisesRegex(ValueError, 'HUB_CACHE_LIVE_PAIR_MISMATCH'):

@@ -185,9 +185,16 @@ def receipt(ops, entry):
 
 def created_timestamp(image):
     timestamp = image.get('Created', '')
-    match = re.fullmatch(r'(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)(?:\.\d+)?(?:Z|\+00:00)', timestamp)
+    match = re.fullmatch(r'(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)(?:\.(\d{1,9}))?'
+                         r'(Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)', timestamp)
     require(match)
-    return calendar.timegm(time.strptime(match[1], '%Y-%m-%dT%H:%M:%S'))
+    moment, fraction, zone = match.groups()
+    offset = 0
+    if zone != 'Z':
+        offset = (int(zone[1:3]) * 60 + int(zone[4:6])) * 60
+        if zone[0] == '-':
+            offset = -offset
+    return calendar.timegm(time.strptime(moment, '%Y-%m-%dT%H:%M:%S')) - offset + float('0.' + (fraction or '0'))
 
 
 def retain_locked(ops, store, candidate, phase, required=0, now=None):
@@ -199,6 +206,7 @@ def retain_locked(ops, store, candidate, phase, required=0, now=None):
         require(current['tag'] == candidate['tag'], 'HUB_CACHE_CURRENT_TAG_REQUIRED')
     root = ops / 'runtime-releases'
     require(root.resolve() == root)
+    ops_device = ops.stat().st_dev
     candidates, protected = completed_controls(root)
     protected.add(historical)
     protected_ids, protected_refs = protect(current, previous, candidate, live, protected)
@@ -220,7 +228,7 @@ def retain_locked(ops, store, candidate, phase, required=0, now=None):
                 expected = image_id(manifest, kind)
                 if archive.exists() and result['archiveChecks'] < BATCH:
                     data = regular(archive)
-                    if data.st_nlink == 1 and (phase == 'prepare' or now - data.st_mtime >= AGE):
+                    if data.st_dev == ops_device and data.st_nlink == 1 and (phase == 'prepare' or now - data.st_mtime >= AGE):
                         result['archiveCandidates'] += 1
                         if phase != 'audit':
                             result['archiveChecks'] += 1
