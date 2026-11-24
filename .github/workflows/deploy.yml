@@ -6,13 +6,16 @@ on:
     inputs:
       mode:
         type: choice
-        options: [plan, rehearse, release, rollback]
+        options: [plan, rehearse, release, rollback, cache-audit, cache-maintain]
         default: plan
       release_tag:
-        description: Exact historical pair tag (rollback only)
+        description: Exact pair tag (rollback or cache maintenance)
         type: string
       manifest_sha256:
         description: Exact historical manifest SHA256 (rollback only)
+        type: string
+      control_sha256:
+        description: Exact control SHA of the current pair (cache maintenance only)
         type: string
       confirm:
         description: Type ROLLBACK for paired rollback
@@ -24,6 +27,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   release:
+    if: inputs.mode != 'cache-audit' && inputs.mode != 'cache-maintain'
     runs-on: ubuntu-latest
     timeout-minutes: 50
     environment: production
@@ -65,6 +69,7 @@ jobs:
           python3 scripts/hub-runtime-command.test.py
           python3 scripts/hub-release-workflow.test.py
           python3 scripts/hub-runtime-bootstrap.test.py
+          python3 scripts/hub-release-retention.test.py
           python3 scripts/hub-runtime-artifacts.test.py
           python3 scripts/hub-runtime-server.test.py
           python3 scripts/hub-frontend-rollback.test.py
@@ -216,4 +221,31 @@ jobs:
           ALIYUN_ECS_INSTANCE_ID: ${{ secrets.ALIYUN_ECS_INSTANCE_ID }}
           HUB_RUNTIME_CONTROL_SHA256: ${{ steps.control.outputs.control_sha }}
           HUB_RUNTIME_ACTION: pair-rollback
+        run: bash scripts/run-hub-runtime-command.sh
+      - name: Maintain the ResearchHub release cache
+        if: success() && steps.finalize.outcome == 'success'
+        continue-on-error: true
+        env:
+          ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
+          ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
+          ALIYUN_ECS_INSTANCE_ID: ${{ secrets.ALIYUN_ECS_INSTANCE_ID }}
+          HUB_RUNTIME_CONTROL_SHA256: ${{ steps.control.outputs.control_sha }}
+          HUB_RUNTIME_ACTION: pair-cache-maintain
+        run: bash scripts/run-hub-runtime-command.sh
+
+  cache:
+    if: inputs.mode == 'cache-audit' || inputs.mode == 'cache-maintain'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check current ResearchHub cache
+        env:
+          ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
+          ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
+          ALIYUN_ECS_INSTANCE_ID: ${{ secrets.ALIYUN_ECS_INSTANCE_ID }}
+          HUB_RUNTIME_TAG: ${{ inputs.release_tag }}
+          HUB_RUNTIME_CONTROL_SHA256: ${{ inputs.control_sha256 }}
+          HUB_RUNTIME_ACTION: ${{ format('pair-{0}', inputs.mode) }}
         run: bash scripts/run-hub-runtime-command.sh

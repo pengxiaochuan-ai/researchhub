@@ -42,7 +42,7 @@ def knowledge_checkpoint(release,control,previous_raw,admission_sha):
 def main():
  import oss2
  os.umask(0o077);need(os.geteuid()==0,'HUB_BOOTSTRAP_ROOT_REQUIRED');need(OPS.resolve()==OPS,'HUB_RUNTIME_OPS_PATH_REJECTED');tag=os.environ['HUB_RUNTIME_TAG'];sha=os.environ['HUB_RUNTIME_CONTROL_SHA256'];action=os.environ['HUB_RUNTIME_ACTION']
- need(re.fullmatch('hub-runtime-[a-f0-9]{8}-[0-9]+',tag) and re.fullmatch('[a-f0-9]{64}',sha) and action in ('activate','verify','activate-front','pair-release','pair-rollback','pair-verify','pair-finalize','pair-stage'),'HUB_BOOTSTRAP_INPUT_REJECTED')
+ need(re.fullmatch('hub-runtime-[a-f0-9]{8}-[0-9]+',tag) and re.fullmatch('[a-f0-9]{64}',sha) and action in ('activate','verify','activate-front','pair-release','pair-rollback','pair-verify','pair-finalize','pair-stage','pair-cache-audit','pair-cache-maintain'),'HUB_BOOTSTRAP_INPUT_REJECTED')
  v=read_release_storage();endpoint=v['S3_ENDPOINT'].replace('https://','').replace('http://','').rstrip('/');need(re.fullmatch(r'oss-[a-z0-9-]+\.aliyuncs\.com',endpoint),'HUB_RELEASE_ENDPOINT_REJECTED')
  store=oss2.Bucket(oss2.Auth(v['S3_ACCESS_KEY'],v['S3_SECRET_KEY']),'https://'+endpoint,v['S3_BUCKET'],connect_timeout=15)
  directory=OPS/'runtime-releases'/tag/('control-'+sha[:16])
@@ -59,7 +59,15 @@ def main():
   need(re.fullmatch('[a-f0-9]{64}',item.get('sha256','')) and 0<item.get('bytes',0)<2*1024*1024,'HUB_RUNTIME_CONTROL_ENTRY_REJECTED')
   fetch(store,prefix+name,directory/name,item['sha256'])
  release=json.loads((directory/'runtime-release.json').read_text());need(release.get('tag')==tag and file_sha(directory/'runtime-release.json')==control.get('imageManifestSha256'),'HUB_RUNTIME_IMAGE_MANIFEST_MISMATCH')
- if action in ('pair-release','pair-stage'):need(shutil.disk_usage(str(OPS)).free>4*1024**3+4*sum(release['files'][name]['bytes'] for name in ('researchhub.tar.gz','backend-image.tar.gz')),'HUB_PAIR_DISK_RESERVE_REQUIRED')
+ if action in ('pair-cache-audit','pair-cache-maintain'):
+  result=cache['retain'](OPS,store,release,'audit' if action=='pair-cache-audit' else 'maintain')
+  print(json.dumps(result),flush=True)
+  return
+ if action in ('pair-release','pair-stage'):
+  required=4*1024**3+4*sum(release['files'][name]['bytes'] for name in ('researchhub.tar.gz','backend-image.tar.gz'))
+  if action=='pair-release' and shutil.disk_usage(str(OPS)).free<=required:
+   print(json.dumps(cache['retain'](OPS,store,release,'prepare',required)),flush=True)
+  need(shutil.disk_usage(str(OPS)).free>required,'HUB_PAIR_DISK_RESERVE_REQUIRED')
  if action=='activate-front' or action.startswith('pair-'):fetch(store,'releases/researchhub/'+tag+'/researchhub.tar.gz',directory/'researchhub.tar.gz',release['files']['researchhub.tar.gz']['sha256'])
  if action=='activate' or action.startswith('pair-'):fetch(store,'releases/researchhub/'+tag+'/backend-image.tar.gz',directory/'backend-image.tar.gz',release['files']['backend-image.tar.gz']['sha256'])
  if action=='pair-stage':

@@ -240,12 +240,12 @@ def preflight_pointer(control,release,previous):
 
 def publish_pointer(control,release,previous):
  store=release_storage();key='releases/researchhub/current-release.json'
- desired={'schema':'researchhub-release-pointer.v1','tag':release['tag'],'manifestSha256':control['imageManifestSha256'],'releaseGit':release.get('releaseGit',release['controlGit']),'components':release.get('components',{})}
+ desired={'schema':'researchhub-release-pointer.v1','tag':release['tag'],'manifestSha256':control['imageManifestSha256'],'releaseGit':release.get('releaseGit',release['controlGit']),'components':release.get('components',{}),'rollback':{'tag':previous['tag'],'manifestSha256':control['previousManifestSha256']}}
  try:current=json.loads(store.get_object(key).read())
  except Exception as error:
   if getattr(error,'status',None)!=404:raise
   current=None
- if current and current.get('manifestSha256')==desired['manifestSha256']:save(m.OPS/'paired-current.json',desired);return
+ if current and current.get('manifestSha256')==desired['manifestSha256']:save(m.OPS/'paired-current.json',current);return
  need(current is None and previous['tag']=='hub-runtime-1e0d7087-44502950789' or current and current.get('tag')==previous['tag'] and current.get('manifestSha256')==control['previousManifestSha256'],'HUB_PAIR_SUCCESS_POINTER_CHANGED')
  raw=(json.dumps(desired,indent=2)+'\n').encode()
  try:store.put_object(key,raw,headers={'x-oss-object-acl':'private'})

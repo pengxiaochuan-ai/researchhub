@@ -18,4 +18,25 @@ class WorkflowTests(unittest.TestCase):
  def test_rehearsal_never_applies_production(self):
   text=pathlib.Path('.github/workflows/deploy.yml').read_text();part=text.split('      - name: Apply both components',1)[1].split('      - name:',1)[0]
   self.assertIn("env.MODE == 'release' || env.MODE == 'rollback'",part)
+ def test_retention_runs_only_after_successful_finalization_or_an_explicit_cache_job(self):
+  source=pathlib.Path('.github/workflows/deploy.yml').read_text()
+  automatic=source.split('      - name: Maintain the ResearchHub release cache',1)[1].split('  cache:',1)[0]
+  self.assertIn("if: success() && steps.finalize.outcome == 'success'",automatic)
+  self.assertIn('continue-on-error: true',automatic)
+  self.assertIn('HUB_RUNTIME_ACTION: pair-cache-maintain',automatic)
+  self.assertNotIn('docker image prune',source)
+  self.assertIn("if: inputs.mode == 'cache-audit' || inputs.mode == 'cache-maintain'",source)
+ def test_host_payload_includes_retention_and_fits_cloud_assistant(self):
+  import ast,base64,os,subprocess,sys
+  wrapper=pathlib.Path('scripts/run-hub-runtime-command.sh').read_text()
+  producer=wrapper.split("<<'PY'\n",1)[1].split('\nPY\n',1)[0]
+  for action in ('pair-release','pair-cache-audit','pair-cache-maintain'):
+   env=dict(os.environ,HUB_RUNTIME_TAG='hub-runtime-abcd0123-7',
+            HUB_RUNTIME_CONTROL_SHA256='a'*64,HUB_RUNTIME_ACTION=action)
+   payload=subprocess.check_output([sys.executable,'-c',producer],env=env)
+   self.assertLess(len(payload),24000)
+   source=base64.b64decode(payload).decode().split("<<'HUB_RUNTIME_BOOTSTRAP'\n",1)[1].rsplit('\nHUB_RUNTIME_BOOTSTRAP',1)[0]
+   self.assertIn('cache={}',source)
+   ast.parse(source,feature_version=(3,6))
+   ast.parse(pathlib.Path('scripts/hub-release-retention.py').read_text(),feature_version=(3,6))
 if __name__=='__main__':unittest.main()
