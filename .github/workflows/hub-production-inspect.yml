@@ -9,11 +9,44 @@ concurrency:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 27
     environment: production
     steps:
       - uses: actions/checkout@v4
-      - name: Read only the independent Hub incident metadata
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Stage the official PostgreSQL 18 backup client
+        env:
+          OSS_ACCESS_KEY: ${{ secrets.OSS_ACCESS_KEY }}
+          OSS_SECRET_KEY: ${{ secrets.OSS_SECRET_KEY }}
+          OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
+          OSS_ENDPOINT: ${{ secrets.OSS_ENDPOINT }}
+        run: |
+          set -Eeuo pipefail
+          ref=docker.io/library/postgres:18.7-alpine3.24
+          docker pull --platform linux/amd64 "$ref"
+          docker image inspect "$ref" --format '{{.Id}} {{.Architecture}} {{index .RepoDigests 0}}' > "$RUNNER_TEMP/pg-image"
+          docker save "$ref" | gzip -1 > "$RUNNER_TEMP/postgres.tar.gz"
+          python3 -m pip install 'oss2==2.19.1'
+          python3 - <<'PYCODE'
+          import hashlib,json,os,pathlib,re
+          import oss2
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])
+          image,arch,digest=(p/'pg-image').read_text().strip().split()
+          assert re.fullmatch(r'sha256:[0-9a-f]{64}',image) and arch=='amd64' and re.fullmatch(r'(?:docker.io/library/)?postgres@sha256:[0-9a-f]{64}',digest)
+          archive=p/'postgres.tar.gz'
+          with archive.open('rb') as f: sha=hashlib.file_digest(f,'sha256').hexdigest()
+          endpoint=os.environ['OSS_ENDPOINT'].strip().removeprefix('https://').removeprefix('http://').replace('-internal.aliyuncs.com','.aliyuncs.com')
+          assert re.fullmatch(r'oss-[a-z0-9-]+\.aliyuncs\.com',endpoint)
+          store=oss2.Bucket(oss2.Auth(os.environ['OSS_ACCESS_KEY'],os.environ['OSS_SECRET_KEY']),'https://'+endpoint,os.environ['OSS_BUCKET'],connect_timeout=15)
+          key='releases/researchhub/operator-cache/postgres18-amd64-'+sha+'.tar.gz'
+          oss2.resumable_upload(store,key,str(archive),part_size=8*1024*1024,num_threads=4)
+          signed=store.sign_url('GET',key,1800).replace('.aliyuncs.com/','.aliyuncs.com/',1)
+          src=pathlib.Path('scripts/hub-production-inspect.py')
+          src.write_text(src.read_text().replace('__PG_IMAGE__',image).replace('__PG_IMAGE_URL__',signed).replace('__PG_IMAGE_SHA__',sha))
+          print(json.dumps({'backupClient':digest,'architecture':arch,'archiveSha':sha}))
+          PYCODE
+      - name: Verify rollback, back up and apply the approved Hub center schema
         env:
           ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
           ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
@@ -34,9 +67,9 @@ jobs:
           value=base64.b64encode(script.encode()).decode();assert len(value)<24000
           pathlib.Path(sys.argv[1]).write_text(value)
           PY
-          "$d/aliyun" ecs RunCommand --RegionId cn-hangzhou --Type RunShellScript --ContentEncoding Base64 --CommandContent "$(cat "$d/payload")" --InstanceId.1 "$ALIYUN_ECS_INSTANCE_ID" --Username root --Timeout 180 --TerminationMode ProcessTree --RepeatMode Once --KeepCommand false --ClientToken "hub-inspect-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" --Name hub-read-only-incident > "$d/invocation.json"
+          "$d/aliyun" ecs RunCommand --RegionId cn-hangzhou --Type RunShellScript --ContentEncoding Base64 --CommandContent "$(cat "$d/payload")" --InstanceId.1 "$ALIYUN_ECS_INSTANCE_ID" --Username root --Timeout 780 --TerminationMode ProcessTree --RepeatMode Once --KeepCommand false --ClientToken "hub-inspect-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" --Name hub-center-migration > "$d/invocation.json"
           id="$(jq -er .InvokeId "$d/invocation.json")"
-          for attempt in $(seq 1 48); do
+          for attempt in $(seq 1 162); do
             "$d/aliyun" ecs DescribeInvocationResults --RegionId cn-hangzhou --InvokeId "$id" --InstanceId "$ALIYUN_ECS_INSTANCE_ID" --ContentEncoding Base64 > "$d/result.json"
             state="$(jq -r '.Invocation.InvocationResults.InvocationResult[0].InvocationStatus // "Pending"' "$d/result.json")"
             case "$state" in
