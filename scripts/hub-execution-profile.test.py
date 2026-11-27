@@ -2,6 +2,18 @@ import importlib.util,pathlib,unittest,json,tempfile,hashlib,types
 from unittest.mock import patch
 s=importlib.util.spec_from_file_location('execution',str(pathlib.Path(__file__).with_name('hub-execution-profile.py')));m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 class ProfileTests(unittest.TestCase):
+ def test_registration_mail_policy_requires_fields_and_restores_disabled(self):
+  decision={'executionPolicy':{'profile':'standard','mailMode':'smtp-registration'}}
+  keys=('SMTP_HOST','SMTP_PORT','SMTP_USER','SMTP_PASS','SMTP_FROM')
+  before=dict.fromkeys(keys,'opaque')
+  before['HUB_MAIL_MODE']='disabled'
+  after=m.proposed(decision,before)
+  self.assertEqual(m.values(after)['HUB_MAIL_MODE'],'smtp-registration')
+  self.assertEqual({key:after[key] for key in keys},dict.fromkeys(keys,'opaque'))
+  with self.assertRaisesRegex(ValueError,'HUB_REGISTRATION_SMTP_FIELDS_REQUIRED'):
+   m.proposed(decision,dict(before,SMTP_PASS=''))
+  self.assertEqual(m.proposed({'executionPolicy':{'profile':'standard','mailMode':'disabled'}},after)['HUB_MAIL_MODE'],'disabled')
+
  def test_standard_transition_preserves_secrets_and_archived_state(self):
   before=dict(self.enabled(),CUSTOM_SETTING='unchanged',DATABASE_URL='opaque',HUB_CHAT_BUDGET_EXTENSION='citation-review-v1')
   after=m.proposed({'executionPolicy':{'profile':'standard'}},before)

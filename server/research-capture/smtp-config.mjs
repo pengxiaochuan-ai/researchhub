@@ -20,7 +20,10 @@ export function readStudyMailConfig({file}){
   pending+=decoder.end();if(pending)inspect(pending);
  }finally{closeSync(fd);}
  if(keys.some(key=>names.filter(name=>name===key).length!==1))invalid();
- const env=parseEnv(selected.join('\n')),values=Object.fromEntries(keys.map(key=>[key,env[key]]));
+ return smtpConfigFromEnv(parseEnv(selected.join('\n')));
+}
+export function smtpConfigFromEnv(env){
+ const values=Object.fromEntries(keys.map(key=>[key,env[key]]));
  if(Object.values(values).some(value=>typeof value!=='string'||!value.trim()))invalid();
  const port=Number(values.SMTP_PORT);
  if(!/^\d{1,5}$/.test(values.SMTP_PORT)||!Number.isInteger(port)||port<1||port>65535||!/^[A-Za-z0-9.-]+$/.test(values.SMTP_HOST)||!values.SMTP_HOST.includes('.')||values.SMTP_HOST.startsWith('.')||values.SMTP_HOST.endsWith('.')||!/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(values.SMTP_FROM)||/[\r\n\0]/.test(values.SMTP_USER))invalid();

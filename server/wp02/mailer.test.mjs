@@ -15,3 +15,20 @@ test('rejects foreign email/link, wrong purpose and invalid expiry before sendin
 test('SMTP refusal is failed but ambiguous transport failure is unknown, never retried',async()=>{
  for(const [code,status] of [['EENVELOPE','failed'],['ECONNECTION','failed'],['ETIMEDOUT','unknown']]){let calls=0;const m=createAccountMailer(config,{transportFactory:()=>({sendMail:async()=>{calls++;throw Object.assign(new Error('unlogged'),{code});}}),receipt:()=>null});assert.equal((await m.send(mail)).status,status);assert.equal(calls,1);}
 });
+
+test('registration SMTP requires authenticated TLS and records only an accepted envelope',async()=>{
+ const settings={mode:'smtp-registration',baseUrl:'https://hub.example.com',smtp:{host:'smtp.example.com',port:587,secure:false,from:'hub@example.com',user:'hub',pass:'private'}};
+ const input={...mail,to:'member@university.edu',tokenUrl:settings.baseUrl+'/pages/p004/#verify='+'a'.repeat(43)};
+ let sent,accepted=[input.to];
+ const m=createAccountMailer(settings,{transportFactory:options=>{
+  assert.equal(options.requireTLS,true);assert.equal(options.auth.user,'hub');assert.equal(options.logger,false);
+  return{sendMail:async value=>{sent=value;return{accepted};}};
+ }});
+ const receipt=await m.send(input);
+ assert.equal(receipt.status,'captured');assert.match(receipt.digest,/^[a-f0-9]{64}$/);
+ assert.equal(sent.from,settings.smtp.from);assert.equal(sent.to,input.to);assert.match(sent.text,/加入审核/);
+ await assert.rejects(m.send({...input,purpose:'reset'}));
+ await assert.rejects(m.send({...input,to:'a@university.edu,b@university.edu'}));
+ await assert.rejects(m.send({...input,tokenUrl:input.tokenUrl+'&extra=x'}));
+ accepted=[];assert.equal((await m.send(input)).status,'unknown');
+});

@@ -72,7 +72,9 @@ def main():
   if reused:need(artifacts.file_info(directory/'backend-image.tar.gz')==previous['files']['backend-image.tar.gz'],'HUB_RELEASE_REUSED_BACKEND_ARCHIVE_MISMATCH')
   context=directory.parent/'hub-backend-context';tag=os.environ['HUB_RELEASE_TAG'];artifacts.collect(argparse.Namespace(directory=str(directory),tag=tag,context=str(context),source_sha=policy['coreSourceSha256'],backend_image=backend_reference(previous,tag,not reused),backend_release=previous if reused else None))
   path=directory/'runtime-release.json';r=json.loads(path.read_text());r.pop('contextSha256',None);r.update(releaseGit=os.environ['GITHUB_SHA'],privateCoreSourceArchiveSha256=policy['coreSourceSha256'],databaseDigest=plan['databaseDigest'],databaseSources=plan['databaseSources'],databaseFingerprint=policy['target']['schemaFingerprint'],previousRelease=json.loads((directory/'baseline-pointer.json').read_text()),components={kind:provenance(previous,kind,plan['build'][kind],os.environ['GITHUB_SHA']) for kind in ('frontend','backend')})
+  r['registrationMailMode']=policy.get('executionPolicy',{}).get('mailMode','disabled')
   if not plan['build']['backend']:
+   need(r['registrationMailMode']==previous.get('registrationMailMode','disabled'),'HUB_REGISTRATION_REUSED_BACKEND_REJECTED')
    need(r['backendImage']==previous['backendImage'] and r['coreDigest']==previous['coreDigest'] and r['files']['backend-image.tar.gz']==previous['files']['backend-image.tar.gz'],'HUB_RELEASE_REUSED_BACKEND_MANIFEST_MISMATCH')
    r['supportedBudgetExtensions']=previous.get('supportedBudgetExtensions',[])
    r['hubDigest']=previous['hubDigest'];r['supportedExecutionProfiles']=previous.get('supportedExecutionProfiles',['disabled'])

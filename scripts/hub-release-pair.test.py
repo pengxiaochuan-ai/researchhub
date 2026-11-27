@@ -11,6 +11,7 @@ class PairTests(unittest.TestCase):
   saved={'HUB_EXECUTION_PROFILE':m.execution.KNOWLEDGE_PROFILE}
   self.assertFalse(p.can_keep_backend(True,{'executionPolicy':{'profile':'standard'}},saved))
   self.assertTrue(p.can_keep_backend(True,{'executionPolicy':{'profile':'standard'}},{'HUB_EXECUTION_PROFILE':'standard'}))
+  self.assertFalse(p.can_keep_backend(True,{'executionPolicy':{'profile':'standard','mailMode':'smtp-registration'}},{'HUB_EXECUTION_PROFILE':'standard','HUB_MAIL_MODE':'disabled'}))
  def test_dependency_health_rejects_healthy_wrong_image(self):
   refs={'HUB_KNOWLEDGE_PARSER_IMAGE':'parser:new','HUB_KNOWLEDGE_EMBED_IMAGE':'embed:new'}
   rows=[{'Id':kind,'Image':'sha256:wrong','Config':{'Image':ref,'Labels':{'com.docker.compose.project':'researchhub-backend','com.docker.compose.service':service}},'State':{'Running':True,'Health':{'Status':'healthy'}}} for kind,ref,service in [('parser','parser:new','researchhub-doc-parser'),('embedding','embed:new','researchhub-embed')]]

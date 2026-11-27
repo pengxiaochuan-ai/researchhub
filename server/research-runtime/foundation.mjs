@@ -49,7 +49,7 @@ export async function createRuntimeFoundation({config,env,load,require,prisma,jw
   if(p?.tenantId!==ids.tenant)throw Object.assign(Error('当前账号无权执行此操作。'),{status:403});
   return withDeploymentTransaction(transactionEnv,'app',async tx=>{await lock(tx,p.tenantId,{includeOfficial:true});return fn(tx);});
  },legacyUpdate:(tx,user,id,dto)=>new(load('accounts/accounts.service','AccountsService'))(bound(tx,user.tenantId)).update(user,id,dto),legacyChangeMember:(tx,user,id,input)=>new(load('pi-governance/pi-governance.service','PiGovernanceService'))(bound(tx,user.tenantId)).changeMember(user,id,input)});
- const readState=async()=>({account:{configured:true},email:{configured:env.HUB_MAIL_MODE==='capture'},parser:{configured:Boolean(env.KB_DOC_PARSER_URL)},vector:{configured:Boolean(env.KB_EMBED_URL)},ai:{configured:env.HUB_PAID_AI_ENABLED==='true'&&Boolean(env.DEEPSEEK_API_KEY)}});
+ const readState=async()=>({account:{configured:true},email:{configured:['capture','smtp-registration'].includes(env.HUB_MAIL_MODE)},parser:{configured:Boolean(env.KB_DOC_PARSER_URL)},vector:{configured:Boolean(env.KB_EMBED_URL)},ai:{configured:env.HUB_PAID_AI_ENABLED==='true'&&Boolean(env.DEEPSEEK_API_KEY)}});
  let chat,queue,hubCopyWorkspace;
  const ChatController=createRuntimeChatController({require,load,getChat:()=>chat,getQueue:()=>queue});
  const Controllers=[load('knowledge/knowledge.controller','KnowledgeController'),ChatController,

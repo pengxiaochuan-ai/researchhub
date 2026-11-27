@@ -1,10 +1,12 @@
 import {randomBytes,randomUUID} from 'node:crypto';
 import {strictInput,normalizeEmail,validatePassword,requestKey,tokenHash,displayName,digest,fault} from './policy.mjs';
+import {registrationEmail,registrationSmtpMode} from './mailer.mjs';
 import {consumeRate} from './repository.mjs';
 
 export function createAccountAccess({config,db,mailer,bcrypt,secret,registerAdmissionInTransaction,now=()=>new Date()}) {
  if(typeof registerAdmissionInTransaction!=='function')throw Error('WP02_REGISTRATION_ADMISSION_REQUIRED');
- const tenantId=db.tenantId,accepted={accepted:true,message:'请求已受理。如该邮箱符合条件，请在本机私有收件箱查看邮件；本环境不向外部发送。'};
+ const smtpRegistration=config.mode===registrationSmtpMode;
+ const tenantId=db.tenantId,accepted={accepted:true,message:smtpRegistration?'请求已受理。如该邮箱符合条件，请查收验证邮件。':'请求已受理。如该邮箱符合条件，请在本机私有收件箱查看邮件；本环境不向外部发送。'};
  const invalid=()=>fault('WP02_INVALID_TOKEN','链接无效、已用或已失效，请重新申请。',400);
  async function rate(tx,ctx,purpose,email){
   const date=now();
@@ -13,7 +15,13 @@ export function createAccountAccess({config,db,mailer,bcrypt,secret,registerAdmi
   await consumeRate(tx,{tenantId,purpose:'request-'+purpose,keyHash:digest(secret,'email',email),limit:3,windowMs:3600000,now:date});
  }
  async function request(ctx,input,purpose){
-  strictInput(input,['email','requestKey']);const email=normalizeEmail(input.email),key=requestKey(input.requestKey),requestHash=digest(secret,purpose,email),token=randomBytes(32).toString('base64url'),hash=tokenHash(token),id=randomUUID(),date=now(),expiresAt=new Date(date.getTime()+900000);
+  strictInput(input,['email','requestKey']);
+  let email;
+  if(smtpRegistration&&purpose==='register'){
+   email=typeof input.email==='string'?input.email.trim().toLowerCase():'';
+   if(!registrationEmail(email))throw fault('WP02_INVALID_EMAIL','请填写有效邮箱。');
+  }else email=normalizeEmail(input.email);
+  const key=requestKey(input.requestKey),requestHash=digest(secret,purpose,email),token=randomBytes(32).toString('base64url'),hash=tokenHash(token),id=randomUUID(),date=now(),expiresAt=new Date(date.getTime()+900000);
   const pending=await db.transaction(async tx=>{
    const prior=await tx.$queryRawUnsafe('SELECT "requestHash" FROM account_action_challenge WHERE "tenantId"=$1 AND purpose=$2 AND "requestKey"=$3',tenantId,purpose,key);
    if(prior.length){if(prior[0].requestHash!==requestHash)throw fault('WP02_REQUEST_CONFLICT','请求标识已用于不同内容。',409);return null;}

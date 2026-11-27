@@ -18,7 +18,13 @@ def need(ok,code):
 def proposed(release,saved):
  """The approved normal-mode transition; unrelated saved parameters survive."""
  desired=dict(saved)
- if release.get('executionPolicy',{}).get('profile')==STANDARD_PROFILE:
+ policy=release.get('executionPolicy',{})
+ if 'mailMode' in policy:
+  need(policy['mailMode'] in ('disabled','smtp-registration') and policy.get('profile')==STANDARD_PROFILE,'HUB_REGISTRATION_MAIL_POLICY_REJECTED')
+  if policy['mailMode']=='smtp-registration':
+   need(all(saved.get(key,'').strip().strip('\"\'') for key in ('SMTP_HOST','SMTP_PORT','SMTP_USER','SMTP_PASS','SMTP_FROM')),'HUB_REGISTRATION_SMTP_FIELDS_REQUIRED')
+  desired['HUB_MAIL_MODE']=policy['mailMode']
+ if policy.get('profile')==STANDARD_PROFILE:
   desired.update(HUB_EXECUTION_PROFILE=STANDARD_PROFILE,HUB_PAID_AI_ENABLED='true',ENABLED_WORKER_KINDS='knowledge-chat,knowledge-import',HUB_EMBEDDING_MODE='service')
   desired['KB_DOC_PARSER_URL']=saved.get('KB_DOC_PARSER_URL') or 'http://researchhub-doc-parser:8200'
   desired['KB_EMBED_URL']=saved.get('KB_EMBED_URL') or 'http://researchhub-embed:8199'
@@ -28,6 +34,7 @@ def values(saved):
  profile=saved.get('HUB_EXECUTION_PROFILE','disabled')
  need(profile in ('disabled',PROFILE,KNOWLEDGE_PROFILE,STANDARD_PROFILE),'HUB_EXECUTION_PROFILE_REJECTED')
  if profile==STANDARD_PROFILE:
+  need(saved.get('HUB_MAIL_MODE','disabled') in ('disabled','smtp-registration'),'HUB_REGISTRATION_MAIL_MODE_REJECTED')
   fixed={'CONTROL_PLANE_ENABLED':'false','OFFICIAL_JOB_KINDS':'','HUB_EMBEDDING_MODE':'service','HUB_MAIL_MODE':saved.get('HUB_MAIL_MODE','disabled'),'HUB_EXECUTION_PROFILE':STANDARD_PROFILE,'HUB_PAID_AI_ENABLED':'true','ENABLED_WORKER_KINDS':'knowledge-chat,knowledge-import'}
   need(saved.get('HUB_EMBEDDING_MODE')=='service','HUB_STANDARD_EMBEDDING_REQUIRED')
   for key in ('KB_DOC_PARSER_URL','KB_EMBED_URL'):

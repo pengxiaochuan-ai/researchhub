@@ -1,8 +1,8 @@
 const errors={
- WP02_NOT_CONFIGURED:'账号自助服务尚未配置。',WP02_INVALID_RESPONSE:'服务响应无法确认，请先核对会话或邮件，不要重复提交。',
+ HUB_MAIL_NOT_CONFIGURED:'邮件服务暂未启用，请联系管理员。',WP02_INVALID_EMAIL:'请填写此服务支持的有效邮箱。',WP02_NOT_CONFIGURED:'账号自助服务尚未配置。',WP02_INVALID_RESPONSE:'服务响应无法确认，请先核对会话或邮件，不要重复提交。',
  WP02_NETWORK:'连接中断或超时，操作结果未确认；请先核对邮件或会话，不会自动重发。',
  WP02_RATE_LIMITED:'请求过于频繁；重发至少间隔60秒，仍受邮箱和来源速率限制。',
- WP02_INVALID_TOKEN:'链接无效、已用或已失效，请重新从本机邮件打开或重新申请。',
+ WP02_INVALID_TOKEN:'链接无效、已用或已失效，请重新从原邮件打开或重新申请。',
  WP02_UNAUTHENTICATED:'请先登录；登录后重新打开原邀请邮件。',WP02_PROFILE_CONFLICT:'个人资料已变化，请刷新后核对；当前输入仍保留。',
  WP02_SEATS_FULL:'当前租户席位已满，请联系管理员。',WP02_UNAVAILABLE:'账号服务暂时不可用，请稍后核对再重试。',
  WP02_INVITATION_FORBIDDEN:'当前账号没有所选Study的成员邀请权限。',WP02_INVITATION_UNAVAILABLE:'邀请不可用，请核对登录邮箱、重新打开原邮件或联系邀请人。',
@@ -52,8 +52,13 @@ export function takeActionToken(purpose,{location=window.location,history=window
  if(location.hash||location.search)history.replaceState(null,'',safeAccountReturnTo(location.pathname+location.search));
  return m?.[1]??'';
 }
-export function validateAccountForm(values,stage){const errors={};
- if(stage==='request'&&!/^[^\s@]+@(example\.test|example\.org)$/i.test(values.email?.trim()??''))errors.email='请填写有效的合成邮箱。';
+export function validateAccountForm(values,stage,{registration=false}={}){const errors={};
+ if(stage==='request'){
+  const email=values.email?.trim()??'';
+  if(registration){
+   if(email.length>254||!/^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(email))errors.email='请填写有效邮箱。';
+  }else if(!/^[^\s@]+@(example\.test|example\.org)$/i.test(email))errors.email='请填写有效的合成邮箱。';
+ }
  if(stage==='verify'&&(!values.displayName?.trim()||[...values.displayName.trim()].length>40))errors.displayName='请填写1–40字符的展示名称。';
  if(stage!=='request'&&(typeof values.password!=='string'||[...values.password].length<12||[...values.password].length>64||new TextEncoder().encode(values.password).length>72))errors.password='密码须为12–64字符，UTF-8不超过72字节。';
  return errors;

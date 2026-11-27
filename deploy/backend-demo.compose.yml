@@ -13,7 +13,7 @@ services:
       HUB_EMBEDDING_MODE: ${HUB_EMBEDDING_MODE:-service}
       KB_DOC_PARSER_URL: ${KB_DOC_PARSER_URL:-http://researchhub-doc-parser:8200}
       KB_EMBED_URL: ${KB_EMBED_URL:-http://researchhub-embed:8199}
-      HUB_MAIL_MODE: disabled
+      HUB_MAIL_MODE: ${HUB_MAIL_MODE:-disabled}
     ports:
       - '127.0.0.1:19612:19612'
     networks:

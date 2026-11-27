@@ -34,11 +34,11 @@ function AccountAccessForm({page}){
  const stage=token?purpose:'request';
  function change(name,value){setValues(v=>({...v,[name]:value}));setErrors(e=>{const n={...e};delete n[name];return n;});}
  async function submit(event){event.preventDefault();if(pending.current||done||unknown)return;
-  const fieldErrors=validateAccountForm(values,stage);setErrors(fieldErrors);
+  const fieldErrors=validateAccountForm(values,stage,{registration:register});setErrors(fieldErrors);
   if(Object.keys(fieldErrors).length){setNotice({error:true,text:'请核对下列字段。'});requestAnimationFrame(()=>refs.current[Object.keys(fieldErrors)[0]]?.focus());return;}
   const current=generation.current;pending.current=true;setBusy(true);setNotice(null);
   try{
-   if(!token){await client[register?'requestRegistration':'requestReset']({email:values.email,requestKey:key.current});if(!alive.current||generation.current!==current)return;setUntil(Date.now()+60000);setSeconds(60);key.current=crypto.randomUUID();setNotice({text:"请求已受理。如邮箱符合条件，请在体验收件箱查收邮件；不会向外部邮箱发送。"});}
+   if(!token){await client[register?'requestRegistration':'requestReset']({email:values.email,requestKey:key.current});if(!alive.current||generation.current!==current)return;setUntil(Date.now()+60000);setSeconds(60);key.current=crypto.randomUUID();setNotice({text:register?'请求已受理。如邮箱符合条件，请查收验证邮件。':'请求已受理。如邮箱符合条件，请在体验收件箱查收邮件。'});}
    else{await client[register?'confirmRegistration':'confirmReset']({token,password:values.password,requestKey:key.current,...(register?{displayName:values.displayName}:{})});if(!alive.current||generation.current!==current)return;setDone(true);setToken('');setNotice({text:register?'邮箱已验证，账号已创建；加入申请待审核，请登录查看结果。':'密码已重置，原登录状态已失效，请使用新密码登录。'});}
   }catch(e){if(alive.current&&generation.current===current){const uncertain=register&&!!token&&uncertainRegistration(e);if(uncertain)setUnknown(true);setNotice({error:true,text:uncertain?'账号创建结果尚未确认。请使用刚设置的密码登录并查看加入状态，暂不重复创建。':e.message});requestAnimationFrame(()=>generation.current===current&&summary.current?.focus());}}
   finally{if(alive.current&&generation.current===current){pending.current=false;setBusy(false);setValues(v=>({...v,password:''}));}}
@@ -47,10 +47,10 @@ function AccountAccessForm({page}){
  return <div className="wp02-access" aria-busy={busy}>
   <h2>{register?(token?'验证邮箱并创建账号':'加入灵枢心域'):(token?'设置新密码':'找回密码')}</h2>
   <p>{register?'完成邮箱验证后提交加入审核，通过后使用平台；私有课题另按授权访问。':'仅已验证邮箱的账号可自助找回；旧账号未绑定验证邮箱时请联系管理员。'}</p>
-  <div className="ls-mode-note">体验模式 · 邮件仅在体验收件箱查看，不向外发送；不代表专业资质认证</div>
+  {!register&&<div className="ls-mode-note">体验模式 · 邮件仅在体验收件箱查看，不向外发送；不代表专业资质认证</div>}
   {!client.configured&&<p role="alert">账号注册与密码找回暂不可用，请联系管理员。</p>}
   {!done&&!unknown&&<form noValidate onSubmit={submit}>
-   {!token?field('email','邮箱','email',{autoComplete:'email',placeholder:'name@example.test'}):<>
+   {!token?field('email','邮箱','email',{autoComplete:'email',placeholder:register?'name@example.com':'name@example.test'}):<>
     {register&&field('displayName','展示名称','text',{autoComplete:'name',maxLength:40})}
     {field('password',register?'设置密码':'新密码','password',{autoComplete:'new-password',maxLength:64})}
     <p className="wp02-help">密码12–64字符，UTF-8最多72字节。可以粘贴或使用密码管理器。</p>

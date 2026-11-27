@@ -196,6 +196,9 @@ jobs:
         run: |
           npm install --prefix "$RUNNER_TEMP/browser" --ignore-scripts 'playwright@1.63.0'
           "$RUNNER_TEMP/browser/node_modules/.bin/playwright" install --with-deps chromium
+          if [ "$MODE" = release ] && python3 -c 'import json,sys; sys.exit(json.load(open("deploy/release-policy.json")).get("executionPolicy", {}).get("mailMode") != "smtp-registration")'; then
+            export HUB_REGISTRATION_MAIL_SMOKE=true
+          fi
           HUB_PLAYWRIGHT_MODULE="$RUNNER_TEMP/browser/node_modules/playwright/index.mjs" HUB_SMOKE_OUTPUT="$RUNNER_TEMP/hub-browser" node scripts/hub-release-browser.mjs
       - uses: actions/upload-artifact@v4
         if: always() && steps.apply.outcome == 'success'

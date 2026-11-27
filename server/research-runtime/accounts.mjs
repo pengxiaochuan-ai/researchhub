@@ -1,7 +1,8 @@
 import{isAbsolute}from'node:path';
 import{withDeploymentTransaction}from'../database/transactions.mjs';
 import{startCapture}from'../wp02/capture.mjs';
-import{createAccountMailer}from'../wp02/mailer.mjs';
+import{smtpConfigFromEnv,verifyStudySmtp}from'../research-capture/smtp-config.mjs';
+import{createAccountMailer,registrationSmtpMode}from'../wp02/mailer.mjs';
 import{createWp02Repository}from'../wp02/repository.mjs';
 import{createAccountAccess}from'../wp02/account-service.mjs';
 import{createMemberInvitations}from'../wp02/invitation-service.mjs';
@@ -21,12 +22,24 @@ export function runtimeCaptureSettings(env,origin){
 }
 export async function createRuntimeAccounts({env,config,transactionEnv,runtimePolicy,admission,require,load}){
  const tenantId=config.scope.defaultTenantId;
- if(!['capture','disabled'].includes(env.HUB_MAIL_MODE))throw Error('RESEARCH_RUNTIME_MAIL_MODE_REQUIRED');
+ if(!['capture','disabled',registrationSmtpMode].includes(env.HUB_MAIL_MODE))throw Error('RESEARCH_RUNTIME_MAIL_MODE_REQUIRED');
  const lock=load('common/worker-publication','lockAuthorizationMutation');
  const db=createWp02Repository({tenantId,transact:fn=>withDeploymentTransaction(transactionEnv,'direct',fn),lockAuthorization:(tx,t)=>lock(tx,t,{includeOfficial:true})});
  if(env.HUB_MAIL_MODE==='disabled'){
   const service=createAccountAccess({config:{baseUrl:config.origin},db,mailer:{send:mailUnavailable},bcrypt:require('bcryptjs'),secret:config.jwtSecret,registerAdmissionInTransaction:admission.registerInTransaction});
   return{Controllers:createWp02Controllers({require,load,accounts:disabledMailAccounts(service),invitations:disabledMailInvitations(),origin:config.origin,apiHost:env.HUB_API_AUTHORITY,runtimePolicy}),close:async()=>{}};
+ }
+ if(env.HUB_MAIL_MODE===registrationSmtpMode){
+  const smtp=smtpConfigFromEnv(env);
+  if(env.SMTP_VERIFY_ON_START==='true'){
+   const result=await verifyStudySmtp(smtp);
+   if(!result.verified)throw Error('RESEARCH_RUNTIME_REGISTRATION_'+result.code);
+  }
+  const settings={mode:registrationSmtpMode,baseUrl:config.origin,smtp};
+  const mailer=createAccountMailer(settings);
+  const service=createAccountAccess({config:settings,db,mailer,bcrypt:require('bcryptjs'),secret:config.jwtSecret,registerAdmissionInTransaction:admission.registerInTransaction});
+  const accounts={...disabledMailAccounts(service),requestRegistration:service.requestRegistration,confirmRegistration:service.confirmRegistration};
+  return{Controllers:createWp02Controllers({require,load,accounts,invitations:disabledMailInvitations(),origin:config.origin,apiHost:env.HUB_API_AUTHORITY,runtimePolicy}),close:async()=>{}};
  }
  const settings=runtimeCaptureSettings(env,config.origin);
  if(!/^[A-Za-z0-9_-]{1,160}$/.test(env.HUB_INVITATION_READER_ROLE_ID??''))throw Error('RESEARCH_RUNTIME_INVITATION_ROLE_REQUIRED');

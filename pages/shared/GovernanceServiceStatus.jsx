@@ -3,7 +3,7 @@ import {Button} from './Components.jsx';
 import {useDirectoryIdentity} from './DirectoryState.jsx';
 import {createGovernanceSystemClient} from '../../src/governance-system-session.js';
 const configuration={configured:'已配置',missing:'未配置',unknown:'待核实'};
-const labels={account:'账号登录',email:'账号邮件',parser:'文档解析',vector:'向量检索',ai:'科研 AI'};
+const labels={account:'账号登录',email:'注册验证邮件',parser:'文档解析',vector:'向量检索',ai:'科研 AI'};
 const date=v=>new Date(v).toLocaleString('zh-CN',{hour12:false});
 export default function GovernanceServiceStatus({refreshVersion=0}){
  const identity=useDirectoryIdentity(),client=useMemo(()=>createGovernanceSystemClient(),[]),sequence=useRef(0);

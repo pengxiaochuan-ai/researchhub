@@ -55,7 +55,10 @@ def execution_snapshot(saved):
  return {'values':{key:saved[key] for key in EXECUTION_KEYS if key in saved},'absent':[key for key in EXECUTION_KEYS if key not in saved]}
 
 def can_keep_backend(same,release,saved):
- return same and release.get('executionPolicy',{}).get('profile',saved.get('HUB_EXECUTION_PROFILE','disabled'))==saved.get('HUB_EXECUTION_PROFILE','disabled')
+ policy=release.get('executionPolicy',{})
+ profile=saved.get('HUB_EXECUTION_PROFILE','disabled')
+ mail=saved.get('HUB_MAIL_MODE','disabled')
+ return same and policy.get('profile',profile)==profile and policy.get('mailMode',mail)==mail
 
 def knowledge_snapshot(items):
  rows=[]
@@ -115,9 +118,13 @@ def check_environments(front,back,saved):
  keys=('DATABASE_URL','DIRECT_URL','DEPLOYMENT_PRODUCT','DEFAULT_TENANT_ID','ALLOWED_TENANT_IDS','HUB_DATABASE_NAME','HUB_DATABASE_APP_ROLE','HUB_DATABASE_OWNER_ROLE','HUB_DATABASE_MARKER_SHA256','HUB_SCHEMA_FINGERPRINT','HUB_CORE_MANIFEST_SHA256')
  need(all(back.get(k)==m.unquote(saved[k]) for k in keys if k in saved),'HUB_PAIR_BACKEND_ENV_BINDING_REJECTED')
 
-def validate_templates(saved):
+def validate_templates(saved,mail_mode=None):
  front=json.loads(m.command(front_args()+['config','--format','json']))['services']['researchhub'].get('environment',{})
- service=json.loads(m.command(back_args()+['config','--format','json']))['services']['researchhub-api']
+ args=back_args()+['config','--format','json']
+ if mail_mode is not None:
+  saved=dict(saved,HUB_MAIL_MODE=mail_mode)
+  service=json.loads(m.command(args,env=dict(os.environ,HUB_MAIL_MODE=mail_mode)))['services']['researchhub-api']
+ else:service=json.loads(m.command(args))['services']['researchhub-api']
  check_environments(front,service.get('environment',{}),saved)
  if saved.get('HUB_EXECUTION_PROFILE') in (m.execution.PROFILE,m.execution.KNOWLEDGE_PROFILE):m.execution.mounts(service,saved,BACK_TEMPLATE.read_text())
 
@@ -274,7 +281,7 @@ def run(action,sha):
  items=m.containers();old_services=m.baseline(items);states=m.task_snapshot(helper,saved)
  need(not re.search(r'^\s*env_file:',(HERE/'frontend-compose.yml').read_text(),re.M),'HUB_PAIR_FRONTEND_ENV_FILE_REJECTED')
  need(m.command(front_args()+['config','--services']).split()==['researchhub'],'HUB_PAIR_FRONTEND_SCOPE_REJECTED');need(set(m.command(back_args()+['config','--services']).split())==({'researchhub-api','researchhub-doc-parser','researchhub-embed'} if 'standard' in release.get('supportedExecutionProfiles',[]) else {'researchhub-api'}),'HUB_PAIR_BACKEND_SCOPE_REJECTED')
- validate_templates(saved)
+ validate_templates(saved,release.get('executionPolicy',{}).get('mailMode'))
  target=control['target'];journal=HERE/'pair-receipt.json';baseline_file=HERE/'pair-baseline.json';previous_template=HERE/'previous-frontend-compose.yml';previous_backend=HERE/'previous-backend-compose.yml'
  preserved=backend_snapshot(items,release,target) if keep_backend else None
  def check_backend():
