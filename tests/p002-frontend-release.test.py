@@ -126,9 +126,9 @@ class FrontendReleaseTests(unittest.TestCase):
   receipt,published,front,_=self.exercise_pair(explicit_rollback=True);self.assertEqual(receipt['status'],'rolled-back');self.assertEqual(published,0);self.assertEqual(front,'front:old')
  def test_backend_restart_during_browser_blocks_pointer_promotion(self):
   receipt,published,_,_=self.exercise_pair(finalize=True,drift=True);self.assertEqual(receipt['status'],'applied');self.assertEqual(published,0)
- def collect_reused(self,tampered=False):
+ def collect_reused(self,tampered=False,mail_mode="smtp-registration"):
   with tempfile.TemporaryDirectory() as d:
-   directory=pathlib.Path(d);old=manifest('old','old');original=b'synthetic-original-archive';archive=directory/'backend-image.tar.gz';archive.write_bytes(original if not tampered else b'changed')
+   directory=pathlib.Path(d);old=manifest('old','old');old['registrationMailMode']=mail_mode;original=b'synthetic-original-archive';archive=directory/'backend-image.tar.gz';archive.write_bytes(original if not tampered else b'changed')
    old['files']['backend-image.tar.gz']={'bytes':len(original),'sha256':hashlib.sha256(original).hexdigest()}
    (directory/'researchhub.tar.gz').write_bytes(b'synthetic-front');(directory/'previous-release.json').write_text(json.dumps(old));(directory/'baseline-pointer.json').write_text('{"tag":"old"}');(directory/'plan.json').write_text(json.dumps({'build':{'frontend':True,'backend':False},'databaseDigest':'f'*64,'databaseSources':[]}))
    tag='hub-runtime-cccccccc-2';front='ghcr.io/pengxiaochuan-ai/pengxc-researchhub:'+tag
@@ -138,11 +138,14 @@ class FrontendReleaseTests(unittest.TestCase):
      with self.assertRaisesRegex(ValueError,'REUSED_BACKEND_ARCHIVE_MISMATCH'):release.main()
      self.assertFalse((directory/'runtime-release.json').exists());return
     release.main();result=json.loads((directory/'runtime-release.json').read_text())
+   self.assertEqual(result['registrationMailMode'],mail_mode)
    self.assertEqual(result['backendImage'],old['backendImage']);self.assertEqual(result['files']['backend-image.tar.gz'],old['files']['backend-image.tar.gz']);self.assertEqual(archive.read_bytes(),original)
    self.assertEqual(result['components']['backend']['sourceGit'],old['components']['backend']['sourceGit']);self.assertFalse(result['components']['backend']['built']);self.assertEqual(result['coreDigest'],old['coreDigest']);self.assertEqual(result['hubDigest'],old['hubDigest'])
    self.assertFalse((directory.parent/'hub-backend-context').exists())
  def test_collect_seals_original_backend_archive_and_source_without_private_context(self):self.collect_reused()
  def test_collect_rejects_resaved_or_tampered_original_backend_archive(self):self.collect_reused(tampered=True)
+ def test_collect_rejects_reusing_backend_when_registration_mail_mode_changes(self):
+  with self.assertRaisesRegex(ValueError,"HUB_REGISTRATION_REUSED_BACKEND_REJECTED"):self.collect_reused(mail_mode="disabled")
  def test_reuse_backend_loads_original_tag_without_retagging(self):
   with tempfile.TemporaryDirectory() as d:
    directory=pathlib.Path(d);old=manifest('old','old');original=b'original';old['files']['backend-image.tar.gz']={'bytes':len(original),'sha256':hashlib.sha256(original).hexdigest()}
