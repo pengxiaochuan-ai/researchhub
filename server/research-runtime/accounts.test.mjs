@@ -7,7 +7,11 @@ test('explicitly disabled mail rejects before challenge or invitation writes and
  let writes=0;const write=()=>{writes++;},readProfile=()=>({displayName:'Current user'}),updateProfile=()=>({saved:true});
  const accounts=disabledMailAccounts({requestRegistration:write,requestReset:write,confirmRegistration:write,confirmReset:write,readProfile,updateProfile});
  for(const key of ['requestRegistration','requestReset','confirmRegistration','confirmReset'])assert.throws(()=>accounts[key]({},{}),e=>e.status===503&&e.code==='HUB_MAIL_NOT_CONFIGURED');
- for(const fn of Object.values(disabledMailInvitations()))assert.throws(()=>fn({},{}),e=>e.status===503&&e.code==='HUB_MAIL_NOT_CONFIGURED');
+ const invitations=disabledMailInvitations({context:ctx=>({canInvite:ctx.admin}),list:ctx=>{if(!ctx.admin)throw Object.assign(Error('forbidden'),{status:403});return{items:[{id:'existing'}]};}});
+ assert.deepEqual(await invitations.context({admin:true}),{canInvite:true,deliveryEnabled:false});
+ assert.deepEqual(invitations.list({admin:true},{}),{items:[{id:'existing'}]});
+ assert.throws(()=>invitations.list({},{}),{status:403});
+ for(const key of ['issue','revoke','resend','preview','accept'])assert.throws(()=>invitations[key]({},{}),e=>e.status===503&&e.code==='HUB_MAIL_NOT_CONFIGURED');
  assert.equal(accounts.readProfile,readProfile);assert.equal(accounts.updateProfile,updateProfile);assert.equal(writes,0);
 });
 test('rehearsal mail accepts only explicit isolated loopback capture configuration',()=>{
